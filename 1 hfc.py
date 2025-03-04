@@ -44,7 +44,7 @@ tbl = os.path.join(working_folder, "5 tables")
 ##### DATA SETUP #####
 
 # Set date of data
-date = "20250225"
+date = "20250304"
 
 # Set data
 import_item = raw + "\\raw_" + date + ".sav"
@@ -100,6 +100,9 @@ print("######################")
 
 ##### QUOTA #####
 
+# Define (supposed) sample size
+sampsize = 4000
+
 ## SEX AND AGE ##
 # Drop third sex
 qrdf = rdf[~(rdf['ID03']==3)].copy()
@@ -115,7 +118,7 @@ qrdf.loc[:, 'age_group'] = pd.cut(qrdf['ID04'], bins=bins, labels=labels, right=
 sexage_counts = qrdf.groupby(['sex', 'age_group'], observed=False).size().reset_index(name='current_counts')
 
 # Calculate percentage of each group
-sexage_counts['share_actual']=(sexage_counts['current_counts']/len(qrdf))*100
+sexage_counts['share_actual']=(sexage_counts['current_counts']/sampsize)*100
 
 # Import agreed quota
 import_item = raw + "\\sex_age_group_share.xlsx"
@@ -189,13 +192,13 @@ prov_counts = rdf.groupby(['province','ID01'], observed=False).size().reset_inde
 prov_counts = prov_counts.sort_values(by='ID01')
 
 # Calculate percentage of each group
-prov_counts['share_actual']=(prov_counts['current_counts']/len(rdf))*100
+prov_counts['share_actual']=(prov_counts['current_counts']/sampsize)*100
 
 # Import agreed quota
 import_item = raw + "\\province_weighted_percentage.xlsx"
 provqdf = pd.read_excel(import_item)
 provqdf = provqdf.rename(columns={'Percentage': 'share_plan', 'Province': 'province'})
-provqdf['plan_counts']=(provqdf['share_plan']/100)*len(rdf)
+provqdf['plan_counts']=(provqdf['share_plan']/100)*sampsize
 
 # Join agreed vs actual
 qdf2 = pd.merge(prov_counts,provqdf,on=['ID01','province'],how='outer')
