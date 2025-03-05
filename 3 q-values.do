@@ -220,7 +220,7 @@ foreach x in oprobit ologit {
 			(dot coef treat_model if model=="b", horizontal) ///
 			(dot coef treat_model if model=="c", horizontal), ///
 			`graph_options1'
-	gr export "$fig\polsupport_likert_`x'_1_unadjusted.png", replace
+	gr export "$fig\polsupport_likert_`x'_1_adjusted.png", replace
 	restore 
 	
 	preserve
@@ -230,7 +230,7 @@ foreach x in oprobit ologit {
 			(dot coef treat_model if model=="b", horizontal) ///
 			(dot coef treat_model if model=="c", horizontal), ///
 			`graph_options1'
-	gr export "$fig\polsupport_likert_`x'_2_unadjusted.png", replace
+	gr export "$fig\polsupport_likert_`x'_2_adjusted.png", replace
 	restore 
 	
 	preserve
@@ -240,6 +240,6 @@ foreach x in oprobit ologit {
 			(dot coef treat_model if model=="b", horizontal) ///
 			(dot coef treat_model if model=="c", horizontal), ///
 			`graph_options2'
-	gr export "$fig\polsupport_likert_`x'_3_unadjusted.png", replace
+	gr export "$fig\polsupport_likert_`x'_3_adjusted.png", replace
 	restore 
 }
