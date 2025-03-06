@@ -63,7 +63,6 @@ pro setupdata
 	la def polsuplab 1 "Against" 2 "Undecided" 3 "Support"
 	forval i = 1/13 {
 		* generate binary policy support/oppose/undecided indicator
-		g support`i'=inrange(QDKr`i',4,5)
 		g resist`i'=inrange(QDKr`i',1,2)
 		g undecided`i'=QDKr`i'==3
 		
@@ -123,15 +122,24 @@ pro savepval
 	keep if regexm(var,"lfCB")
 end
 
-* ==== POLICY SUPPORT ==== *
-** OLS and PD LASSO
+* ==== BALANCE TEST ==== *
+** prep variables 
 setupdata
+
+* balance test
+loc basechar i.region urban male age unmarried edu* hhhead_female nosocast hhsize
+ritest lfCB e(F),  reps(500)  : reg lfCB `basechar'
+
+* ==== POLICY SUPPORT ==== *
+** prep variables 
+setupdata
+
+* OLS and PD LASSO
 est clear 
 forval i = 1/13 {
-	foreach x in support resist undecided {
+	foreach x in resist undecided {
 		reg `x'`i' ib6.lfCB, r
 		eststo modela`x'`i'
-		
 		preserve
 		savepval
 		g model="a"
@@ -162,30 +170,18 @@ forval i = 1/13 {
 		tempfile resc`x'`i'
 		save `resc`x'`i'', replace 
 		restore
-		
-		loc texty .5
-		loc textx .1
-		loc intval .3
-		loc steps .1
-		
-		if "`x'"=="undecided" {
-			loc stance "be `x'"
-		}
-		else {
-			loc stance "`x'"
-		}
-		
-		coefplot modela`x'`i' modelb`x'`i' modelc`x'`i', text(`texty' -`textx' "Less likely to `stance'",size(vsmall)) text(`texty' `textx' "More likely to `stance'",size(vsmall)) ///
-		keep(*.lfCB) xline(0, lpattern(dash) lcolor(red)) xtitle("Probability to `stance' relative to control", size(small)) xscale(range(-`intval' `intval')) xlab(-`intval'(`steps')`intval') ///
-		legend(pos(12) row(2) holes(2) order(- "OLS:" 2 "Model 1: Base model" - "PDS Lasso:" 4 "Model 2: Model 1 + covariates" 6 "Model 3: Model 2 + cognitive controls") size(vsmall)) ///
-		subtitle("Linear estimator", size(small)) note("Note: Confidence interval crossing zero indicates a null effect.", size(tiny)) saving("$fig\DK`i'_`x'_unadjusted.gph", replace)
-		gr export "$fig\DK`i'_`x'_unadjusted.png", replace 
 	}
+	coefplot modelaresist`i' modelbresist`i' modelcresist`i', bylabel("Oppose") ///
+	|| modelaundecided`i' modelbundecided`i' modelcundecided`i', bylabel("Undecided") ///
+	||, keep(*.lfCB) xline(0, lpattern(dash) lcolor(red)) byopts(legend(pos(12))) xtitle("Probability relative to control", size(small)) ///
+	legend(row(2) holes(2) order(- "OLS:" 2 "Model 1: Base model" - "PDS Lasso:" 4 "Model 2: Model 1 + covariates" 6 "Model 3: Model 2 + cognitive controls") size(vsmall)) 
+	gr export "$fig\polsupport_indicator`i'_unadjusted.png", replace 
 }
 
 * storing pvalues
+preserve 
 foreach y in a b c {
-	foreach x in support resist undecided {
+	foreach x in resist undecided {
 		use `res`y'`x'1', clear 
 		forval i=2/13 {
 			append using `res`y'`x'`i''
@@ -193,21 +189,22 @@ foreach y in a b c {
 		save "$temp\polsupport_`x'_indicator_model`y'.dta", replace 
 	}
 }
+restore 
 
-** ORDERED PROBIT & LOGIT
-setupdata
+* ORDERED PROBIT & LOGIT
 est clear 
 foreach x in oprobit ologit {
 	if "`x'"=="oprobit" {
 		loc axistitle "z-score/probit index"
 		loc regress_options r 
-		loc subtitle "Ordered probit"
 	}
 	else {
-		loc axistitle "Odds ratio relative to control"
+		loc axistitle "Odds ratio of higher support"
 		loc regress_options r or
-		loc subtitle "Ordered logit"
 	}
+	loc legend_info 2 "Model 1: Base model" 4 "Model 2: Model 1 + covariates" 6 "Model 3: Model 2 + cognitive controls"
+	loc graph_options keep(*.lfCB) xline(0, lpattern(dash) lcolor(red)) subtitle(,size(small)) byopts(legend(pos(12))) ///
+	legend(row(1) order(`legend_info') size(vsmall)) xtitle(`axistitle', size(small))
 	forval i=1/13 {
 		`x' QDKr`i'_recoded ib6.lfCB, `regress_options'
 		eststo modela`x'`i'
@@ -245,21 +242,32 @@ foreach x in oprobit ologit {
 		tempfile resc`x'`i'
 		save `resc`x'`i'', replace 
 		restore
-		
-		loc texty .5
-		loc textx .2
-		loc intval .5
-		loc steps .1
-		
-		coefplot modela`x'`i' modelb`x'`i' modelc`x'`i', text(`texty' -`textx' "More inclined to oppose",size(vsmall)) text(`texty' `textx' "More inclined to support",size(vsmall)) ///
-		keep(*.lfCB) xline(0, lpattern(dash) lcolor(red)) xtitle(`axistitle', size(small)) xscale(range(-`intval' `intval')) xlab(-`intval'(`steps')`intval')  ///
-		legend(pos(12) row(1) order(2 "Model 1: Base model" 4 "Model 2: Model 1 + covariates" 6 "Model 3: Model 2 + cognitive controls") size(vsmall)) ///
-		subtitle("`subtitle'", size(small)) note("Note: Confidence interval crossing zero indicates a null effect.", size(tiny)) saving("$fig\DK`i'_`x'_unadjusted.gph", replace)
-		gr export "$fig\DK`i'_`x'_unadjusted.png", replace 
 	}
+	coefplot modela`x'1 modelb`x'1 modelc`x'1, bylabel("Utilities price hike and" "cash transfer for all") ///
+	|| modela`x'2 modelb`x'2 modelc`x'2, bylabel("Greater gov. budget for" "mass transport") ///
+	|| modela`x'3 modelb`x'3 modelc`x'3, bylabel("Greater gov. budget for" "env. friendly tech. and renewables") ///
+	|| modela`x'4 modelb`x'4 modelc`x'4, bylabel("Displaced people obtain benefit" "from infra. utilization") /// 
+	|| , `graph_options'
+	gr export "$fig\polsupport_likert_`x'_1_unadjusted.png", replace
+
+	coefplot modela`x'5 modelb`x'5 modelc`x'5, bylabel("Subsidy for energy-efficient" "houses and buildings") ///
+	|| modela`x'6 modelb`x'6 modelc`x'6, bylabel("Greater amount of" "social assistance") ///
+	|| modela`x'7 modelb`x'7 modelc`x'7, bylabel("Wider coverage of" "social assistance") ///
+	|| modela`x'8 modelb`x'8 modelc`x'8, bylabel("Higher tax for" "motorized vehicle") /// 
+	|| , `graph_options'
+	gr export "$fig\polsupport_likert_`x'_2_unadjusted.png", replace
+
+	coefplot modela`x'9 modelb`x'9 modelc`x'9, bylabel("Subsidy for industries to switch" "to env. friendly tech. and energy") ///
+	|| modela`x'10 modelb`x'10 modelc`x'10, bylabel("Unemployment" "insurance") ///
+	|| modela`x'11 modelb`x'11 modelc`x'11, bylabel("Forest clearing for" "agriculture") ///
+	|| modela`x'12 modelb`x'12 modelc`x'12, bylabel("Forest clearing for" "settlement development") /// 
+	|| modela`x'13 modelb`x'13 modelc`x'13, bylabel("Forest clearing for" "infrastructure development") /// 
+	|| , `graph_options' 
+	gr export "$fig\polsupport_likert_`x'_3_unadjusted.png", replace
 }
 
 * storing pvalues
+preserve 
 foreach y in a b c {
 	foreach x in oprobit ologit {
 		use `res`y'`x'1', clear 
@@ -269,19 +277,4 @@ foreach y in a b c {
 		save "$temp\polsupport_`x'_likert_model`y'.dta", replace 
 	}
 }
-
-* COMBINE GRAPHS
-forval i = 1/13 {
-	grc1leg2  "$fig\DK`i'_ologit_unadjusted.gph" "$fig\DK`i'_support_unadjusted.gph", row(1) pos(12) ///
-	notetonote caption("Linear Model 1 uses OLS. Linear Model 2 and 3 uses PDS Lasso.", size(tiny)) ///
-	plotr(margin(zero))
-	gr export "$fig\DK`i'_combined_unadjusted.png", replace
-}
-
-* ==== BALANCE TEST ==== *
-** prep variables 
-setupdata
-
-* balance test
-loc basechar i.region urban male age unmarried edu* hhhead_female nosocast hhsize
-ritest lfCB e(F),  reps(500)  : reg lfCB `basechar'
+restore 
