@@ -81,7 +81,16 @@ end
 pro plotprep 
 	drop if pval==.
 	replace var=substr(var,-6,.)
-	encode var, g(treat)
+	encode var, g(treatnm)
+	g treat=. 
+	forval i = 1/13 {
+		qui levelsof var if policy==`i'
+		loc treatnum: word count `r(levels)'
+		forval j = 1/`treatnum' {
+			loc treatarm: word `j' of `r(levels)'
+			replace treat=`j' if policy==`i' & var=="`treatarm'"
+		}
+	}
 	encode model, g(mod)
 	g treat_model = .
 	replace treat_model = mod if treat==1
@@ -93,140 +102,192 @@ pro plotprep
 end 
 
 * ==== PROCEDURE ==== *
-foreach z in overallte multiplete {
-	foreach y in a b c {	
+foreach y in mlte {
+	foreach mod in a b c {	
 		foreach x in support resist undecided oprobit ologit {
-			* load pvalues data
-			use "$temp\DK_`z'_`x'_model`y'.dta", clear 
-		
-			* run qvalue procedure
-			qval
+			foreach z in crt all {
+				* load pvalues data
+				use "$temp\DK_`y'_`x'_model`mod'_`z'.dta", clear 
 			
-			* rave temporary file
-			tempfile model`z'`x'`y'
-			save `model`z'`x'`y'', replace 
+				* run qvalue procedure
+				qval
+				
+				* rave temporary file
+				tempfile model`y'`x'`mod'`z'
+				save `model`y'`x'`mod'`z'', replace 
+			}
 		}
 	}
 }
 
-* linear model
-use `modelresista', clear
-foreach x in support undecided  {
-	append using `model`x'a'
-}
-foreach y in b c {
-	foreach x in resist undecided support {
-		append using `model`x'`y''
+* appending 
+foreach y in mlte {
+	* linear model
+	use `model`y'resistacrt', clear
+	append using `model`y'resistaall'
+	foreach x in support undecided  {
+		foreach z in crt all {
+			append using `model`y'`x'a`z''
+		}
 	}
-}
-drop if pval==.
-save "$temp\polsupport_indicator_allmod.dta", replace 
+	foreach mod in b c {
+		foreach x in resist undecided support {
+			foreach z in crt all {
+				append using `model`y'`x'`mod'`z''
+			}
+		}
+	}
+	drop if pval==.
+	save "$temp\DK_`y'_pval_adj_linear.dta", replace 
 
 * probability model
-foreach x in oprobit ologit {
-	use `model`x'a', clear
-	foreach y in b c {
-			append using `model`x'`y''
+	foreach x in oprobit ologit {
+		use `model`y'`x'acrt', clear
+		append using `model`y'`x'aall'
+		foreach mod in b c {
+			foreach z in crt all {
+				append using `model`y'`x'`mod'`z''
+			}
+		}
+		* save result
+		drop if pval==.
+		save "$temp\DK_`y'_pval_adj_`x'.dta", replace 
 	}
-	* save result
-	drop if pval==.
-	save "$temp\polsupport_likert_`x'.dta", replace 
 }
 
 * ==== CI BASED ON Q-VALUES - LINEAR MODEL ==== *
-* load data 
-use "$temp\polsupport_indicator_allmod.dta", clear
+foreach y in mlte {
+	* load data 
+	use "$temp\DK_`y'_pval_adj_linear.dta", clear
 
-* calculate CI
-calcci
-foreach x of varlist lci uci {
-	replace `x'=1 if `x'>1
-	replace `x'=-1 if `x'<-1
-}
-
-* prep data
-plotprep
-
-* plot 
-set scheme plotplainblind
-loc texty .5
-loc textx .4
-loc intval .4
-loc steps .2
-qui levelsof outcome
-foreach x in `r(levels)' {
-	if "`x'"=="undecided" {
-		loc stance "be `x'"
+	* calculate CI
+	calcci
+	foreach x of varlist lci uci {
+		replace `x'=1 if `x'>1
+		replace `x'=-1 if `x'<-1
 	}
-	else {
-		loc stance "`x'"
-	}
-	forval i = 1/13 {
-		preserve
-		keep if policy==`i' & outcome=="`x'"
-		twoway 	(rcap uci lci treat_model, horizontal lcolor(gray)) ///
-				(dot coef treat_model if model=="a", horizontal) ///
-				(dot coef treat_model if model=="b", horizontal) ///
-				(dot coef treat_model if model=="c", horizontal), ///
-				xtitle("Probability relative to control", size(small)) xline(0, lpattern(dash) lcolor(red)) xscale(range(-`intval' `intval')) xlab(-`intval'(`steps')`intval')  /// 
-				legend(pos(12) row(2) holes(2) order(- "OLS:" 2 "Model 1: Base model" - "PDS Lasso:" 3 "Model 2: Model 1 + covariates" 4 "Model 3: Model 2 + cognitive controls") size(vsmall)) ///
-				yscale(reverse) ytitle("") ylabel(2 "Treatment 1" 6 "Treatment 2" 10 "Treatment 3" 14 "Treatment 4" 18 "Treatment 5") ///
-				note("Note: Confidence interval crossing zero indicates a null effect." "Confidence interval >|1| has been trimmed.", size(tiny)) ///
-				text(`texty' -`textx' "Less likely to `stance'",size(vsmall)) text(`texty' `textx' "More likely to `stance'",size(vsmall)) ///
-				subtitle("Linear model", size(small)) saving("$fig\DK`i'_`x'_adjusted.gph", replace )
-		gr export "$fig\DK`i'_`x'_adjusted.png", replace 		
-		restore 
+
+	* prep data
+	plotprep
+
+	* plot 
+	set scheme plotplainblind
+	loc texty .25
+	loc textx .1
+	loc intval .3
+	loc steps .1
+	qui levelsof outcome
+	foreach x in `r(levels)' {
+		if "`x'"=="undecided" {
+			loc stance "be `x'"
+		}
+		else {
+			loc stance "`x'"
+		}
+		forval i = 1/13 {
+			foreach z in crt all {
+				loc fignm "DK`i'_`y'_`x'_`z'_adjusted"
+				preserve
+				keep if policy==`i' & outcome=="`x'" & sample=="`z'"
+				forval j=1/5 {
+					loc val`j'=0
+					loc label`j' " "
+				}
+				qui levelsof treatnm
+				foreach h of numlist `r(levels)' {
+					loc val`h'=0
+					qui sum treat_model if treatnm==`h',d
+					loc val`h'=`r(p50)'
+					if `val`h''>0 {
+						loc label`h' "Treatment `h'"
+					}
+				}
+				twoway 	(rcap uci lci treat_model, horizontal lcolor(gray)) ///
+						(dot coef treat_model if model=="a", horizontal) ///
+						(dot coef treat_model if model=="b", horizontal) ///
+						(dot coef treat_model if model=="c", horizontal), ///
+						xtitle("Probability relative to control", size(small)) xline(0, lpattern(dash) lcolor(red)) xscale(range(-`intval' `intval')) xlab(-`intval'(`steps')`intval')  /// 
+						legend(pos(12) row(2) holes(2) order(- "OLS:" 2 "Model 1: Base model" - "PDS Lasso:" 3 "Model 2: Model 1 + covariates" 4 "Model 3: Model 2 + cognitive controls") size(vsmall)) ///
+						yscale(reverse noline) ytitle("") ylabel(`val1' "`label1'" `val2' "`label2'" `val3' "`label3'" `val4' "`label4'" `val5' "`label5'", notick)  ///
+						note("Note: Confidence interval crossing zero indicates a null effect." "Confidence interval >|1| has been trimmed.", size(tiny)) ///
+						text(`texty' -`textx' "Less likely to `stance'",size(vsmall)) text(`texty' `textx' "More likely to `stance'",size(vsmall)) ///
+						subtitle("Linear model", size(small)) saving("$fig\\`fignm'.gph", replace )
+				gr export "$fig\\`fignm'.png", replace 		
+				restore 
+			}
+		}
 	}
 }
 
 * ==== CI BASED ON Q-VALUES - PROBABILITY MODEL ==== *
-foreach x in oprobit ologit {
-	* load data 
-	use "$temp\polsupport_likert_`x'.dta", clear
+foreach y in mlte {
+	foreach x in oprobit ologit {
+		* load data 
+		use "$temp\DK_`y'_pval_adj_`x'.dta", clear
 
-	* calculate CI
-	calcci
+		* calculate CI
+		calcci
 
-	* prep data
-	plotprep			
+		* prep data
+		plotprep			
 
-	* plot 
-	set scheme plotplainblind
-	loc texty .5
-	loc textx .4
-	loc intval 1
-	loc steps .2
-	if "`x'"=="oprobit" {
-		loc axistitle "z-score/probit index"
-		loc subtitle "Ordered probit"
+		* plot 
+		set scheme plotplainblind
+		loc texty .25
+		loc textx .4
+		loc intval 1
+		loc steps .25
+		if "`x'"=="oprobit" {
+			loc axistitle "z-score/probit index"
+			loc subtitle "Ordered probit"
+		}
+		else {
+			loc axistitle "Odds ratio relative to control"
+			loc subtitle "Ordered logit"
+		}
+		forval i = 1/13 {
+			foreach z in crt all {
+				loc fignm "DK`i'_`y'_`x'_`z'_adjusted"
+				preserve
+				keep if policy==`i' & sample=="`z'"
+				forval j=1/5 {
+					loc val`j'=0
+					loc label`j' " "
+				}
+				qui levelsof treatnm
+				foreach h of numlist `r(levels)' {
+					loc val`h'=0
+					qui sum treat_model if treatnm==`h',d
+					loc val`h'=`r(p50)'
+					if `val`h''>0 {
+						loc label`h' "Treatment `h'"
+					}
+				}
+				twoway 	(rcap uci lci treat_model, horizontal lcolor(gray)) ///
+						(dot coef treat_model if model=="a", horizontal) ///
+						(dot coef treat_model if model=="b", horizontal) ///
+						(dot coef treat_model if model=="c", horizontal), ///
+						xtitle("`axistitle'", size(small)) xline(0, lpattern(dash) lcolor(red)) xscale(range(-`intval' `intval')) xlab(-`intval'(`steps')`intval')  /// 
+						legend(pos(12) row(1) order(2 "Model 1: Base model" 3 "Model 2: Model 1 + covariates" 4 "Model 3: Model 2 + cognitive controls") size(vsmall)) ///
+						yscale(reverse noline) ytitle("") ylabel(`val1' "`label1'" `val2' "`label2'" `val3' "`label3'" `val4' "`label4'" `val5' "`label5'", notick) ///
+						note("Note: Confidence interval crossing zero indicates a null effect.", size(tiny)) ///
+						text(`texty' -`textx' "More inclined to oppose",size(vsmall)) text(`texty' `textx' "More inclined to support",size(vsmall)) ///
+						subtitle("`subtitle'", size(small)) saving("$fig\\`fignm'.gph", replace )
+				gr export "$fig\\`fignm'.png", replace 		
+				restore
+			}
+		}	 
 	}
-	else {
-		loc axistitle "Odds ratio relative to control"
-		loc subtitle "Ordered logit"
-	}
-	forval i = 1/13 {
-		preserve
-		keep if policy==`i'
-		twoway 	(rcap uci lci treat_model, horizontal lcolor(gray)) ///
-				(dot coef treat_model if model=="a", horizontal) ///
-				(dot coef treat_model if model=="b", horizontal) ///
-				(dot coef treat_model if model=="c", horizontal), ///
-				xtitle("`axistitle'", size(small)) xline(0, lpattern(dash) lcolor(red)) xscale(range(-`intval' `intval')) xlab(-`intval'(`steps')`intval')  /// 
-				legend(pos(12) row(1) order(2 "Model 1: Base model" 3 "Model 2: Model 1 + covariates" 4 "Model 3: Model 2 + cognitive controls") size(vsmall)) ///
-				yscale(reverse) ytitle("") ylabel(2 "Treatment 1" 6 "Treatment 2" 10 "Treatment 3" 14 "Treatment 4" 18 "Treatment 5") ///
-				note("Note: Confidence interval crossing zero indicates a null effect.", size(tiny)) ///
-				text(`texty' -`textx' "More inclined to oppose",size(vsmall)) text(`texty' `textx' "More inclined to support",size(vsmall)) ///
-				subtitle("`subtitle'", size(small)) saving("$fig\DK`i'_`x'_adjusted.gph", replace )
-		gr export "$fig\DK`i'_`x'_adjusted.png", replace 		
-		restore 
-	}
- 
 }
 
 * ==== COMBINE GRAPHS ==== *
-forval i = 1/13 {
-	grc1leg2  "$fig\DK`i'_ologit_adjusted.gph" "$fig\DK`i'_support_adjusted.gph", row(1) pos(12) ///
-	notetonote caption("Linear Model 1 uses OLS. Linear Model 2 and 3 uses PDS Lasso.", size(tiny)) ///
-	plotr(margin(zero))
-	gr export "$fig\DK`i'_combined_adjusted.png", replace
+foreach y in mlte {
+	foreach z in crt all {
+		forval i = 1/13 {
+			grc1leg2  "$fig\DK`i'_`y'_ologit_`z'_adjusted.gph" "$fig\DK`i'_`y'_support_`z'_adjusted.gph", row(1) pos(12) ///
+			notetonote caption("Linear Model 1 uses OLS. Linear Model 2 and 3 uses PDS Lasso.", size(tiny)) ///
+			plotr(margin(zero))
+			gr export "$fig\DK`i'_`y'_combined_`z'_adjusted.png", replace
+		}	
+	}
 }

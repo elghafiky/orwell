@@ -68,9 +68,9 @@ pro setupdata
 		g undecided`i'=QDKr`i'==3
 		
 		* recode policy support likert
-		clonevar QDKr`i'_recoded=QDKr`i'
-		recode QDKr`i'_recoded (2=1) (3=2) (4/5=3)
-		la val QDKr`i'_recoded polsuplab
+		clonevar QDKr_recoded`i'=QDKr`i'
+		recode QDKr_recoded`i' (2=1) (3=2) (4/5=3)
+		la val QDKr_recoded`i' polsuplab
 	}
 	
 	* correct interpretation of message
@@ -97,10 +97,27 @@ pro setupdata
 	* clean outlier in hhsize
 	replace hhsize=. if hhsize>12
 	
+	* matching outcome with treatment
+	foreach x in QDKr_recoded support resist undecided {
+		replace `x'1=. if inrange(lfCB,3,4)
+		replace `x'2=. if inlist(lfCB,1,4,5)
+		replace `x'3=. if inlist(lfCB,1,4,5)
+		replace `x'4=. if inlist(lfCB,5)
+		replace `x'5=. if inrange(lfCB,4,5)
+		replace `x'6=. if inrange(lfCB,2,4)
+		replace `x'7=. if inrange(lfCB,2,4)
+		replace `x'8=. if inrange(lfCB,3,5)
+		replace `x'9=. if inlist(lfCB,1,4,5)
+		replace `x'10=. if inrange(lfCB,2,4)
+		replace `x'11=. if inrange(lfCB,3,5)
+		replace `x'12=. if inlist(lfCB,1,4,5)
+		replace `x'13=. if inlist(lfCB,1,4,5)
+	}
+
 	* set scheme and covariates
 	set scheme plotplainblind
 	gl covariates i.region urban male age i.edlvl hhhead_female nosocast hhsize
-	gl cognitivecontrols crt_intrpt_msg pagetimeQDK read_stim_time sdbi
+	gl cognitivecontrols pagetimeQDK read_stim_time sdbi
 	
 // 	* randomly drop jakarta oversampling 
 // 	count 
@@ -122,93 +139,110 @@ pro savepval
 	regsave, tstat pval
 end
 
-* ==== POLICY SUPPORT - MULTIPLE ARM EFFECT ==== *
+* ==== POLICY SUPPORT ==== *
 ** OLS and PD LASSO
 setupdata
 est clear 
 forval i = 1/13 {
 	foreach x in support resist undecided {
-		foreach y in treat ib6.lfCB {
+		foreach y in ib6.lfCB {
 			if "`y'"=="treat" {
-				loc treattype "overallte"
+				loc treattype "ovte"
 				loc coef treat
 				loc coefnm "treat"
 				loc yscale yscale(off)
 			}
 			else {
-				loc treattype "multiplete"
+				loc treattype "mlte"
 				loc coef *.lfCB
 				loc coefnm "lfCB"
 				loc yscale 
 			}
+			foreach z in crt all {
+				loc baseeq `x'`i' `y'
+				if "`z'"=="crt" {
+					loc equation `baseeq' if crt_intrpt_msg==1
+				}
+				else {
+					loc equation `baseeq'
+				}
 			
-			reg `x'`i' `y', r
-			eststo modela`treattype'`x'`i'
-			preserve
-			savepval
-			keep if regexm(var,"`coefnm'")
-			g model="a"
-			g outcome="`x'"
-			g policy=`i'
-			tempfile resa`treattype'`x'`i'
-			save `resa`treattype'`x'`i'', replace 
-			restore
-			
-			dsregress `x'`i' `y', controls(() $covariates)
-			eststo modelb`treattype'`x'`i'
-			preserve
-			savepval
-			keep if regexm(var,"`coefnm'")
-			g model="b"
-			g outcome="`x'"
-			g policy=`i'
-			tempfile resb`treattype'`x'`i'
-			save `resb`treattype'`x'`i'', replace 
-			restore
-			
-			dsregress `x'`i' `y', controls(($cognitivecontrols) $covariates)
-			eststo modelc`treattype'`x'`i'
-			preserve
-			savepval
-			keep if regexm(var,"`coefnm'")
-			g model="c"
-			g outcome="`x'"
-			g policy=`i'
-			tempfile resc`treattype'`x'`i'
-			save `resc`treattype'`x'`i'', replace 
-			restore
-			
-			loc texty .5
-			loc textx .1
-			loc intval .3
-			loc steps .1
-			
-			if "`x'"=="undecided" {
-				loc stance "be `x'"
+				reg `equation', r
+				eststo modela`treattype'`x'`i'`z'
+				preserve
+				savepval
+				keep if regexm(var,"`coefnm'")
+				g model="a"
+				g outcome="`x'"
+				g policy=`i'
+				g sample="`z'"
+				tempfile resa`treattype'`x'`i'`z'
+				save `resa`treattype'`x'`i'`z'', replace 
+				restore
+				
+				preserve
+				keep if `x'`i'<.
+				dsregress `equation', controls(() $covariates)
+				eststo modelb`treattype'`x'`i'`z'
+				savepval
+				keep if regexm(var,"`coefnm'")
+				g model="b"
+				g outcome="`x'"
+				g policy=`i'
+				g sample="`z'"
+				tempfile resb`treattype'`x'`i'`z'
+				save `resb`treattype'`x'`i'`z'', replace 
+				restore
+				
+				preserve
+				keep if `x'`i'<.
+				dsregress `equation', controls(($cognitivecontrols) $covariates)
+				eststo modelc`treattype'`x'`i'`z'
+				savepval
+				keep if regexm(var,"`coefnm'")
+				g model="c"
+				g outcome="`x'"
+				g policy=`i'
+				g sample="`z'"
+				tempfile resc`treattype'`x'`i'`z'
+				save `resc`treattype'`x'`i'`z'', replace 
+				restore
+				
+				loc texty .5
+				loc textx .1
+				loc intval .3
+				loc steps .1
+				
+				if "`x'"=="undecided" {
+					loc stance "be `x'"
+				}
+				else {
+					loc stance "`x'"
+				}
+				
+				loc fignm "DK`i'_`treattype'_`x'_`z'_unadjusted"
+				coefplot modela`treattype'`x'`i'`z' modelb`treattype'`x'`i'`z' modelc`treattype'`x'`i'`z', yscale(noline) ylab(,notick) ///
+				text(`texty' -`textx' "Less likely to `stance'",size(vsmall)) text(`texty' `textx' "More likely to `stance'",size(vsmall)) ///
+				keep(`coef') xline(0, lpattern(dash) lcolor(red)) xtitle("Probability to `stance' relative to control", size(small)) xscale(range(-`intval' `intval')) xlab(-`intval'(`steps')`intval') ///
+				legend(pos(12) row(2) holes(2) order(- "OLS:" 2 "Model 1: Base model" - "PDS Lasso:" 4 "Model 2: Model 1 + covariates" 6 "Model 3: Model 2 + cognitive controls") size(vsmall)) `yscale' ///
+				subtitle("Linear estimator", size(small)) note("Note: Confidence interval crossing zero indicates a null effect.", size(tiny)) saving("$fig\\`fignm'.gph", replace) 
+				gr export "$fig\\`fignm'.png", replace 
 			}
-			else {
-				loc stance "`x'"
-			}
-			
-			loc fignm "DK`i'_`treattype'_`x'_unadjusted"
-			coefplot modela`treattype'`x'`i' modelb`treattype'`x'`i' modelc`treattype'`x'`i', text(`texty' -`textx' "Less likely to `stance'",size(vsmall)) text(`texty' `textx' "More likely to `stance'",size(vsmall)) ///
-			keep(`coef') xline(0, lpattern(dash) lcolor(red)) xtitle("Probability to `stance' relative to control", size(small)) xscale(range(-`intval' `intval')) xlab(-`intval'(`steps')`intval') ///
-			legend(pos(12) row(2) holes(2) order(- "OLS:" 2 "Model 1: Base model" - "PDS Lasso:" 4 "Model 2: Model 1 + covariates" 6 "Model 3: Model 2 + cognitive controls") size(vsmall)) `yscale' ///
-			subtitle("Linear estimator", size(small)) note("Note: Confidence interval crossing zero indicates a null effect.", size(tiny)) saving("$fig\\`fignm'.gph", replace) 
-			gr export "$fig\\`fignm'.png", replace 
 		}
 	}
 }
 
 * storing pvalues
-foreach y in a b c {
+foreach mod in a b c {
 	foreach x in support resist undecided {
-		foreach z in overallte multiplete {
-			use `res`y'`z'`x'1', clear 
-			forval i=2/13 {
-				append using `res`y'`z'`x'`i''
+		foreach y in mlte {
+			foreach z in crt all {
+				use `res`mod'`y'`x'1`z'', clear 
+				forval i=2/13 {
+					append using `res`mod'`y'`x'`i'`z''
+				}
+				save "$temp\DK_`y'_`x'_model`mod'_`z'.dta", replace 
 			}
-			save "$temp\DK_`z'_`x'_model`y'.dta", replace 
 		}
 	}
 }
@@ -216,15 +250,15 @@ foreach y in a b c {
 ** ORDERED PROBIT & LOGIT
 setupdata
 est clear 
-foreach y in treat ib6.lfCB {
+foreach y in ib6.lfCB {
 	if "`y'"=="treat" {
-		loc treattype "overallte"
+		loc treattype "ovte"
 		loc coef treat
 		loc coefnm "treat"
 		loc yscale yscale(off)
 	}
 	else {
-		loc treattype "multiplete"
+		loc treattype "mlte"
 		loc coef *.lfCB
 		loc coefnm "lfCB"
 		loc yscale 
@@ -241,81 +275,99 @@ foreach y in treat ib6.lfCB {
 			loc subtitle "Ordered logit"
 		}
 		forval i=1/13 {
-			`x' QDKr`i'_recoded `y', `regress_options'
-			eststo modela`treattype'`x'`i'
-			preserve
-			savepval
-			keep if regexm(var,"`coefnm'")
-			g model="a"
-			g outcome="`x'"
-			g policy=`i'
-			tempfile resa`treattype'`x'`i'
-			save `resa`treattype'`x'`i'', replace 
-			restore
+			foreach z in crt all {
+				loc baseeq QDKr_recoded`i' `y'
+				if "`z'"=="crt" {
+					loc cond if crt_intrpt_msg==1
+				}
+				else {
+					loc cond
+				}
+				
+				`x' `baseeq' `cond', `regress_options'
+				eststo modela`treattype'`x'`i'`z'
+				preserve
+				savepval
+				keep if regexm(var,"`coefnm'")
+				g model="a"
+				g estimator="`x'"
+				g policy=`i'
+				g sample="`z'"
+				tempfile resa`treattype'`x'`i'`z'
+				save `resa`treattype'`x'`i'`z'', replace 
+				restore
+				
+				qui dsregress `baseeq' `cond', controls(() $covariates)
+				loc selected_controls `e(controls_sel)'
+				`x' `baseeq' `selected_controls' `cond', `regress_options'
+				eststo modelb`treattype'`x'`i'`z'
+				preserve
+				savepval
+				keep if regexm(var,"`coefnm'")
+				g model="b"
+				g estimator="`x'"
+				g policy=`i'
+				g sample="`z'"
+				tempfile resb`treattype'`x'`i'`z'
+				save `resb`treattype'`x'`i'`z'', replace 
+				restore
 			
-			qui dsregress QDKr`i' `y', controls(() $covariates)
-			loc selected_controls `e(controls_sel)'
-			`x' QDKr`i'_recoded `y' `selected_controls', `regress_options'
-			eststo modelb`treattype'`x'`i'
-			preserve
-			savepval
-			keep if regexm(var,"`coefnm'")
-			g model="b"
-			g outcome="`x'"
-			g policy=`i'
-			tempfile resb`treattype'`x'`i'
-			save `resb`treattype'`x'`i'', replace 
-			restore
-		
-			qui dsregress QDKr`i' `y', controls(($cognitivecontrols) $covariates)
-			loc selected_controls `e(controls_sel)'
-			`x' QDKr`i'_recoded `y' `selected_controls' $cognitivecontrols, `regress_options'
-			eststo modelc`treattype'`x'`i'
-			preserve
-			savepval
-			keep if regexm(var,"`coefnm'")
-			g model="c"
-			g outcome="`x'"
-			g policy=`i'
-			tempfile resc`treattype'`x'`i'
-			save `resc`treattype'`x'`i'', replace 
-			restore
-			
-			loc texty .5
-			loc textx .2
-			loc intval .5
-			loc steps .1
-			
-			loc fignm "DK`i'_`treattype'_`x'_unadjusted"
-			coefplot modela`treattype'`x'`i' modelb`treattype'`x'`i' modelc`treattype'`x'`i', text(`texty' -`textx' "More inclined to oppose",size(vsmall)) text(`texty' `textx' "More inclined to support",size(vsmall)) ///
-			keep(`coef') xline(0, lpattern(dash) lcolor(red)) xtitle(`axistitle', size(small)) xscale(range(-`intval' `intval')) xlab(-`intval'(`steps')`intval')  ///
-			legend(pos(12) row(1) order(2 "Model 1: Base model" 4 "Model 2: Model 1 + covariates" 6 "Model 3: Model 2 + cognitive controls") size(vsmall)) `yscale' ///
-			subtitle("`subtitle'", size(small)) note("Note: Confidence interval crossing zero indicates a null effect.", size(tiny)) saving("$fig\\`fignm'.gph", replace)
-			gr export "$fig\\`fignm'.png", replace 
+				qui dsregress `baseeq' `cond', controls(($cognitivecontrols) $covariates)
+				loc selected_controls `e(controls_sel)'
+				`x' `baseeq' `selected_controls' $cognitivecontrols `cond', `regress_options'
+				eststo modelc`treattype'`x'`i'`z'
+				preserve
+				savepval
+				keep if regexm(var,"`coefnm'")
+				g model="c"
+				g estimator="`x'"
+				g policy=`i'
+				g sample="`z'"
+				tempfile resc`treattype'`x'`i'`z'
+				save `resc`treattype'`x'`i'`z'', replace 
+				restore
+				
+				loc texty .5
+				loc textx .4
+				loc intval 1
+				loc steps .25
+				
+				loc fignm "DK`i'_`treattype'_`x'_`z'_unadjusted"
+				coefplot modela`treattype'`x'`i'`z' modelb`treattype'`x'`i'`z' modelc`treattype'`x'`i'`z', yscale(noline) ylab(,notick) ///
+				text(`texty' -`textx' "More inclined to oppose",size(vsmall)) text(`texty' `textx' "More inclined to support",size(vsmall)) ///
+				keep(`coef') xline(0, lpattern(dash) lcolor(red)) xtitle(`axistitle', size(small)) xscale(range(-`intval' `intval')) xlab(-`intval'(`steps')`intval')  ///
+				legend(pos(12) row(1) order(2 "Model 1: Base model" 4 "Model 2: Model 1 + covariates" 6 "Model 3: Model 2 + cognitive controls") size(vsmall)) `yscale' ///
+				subtitle("`subtitle'", size(small)) note("Note: Confidence interval crossing zero indicates a null effect.", size(tiny)) saving("$fig\\`fignm'.gph", replace)
+				gr export "$fig\\`fignm'.png", replace 
+			}
 		}
 	}
 }
 
 * storing pvalues
-foreach y in a b c {
+foreach mod in a b c {
 	foreach x in oprobit ologit {
-		foreach z in overallte multiplete {
-			use `res`y'`z'`x'1', clear 
-			forval i=2/13 {
-				append using `res`y'`z'`x'`i''
+		foreach y in mlte {
+			foreach z in crt all {
+				use `res`mod'`y'`x'1`z'', clear 
+				forval i=2/13 {
+					append using `res`mod'`y'`x'`i'`z''
+				}
+				save "$temp\DK_`y'_`x'_model`mod'_`z'.dta", replace 
 			}
-			save "$temp\DK_`z'_`x'_model`y'.dta", replace 
 		}
 	}
 }
 
 * COMBINE GRAPHS
-foreach x in overallte multiplete {
-	forval i = 1/13 {
-		grc1leg2  "$fig\DK`i'_`x'_ologit_unadjusted.gph" "$fig\DK`i'_`x'_support_unadjusted.gph", row(1) pos(12) ///
-		notetonote caption("Linear Model 1 uses OLS. Linear Model 2 and 3 uses PDS Lasso.", size(tiny)) ///
-		plotr(margin(zero))
-		gr export "$fig\DK`i'_`x'_combined_unadjusted.png", replace
+foreach y in mlte {
+	foreach z in crt all {
+		forval i = 1/13 {
+			grc1leg2  "$fig\DK`i'_`y'_ologit_`z'_unadjusted.gph" "$fig\DK`i'_`y'_support_`z'_unadjusted.gph", row(1) pos(12) ///
+			notetonote caption("Linear Model 1 uses OLS. Linear Model 2 and 3 uses PDS Lasso.", size(tiny)) ///
+			plotr(margin(zero))
+			gr export "$fig\DK`i'_`y'_combined_`z'_unadjusted.png", replace
+		}
 	}
 }
 
