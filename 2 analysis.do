@@ -113,6 +113,11 @@ pro setupdata
 		replace `x'12=. if inlist(lfCB,1,4,5)
 		replace `x'13=. if inlist(lfCB,1,4,5)
 	}
+	
+	* separate treatment group
+	forval i = 1/6 {
+		g treat`i'=lfCB==`i'
+	}
 
 	* set scheme and covariates
 	set scheme plotplainblind
