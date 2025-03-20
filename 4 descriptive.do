@@ -264,12 +264,16 @@ set scheme plotplainblind
 		saving("$fig\VIS_ID01_map.gph", replace)
 	gr export "$fig\VIS_ID01_map.png", replace
 	 
+	 
 	grmap percent_urban, title("Proportion of Urban Residents by Province (%)") ///
+		clnum(5) ///
+		clmethod(custom) clbreaks(0 42.86 62.83 68.18 75.86 85.33 99.40) ///
 		legstyle(2) legend(pos(7) size(3.5)) ///
-		note("Note: the distribution uses 34-province classification to accomodate the availability of GIS data", size(small)) ///
+		note("Note: the distribution uses 34-province classification to accomodate the availability of GIS data." "Cutoffs are modified using 5 quantile groups", size(small)) ///
 	 	name("VIS_ID02_map", replace) ///
 		saving("$fig\VIS_ID02_map.gph", replace)
 	gr export "$fig\VIS_ID02_map.png", replace
 
+	
 * ==== END OF DO-FILE ==== *	
 	
