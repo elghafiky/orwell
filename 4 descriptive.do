@@ -78,7 +78,7 @@ set scheme plotplainblind
 	gr export "$fig\VIS_ID04_histogram.png", replace
 	
 	* (4) ID06 - Education (Block Chart)
-	la def edlvl 2 "Elementary school" 3 "Junior high school" 4 "High school" 5 "Higher education", modify
+	la def edlvl 2 "Primary school" 3 "Junior high school" 4 "High school" 5 "Higher education", modify
 	la val edlvl edlvl
 	
 	treemap resp, by(edlvl) 	///
@@ -257,14 +257,14 @@ set scheme plotplainblind
 		drop _m
 	
 	** map	
-	grmap percent_prov, title("Respondent's Province Distribution") ///
+	grmap percent_prov, title("Respondent's Province Distribution (%)") ///
 		legstyle(2) legend(pos(7) size(3.5) ) ///
 		note("Note: the distribution uses 34-province classification to accomodate the availability of GIS data", size(small)) ///
 		name("VIS_ID01_map", replace) ///
 		saving("$fig\VIS_ID01_map.gph", replace)
 	gr export "$fig\VIS_ID01_map.png", replace
 	 
-	grmap percent_urban, title("Proportion of Urban Residents by Province") ///
+	grmap percent_urban, title("Proportion of Urban Residents by Province (%)") ///
 		legstyle(2) legend(pos(7) size(3.5)) ///
 		note("Note: the distribution uses 34-province classification to accomodate the availability of GIS data", size(small)) ///
 	 	name("VIS_ID02_map", replace) ///
