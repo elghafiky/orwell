@@ -1,0 +1,55 @@
+##### MANCOVA #####
+library(jmv)
+
+# Define the function to perform MANCOVA
+perform_mancova <- function(treatment, dep_vars, covariates, data) {
+  
+  # Perform MANCOVA
+  result <- mancova(
+    data = data,
+    deps = unlist(dep_vars),
+    factors = unlist(treatment),
+    covs = unlist(covariates)
+  )
+  
+  return(result)
+}
+
+# List of dependent variables for each treatment group
+dependent_vars <- list(
+  treat1 = c("QDKr_cloned1", "QDKr_cloned4", "QDKr_cloned5", "QDKr_cloned6",
+             "QDKr_cloned7", "QDKr_cloned8", "QDKr_cloned10", "QDKr_cloned11"),
+  treat2 = c("QDKr_cloned1", "QDKr_cloned2", "QDKr_cloned3", "QDKr_cloned4",
+             "QDKr_cloned5", "QDKr_cloned8", "QDKr_cloned9", "QDKr_cloned11",
+             "QDKr_cloned12", "QDKr_cloned13"),
+  treat3 = c("QDKr_cloned2", "QDKr_cloned3", "QDKr_cloned4", "QDKr_cloned5",
+             "QDKr_cloned9", "QDKr_cloned12", "QDKr_cloned13"),
+  treat5 = c("QDKr_cloned1", "QDKr_cloned6", "QDKr_cloned7", "QDKr_cloned10")
+)
+
+# Covariates
+cogctrl <- c('pagetimeQDK', 'read_stim_time', 'sdbi')
+covariates <- c(cogctrl,
+                'region2',
+                'region3',
+                'urban',
+                'male',
+                'age',
+                'edu3',
+                'edu4',
+                'edu5',
+                'hhhead_female',
+                'nosocast',
+                'hhsize')
+                
+# Initialize a list to store MANCOVA results
+mancova_results <- list()                
+
+# Iterate over each treatment group and perform MANCOVA
+data_filtered <- data[which(data$crt_intrpt_msg==1),]
+for (treatment in names(dependent_vars)) {
+  dep_vars <- dependent_vars[[treatment]]
+  result <- perform_mancova(treatment, dep_vars, covariates, data_filtered)
+  mancova_results[[treatment]] <- result
+}
+mancova_results

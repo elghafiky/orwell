@@ -34,7 +34,7 @@ tbl = file.path(getwd(),"5 tables")
 
 ##### DATA PREPARATION #####
 # Set data date
-date <- "20250225"
+date <- "20250304"
 
 # Load data
 dataname <- paste0("raw_",date,".csv") 

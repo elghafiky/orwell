@@ -122,8 +122,6 @@ pro setupdata
 
 	* set scheme and covariates
 	set scheme plotplainblind
-	gl covariates i.region urban male age i.edlvl hhhead_female nosocast hhsize
-	gl cognitivecontrols pagetimeQDK read_stim_time sdbi
 	
 // 	* randomly drop jakarta oversampling 
 // 	count 
@@ -159,8 +157,10 @@ pro calcci
 end
 
 pro plotprep 
+	loc strtyp: type outcome
+	loc strlen=substr("`strtyp'",4,2)
 	g outnum=substr(outcome,-1,1) 
-	replace outnum="1"+outnum if strlen(outcome)==13
+	replace outnum="1"+outnum if strlen(outcome)==`strlen'
 	destring outnum, replace
 	encode familyp, g(treatnm)
 	g treat=. 
@@ -216,6 +216,8 @@ foreach x in lin prob {
 	gl `x'eq13 `outcome'13 $treatcomb2
 }
 
+gl covariates i.region urban male age i.edlvl hhhead_female nosocast hhsize
+gl cognitivecontrols pagetimeQDK read_stim_time sdbi
 gl covarset1 controls(() $covariates)
 gl covarset2 controls(($cognitivecontrols) $covariates)
 
@@ -369,7 +371,7 @@ forval i = 2/3 {
 }
 calcci
 plotprep 
-save "$temp\DK_wyoung_linear_allmodel.dta". replace
+save "$temp\DK_wyoung_linear_allmodel.dta", replace
 
 ** plot 
 set scheme plotplainblind
