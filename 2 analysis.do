@@ -95,7 +95,7 @@ pro setupdatagen
 	
 	* globals for estimations
 	gl seednum 859687378
-	gl bstraprep 1000
+	gl bstraprep 100
 	gl sampresc if crt_intrpt_msg==1
 	gl seest robust
 	
@@ -187,6 +187,54 @@ pro setupdataDK
 		gl `x'eq11 `outcome'11 $treatcomb6
 		gl `x'eq12 `outcome'12 $treatcomb2
 		gl `x'eq13 `outcome'13 $treatcomb2
+	}
+end
+
+*** SETUP DATA FOR CB05 ANALYSIS
+pro setupdataCB05
+	setupdatagen
+	loc varnm CB05 
+	loc varprefix `varnm'r
+	qui ds `varprefix'*
+	gl varnumlist 3 5 6 7 8 9 10 11 12 
+	foreach i of numlist $varnumlist {
+		* recode and clone
+		clonevar `varprefix'_cloned`i'=`varprefix'`i'
+	}
+	
+	* matching outcome with treatment
+	foreach x in `varprefix'_cloned {
+		replace `x'3=. if inrange(lfCB,2,4) // c
+		replace `x'5=. if inlist(lfCB,1,2,4) // e
+		replace `x'6=. if inlist(lfCB,1,2,3,5) // f
+		replace `x'7=. if inlist(lfCB,1,2,4) // g
+		replace `x'8=. if inlist(lfCB,1,2,4) // h
+		replace `x'9=. if inrange(lfCB,2,4) // i
+		replace `x'10=. if inlist(lfCB,1,2) // j
+		replace `x'11=. if inrange(lfCB,1,3) // k
+		replace `x'12=. if inlist(lfCB,4) // l
+	}
+	
+	*** SET EQUATIONS
+	gl cognitivecontrols pagetime`varnm' $basecogctrl
+	gl treatcomb1 treat1 treat5
+	gl treatcomb2 treat3 treat5 
+	gl treatcomb3 treat4 
+	gl treatcomb4 treat3 treat4 treat5  
+	gl treatcomb5 treat4 treat5 
+	gl treatcomb6 treat1 treat2 treat3 treat5 
+
+	foreach x in lin prob {
+		loc outcome `varprefix'_cloned
+		gl `x'eq3 `outcome'3 $treatcomb1 // c 
+		gl `x'eq5 `outcome'5 $treatcomb2 // e
+		gl `x'eq6 `outcome'6 $treatcomb3 // f
+		gl `x'eq7 `outcome'7 $treatcomb2 // g
+		gl `x'eq8 `outcome'8 $treatcomb2 // h
+		gl `x'eq9 `outcome'9 $treatcomb1 // i
+		gl `x'eq10 `outcome'10 $treatcomb4 // j
+		gl `x'eq11 `outcome'11 $treatcomb5 // k
+		gl `x'eq12 `outcome'12 $treatcomb6 // l
 	}
 end
 
