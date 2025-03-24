@@ -1,5 +1,5 @@
 ##### MANCOVA #####
-library(jmv)
+library(jmv,purr)
 
 # Define the function to perform MANCOVA
 perform_mancova <- function(treatment, dep_vars, covariates, data) {
@@ -53,3 +53,19 @@ for (treatment in names(dependent_vars)) {
   mancova_results[[treatment]] <- result
 }
 mancova_results
+
+##### AGREEING STIMULUS 4 AND OPINION ON GOVERNMENT ROLE #####
+# Define the variables for which t-tests will be performed
+variables <- c("CB08r1", "CB08r2", "CB08r3")
+
+# Filter the dataframe once
+filtered_data <- data[which(data$lfCB==4 & data$crt_intrpt_msg==1),]
+
+# Perform t-tests for each variable in the list
+t_test_results <- lapply(variables, function(var) {
+  formula <- as.formula(paste(var, "~ agreestim"))
+  t.test(formula, data = filtered_data)
+})
+
+# Print results
+t_test_results

@@ -1,5 +1,5 @@
 * ==== PRELIMINARIES ==== *
-* GOAL: CONDUCT BALANCE TEST
+* GOAL: ANALYZE DATA
 
 * clear environment
 capture log close
@@ -89,18 +89,21 @@ pro setupdatagen
 	forval i = 1/6 {
 		g treat`i'=lfCB==`i'
 	}
+	
+	* agreement with stimulus
+	g agreestim=(lfCB==6)|(inrange(CB04,4,6) & (inrange(lfCB,1,3) | lfCB==5))|(inrange(CB04,1,3) & lfCB==4)
 
 	* set scheme
 	set scheme plotplainblind
 	
 	* globals for estimations
 	gl seednum 859687378
-	gl bstraprep 100
+	gl bstraprep 1000
 	gl sampresc if crt_intrpt_msg==1
 	gl seest robust
 	
 	gl covariates i.region urban male age i.edlvl hhhead_female nosocast hhsize
-	gl basecogctrl read_stim_time sdbi
+	gl basecogctrl read_stim_time sdbi agreestim
 	gl covarset1 controls(() $covariates)
 	gl covarset2 controls(($cognitivecontrols) $covariates)
 	
@@ -167,26 +170,22 @@ pro setupdataDK
 	gl treatcomb5 treat1 treat5 
 	gl treatcomb6 treat1 treat2  
 
+	gl linoutcome support
+	gl proboutcome `varprefix'_cloned
 	foreach x in lin prob {
-		if "`x'"=="lin" {
-			loc outcome support
-		}
-		else {
-			loc outcome `varprefix'_cloned
-		}
-		gl `x'eq1 `outcome'1 $treatcomb1
-		gl `x'eq2 `outcome'2 $treatcomb2
-		gl `x'eq3 `outcome'3 $treatcomb2
-		gl `x'eq4 `outcome'4 $treatcomb3
-		gl `x'eq5 `outcome'5 $treatcomb4
-		gl `x'eq6 `outcome'6 $treatcomb5
-		gl `x'eq7 `outcome'7 $treatcomb5
-		gl `x'eq8 `outcome'8 $treatcomb6
-		gl `x'eq9 `outcome'9 $treatcomb2
-		gl `x'eq10 `outcome'10 $treatcomb5
-		gl `x'eq11 `outcome'11 $treatcomb6
-		gl `x'eq12 `outcome'12 $treatcomb2
-		gl `x'eq13 `outcome'13 $treatcomb2
+		gl `x'eq1 ${`x'outcome}1 $treatcomb1
+		gl `x'eq2 ${`x'outcome}2 $treatcomb2
+		gl `x'eq3 ${`x'outcome}3 $treatcomb2
+		gl `x'eq4 ${`x'outcome}4 $treatcomb3
+		gl `x'eq5 ${`x'outcome}5 $treatcomb4
+		gl `x'eq6 ${`x'outcome}6 $treatcomb5
+		gl `x'eq7 ${`x'outcome}7 $treatcomb5
+		gl `x'eq8 ${`x'outcome}8 $treatcomb6
+		gl `x'eq9 ${`x'outcome}9 $treatcomb2
+		gl `x'eq10 ${`x'outcome}10 $treatcomb5
+		gl `x'eq11 ${`x'outcome}11 $treatcomb6
+		gl `x'eq12 ${`x'outcome}12 $treatcomb2
+		gl `x'eq13 ${`x'outcome}13 $treatcomb2
 	}
 end
 
@@ -224,17 +223,17 @@ pro setupdataCB05
 	gl treatcomb5 treat4 treat5 
 	gl treatcomb6 treat1 treat2 treat3 treat5 
 
-	foreach x in lin prob {
-		loc outcome `varprefix'_cloned
-		gl `x'eq3 `outcome'3 $treatcomb1 // c 
-		gl `x'eq5 `outcome'5 $treatcomb2 // e
-		gl `x'eq6 `outcome'6 $treatcomb3 // f
-		gl `x'eq7 `outcome'7 $treatcomb2 // g
-		gl `x'eq8 `outcome'8 $treatcomb2 // h
-		gl `x'eq9 `outcome'9 $treatcomb1 // i
-		gl `x'eq10 `outcome'10 $treatcomb4 // j
-		gl `x'eq11 `outcome'11 $treatcomb5 // k
-		gl `x'eq12 `outcome'12 $treatcomb6 // l
+	gl linoutcome `varprefix'_cloned
+	foreach x in lin {
+		gl `x'eq3 ${`x'outcome}3 $treatcomb1 // c 
+		gl `x'eq5 ${`x'outcome}5 $treatcomb2 // e
+		gl `x'eq6 ${`x'outcome}6 $treatcomb3 // f
+		gl `x'eq7 ${`x'outcome}7 $treatcomb2 // g
+		gl `x'eq8 ${`x'outcome}8 $treatcomb2 // h
+		gl `x'eq9 ${`x'outcome}9 $treatcomb1 // i
+		gl `x'eq10 ${`x'outcome}10 $treatcomb4 // j
+		gl `x'eq11 ${`x'outcome}11 $treatcomb5 // k
+		gl `x'eq12 ${`x'outcome}12 $treatcomb6 // l
 	}
 end
 
@@ -271,19 +270,78 @@ pro setupdataCB07
 	gl treatcomb3 treat1 treat5 
 	gl treatcomb4 treat1 treat4 treat5  
 
+	gl linoutcome agree
+	gl proboutcome `varprefix'_cloned
 	foreach x in lin prob {
-		if "`x'"=="lin" {
-			loc outcome agree
+		gl `x'eq1 ${`x'outcome}1 $treatcomb1
+		gl `x'eq2 ${`x'outcome}2 $treatcomb2
+		gl `x'eq3 ${`x'outcome}3 $treatcomb2
+		gl `x'eq4 ${`x'outcome}4 $treatcomb3
+		gl `x'eq5 ${`x'outcome}5 $treatcomb4
+		gl `x'eq6 ${`x'outcome}6 $treatcomb4
+	}
+end
+
+*** SETUP DATA FOR CB08 ANALYSIS
+pro setupdataCB08
+	setupdatagen
+	loc varnm CB08 
+	loc varprefix `varnm'r
+	qui ds `varprefix'*
+	gl numvar: word count `r(varlist)'
+	forval i = 1/$numvar {
+		* generate binary agree/disagree indicator
+		g agree`i'=inrange(`varprefix'`i',4,6)
+		g disagree`i'=inrange(`varprefix'`i',1,3)
+		
+		* recode and clone
+		clonevar `varprefix'_cloned`i'=`varprefix'`i'
+		
+		* matching outcome with treatment
+		foreach x in `varprefix'_cloned agree disagree {
+			replace `x'`i'=. if !inlist(lfCB,4,6)
 		}
-		else {
-			loc outcome `varprefix'_cloned
+	}
+	
+	*** SET EQUATIONS
+	gl cognitivecontrols pagetime`varnm' $basecogctrl
+	gl treatcomb1 treat4
+
+	gl linoutcome agree
+	gl proboutcome `varprefix'_cloned
+	foreach x in lin prob {
+		forval i = 1/$numvar {	
+			gl `x'eq`i' ${`x'outcome}`i' $treatcomb1 
 		}
-		gl `x'eq1 `outcome'1 $treatcomb1
-		gl `x'eq2 `outcome'2 $treatcomb2
-		gl `x'eq3 `outcome'3 $treatcomb2
-		gl `x'eq4 `outcome'4 $treatcomb3
-		gl `x'eq5 `outcome'5 $treatcomb4
-		gl `x'eq6 `outcome'6 $treatcomb4
+	}
+end
+
+*** SETUP DATA FOR TD ANALYSIS
+pro setupdataTD
+	setupdatagen
+	loc varnm TD 
+	loc varprefix `varnm'0
+	qui ds `varprefix'*
+	gl numvar: word count `r(varlist)'
+	forval i = 1/$numvar {
+		* recode and clone
+		clonevar `varprefix'_cloned`i'=`varprefix'`i'
+		
+		* matching outcome with treatment
+		foreach x in `varprefix'_cloned {
+			replace `x'`i'=. if !inlist(lfCB,4,6)
+		}
+	}
+	
+	*** SET EQUATIONS
+	gl cognitivecontrols pagetimeinfo`varnm' $basecogctrl
+	gl treatcomb1 treat4
+
+	gl proboutcome `varprefix'_cloned
+	foreach x in prob {
+		forval i = 1/$numvar {	
+			gl `x'eq`i' ${`x'outcome}`i' $treatcomb1 
+		}
 	}
 end
 
@@ -408,7 +466,7 @@ bootstraps($bstraprep) seed($seednum) replace
 g equation=1
 g df=.
 forval i=1/$numvar {
-	replace df=`df`i'' if outcome=="support`i'"
+	replace df=`df`i'' if outcome=="$linoutcome`i'"
 }
 save "$temp\DK_wyoung_linear_model1.dta", replace
 
@@ -417,7 +475,7 @@ forval j = 1/2 {
 	est clear
 	setupdataDK
 	forval i = 1/$numvar {
-		qui dsregress support`i' ib6.lfCB $sampresc, ${covarset`j'}
+		qui dsregress $linoutcome`i' ib6.lfCB $sampresc, ${covarset`j'}
 		gl covarset`j'_select`i' `e(controls_sel)'
 		loc df`i'=`e(N)'
 	}
@@ -469,7 +527,7 @@ forval j = 1/2 {
 	g equation=`modelnum'
 	g df=.
 	forval i=1/$numvar {
-		replace df=`df`i'' if outcome=="support`i'"
+		replace df=`df`i'' if outcome=="$linoutcome`i'"
 	}
 	save "$temp\DK_wyoung_linear_model`modelnum'.dta", replace
 }
@@ -521,7 +579,7 @@ forval i=1/$numvar {
 }
 
 *** ORDERED PROBIT AND LOGIT
-foreach x in ologit oprobit {
+foreach x in ologit  {
 	** model 1
 	* open data
 	setupdataDK
@@ -590,7 +648,7 @@ foreach x in ologit oprobit {
 	g equation=1
 	g df=.
 	forval i=1/$numvar {
-		replace df=`df`i'' if outcome=="QDKr_cloned`i'"
+		replace df=`df`i'' if outcome=="$proboutcome`i'"
 	}
 	save "$temp\DK_wyoung_`x'_model1.dta", replace
 
@@ -599,7 +657,7 @@ foreach x in ologit oprobit {
 		est clear
 		setupdataDK
 		forval i = 1/$numvar {
-			qui dsregress QDKr_cloned`i' ib6.lfCB $sampresc, ${covarset`j'}
+			qui dsregress $proboutcome`i' ib6.lfCB $sampresc, ${covarset`j'}
 			gl covarset`j'_select`i' `e(controls_sel)'
 			loc df`i'=`e(N)'
 		}
@@ -651,7 +709,7 @@ foreach x in ologit oprobit {
 		g equation=`modelnum'
 		g df=.
 		forval i=1/$numvar {
-			replace df=`df`i'' if outcome=="QDKr_cloned`i'"
+			replace df=`df`i'' if outcome=="$proboutcome`i'"
 		}
 		save "$temp\DK_wyoung_`x'_model`modelnum'.dta", replace
 	}
@@ -667,7 +725,7 @@ foreach x in ologit oprobit {
 }
 
 ** plot 
-foreach x in ologit oprobit {
+foreach x in ologit  {
 	use "$temp\DK_wyoung_`x'_allmodel.dta", clear 
 	set scheme plotplainblind
 	loc texty .25
@@ -722,6 +780,154 @@ forval i = 1/$numvar {
 	gr export "$fig\DK`i'_wyoung_combined.png", replace
 }
 
+* ==== CB5 WYOUNG ==== *
+*** OLS and PD LASSO
+
+** model 1
+* open data
+setupdataCB05
+est clear
+
+* conduct simple linear regressions to obtain df per outcome
+foreach i of numlist $varnumlist {
+	qui reg ${lineq`i'} $sampresc, $seest
+	loc df`i'=`e(df_r)'
+}
+
+* wyoung procedure 
+wyoung, cmd ("reg $lineq3 $sampresc, $seest" ///
+"reg $lineq3 $sampresc, $seest" ///
+"reg $lineq5 $sampresc, $seest" ///
+"reg $lineq5 $sampresc, $seest" ///
+"reg $lineq6 $sampresc, $seest" ///
+"reg $lineq7 $sampresc, $seest" ///
+"reg $lineq7 $sampresc, $seest" ///
+"reg $lineq8 $sampresc, $seest" ///
+"reg $lineq8 $sampresc, $seest" ///
+"reg $lineq9 $sampresc, $seest" ///
+"reg $lineq9 $sampresc, $seest" ///
+"reg $lineq10 $sampresc, $seest" ///
+"reg $lineq10 $sampresc, $seest" ///
+"reg $lineq10 $sampresc, $seest" ///
+"reg $lineq11 $sampresc, $seest" ///
+"reg $lineq11 $sampresc, $seest" ///
+"reg $lineq12 $sampresc, $seest" ///
+"reg $lineq12 $sampresc, $seest" ///
+"reg $lineq12 $sampresc, $seest" ///
+"reg $lineq12 $sampresc, $seest") ///
+familyp($treatcomb1 /// 
+$treatcomb2 /// 
+$treatcomb3 /// 
+$treatcomb2 /// 
+$treatcomb2 /// 
+$treatcomb1 ///
+$treatcomb4 /// 
+$treatcomb5 /// 
+$treatcomb6) /// 
+bootstraps($bstraprep) seed($seednum) replace
+
+* tidy wyoung result
+g equation=1
+g df=.
+foreach i of numlist $varnumlist {
+	replace df=`df`i'' if outcome=="$linoutcome`i'"
+}
+save "$temp\CB05_wyoung_linear_model1.dta", replace
+
+** model 2 & 3
+forval j = 1/2 {
+	est clear
+	setupdataCB05
+	foreach i of numlist $varnumlist {
+		qui dsregress $linoutcome`i' ib6.lfCB $sampresc, ${covarset`j'}
+		gl covarset`j'_select`i' `e(controls_sel)'
+		loc df`i'=`e(N)'
+	}
+	wyoung, cmd ("reg $lineq3 ${covarset`j'_select3} $sampresc, $seest" ///
+	"reg $lineq3 ${covarset`j'_select3} $sampresc, $seest" ///
+	"reg $lineq5 ${covarset`j'_select5} $sampresc, $seest" ///
+	"reg $lineq5 ${covarset`j'_select5} $sampresc, $seest" ///
+	"reg $lineq6 ${covarset`j'_select6} $sampresc, $seest" ///
+	"reg $lineq7 ${covarset`j'_select7} $sampresc, $seest" ///
+	"reg $lineq7 ${covarset`j'_select7} $sampresc, $seest" ///
+	"reg $lineq8 ${covarset`j'_select8} $sampresc, $seest" ///
+	"reg $lineq8 ${covarset`j'_select8} $sampresc, $seest" ///
+	"reg $lineq9 ${covarset`j'_select9} $sampresc, $seest" ///
+	"reg $lineq9 ${covarset`j'_select9} $sampresc, $seest" ///
+	"reg $lineq10 ${covarset`j'_select10} $sampresc, $seest" ///
+	"reg $lineq10 ${covarset`j'_select10} $sampresc, $seest" ///
+	"reg $lineq10 ${covarset`j'_select10} $sampresc, $seest" ///
+	"reg $lineq11 ${covarset`j'_select11} $sampresc, $seest" ///
+	"reg $lineq11 ${covarset`j'_select11} $sampresc, $seest" ///
+	"reg $lineq12 ${covarset`j'_select12} $sampresc, $seest" ///
+	"reg $lineq12 ${covarset`j'_select12} $sampresc, $seest" ///
+	"reg $lineq12 ${covarset`j'_select12} $sampresc, $seest" ///
+	"reg $lineq12 ${covarset`j'_select12} $sampresc, $seest") ///
+	familyp($treatcomb1 /// 
+	$treatcomb2 /// 
+	$treatcomb3 /// 
+	$treatcomb2 /// 
+	$treatcomb2 /// 
+	$treatcomb1 ///
+	$treatcomb4 /// 
+	$treatcomb5 /// 
+	$treatcomb6) /// 
+	bootstraps($bstraprep) seed($seednum) replace
+	loc modelnum=`j'+1
+	g equation=`modelnum'
+	g df=.
+	foreach i of numlist $varnumlist {
+		replace df=`df`i'' if outcome=="$linoutcome`i'"
+	}
+	save "$temp\CB05_wyoung_linear_model`modelnum'.dta", replace
+}
+
+** tidy all wyoung result for plotting
+use "$temp\CB05_wyoung_linear_model1.dta", clear
+forval i = 2/3 {
+	append using "$temp\CB05_wyoung_linear_model`i'.dta"
+}
+calcci
+plotprep 
+save "$temp\CB05_wyoung_linear_allmodel.dta", replace
+
+** plot 
+set scheme plotplainblind
+loc texty .25
+loc textx .4
+loc intval 1
+loc steps .25
+foreach i of numlist $varnumlist {
+	loc fignm "CB05`i'_wyoung_linear"
+	preserve
+	keep if outnum==`i'
+	forval j=1/5 {
+		loc val`j'=0
+		loc label`j' " "
+	}
+	qui levelsof treatnm
+	foreach h of numlist `r(levels)' {
+		loc val`h'=0
+		qui sum treat_model if treatnm==`h',d
+		loc val`h'=`r(p50)'
+		if `val`h''>0 {
+			loc label`h' "Treatment `h'"
+		}
+	}
+	twoway 	(rcap uci lci treat_model, horizontal lcolor(gray)) ///
+			(dot coef treat_model if equation==1, horizontal) ///
+			(dot coef treat_model if equation==2, horizontal) ///
+			(dot coef treat_model if equation==3, horizontal), ///
+			xtitle("Probability relative to control", size(small)) xline(0, lpattern(dash) lcolor(red)) xscale(range(-`intval' `intval')) xlab(-`intval'(`steps')`intval')  /// 
+			legend(pos(12) row(2) holes(2) order(- "OLS:" 2 "Model 1: Base model" - "PDS Lasso:" 3 "Model 2: Model 1 + covariates" 4 "Model 3: Model 2 + cognitive controls") size(vsmall)) ///
+			yscale(reverse noline) ytitle("") ylabel(`val1' "`label1'" `val2' "`label2'" `val3' "`label3'" `val4' "`label4'" `val5' "`label5'", notick)  ///
+			note("Note: Confidence interval crossing zero indicates a null effect." "Confidence interval >|1| has been trimmed.", size(tiny)) ///
+			text(`texty' -`textx' "Less likely to prioritize",size(vsmall)) text(`texty' `textx' "More likely to prioritize",size(vsmall)) ///
+			subtitle("Linear model", size(small)) saving("$fig\\`fignm'.gph", replace )
+	gr export "$fig\\`fignm'.png", replace 		
+	restore 
+}
+
 * ==== CB7 WYOUNG ==== *
 *** OLS and PD LASSO
 
@@ -765,7 +971,7 @@ bootstraps($bstraprep) seed($seednum) replace
 g equation=1
 g df=.
 forval i=1/$numvar {
-	replace df=`df`i'' if outcome=="agree`i'"
+	replace df=`df`i'' if outcome=="$linoutcome`i'"
 }
 save "$temp\CB07_wyoung_linear_model1.dta", replace
 
@@ -774,7 +980,7 @@ forval j = 1/2 {
 	est clear
 	setupdataCB07
 	forval i = 1/$numvar {
-		qui dsregress agree`i' ib6.lfCB $sampresc, ${covarset`j'}
+		qui dsregress $linoutcome`i' ib6.lfCB $sampresc, ${covarset`j'}
 		gl covarset`j'_select`i' `e(controls_sel)'
 		loc df`i'=`e(N)'
 	}
@@ -805,7 +1011,7 @@ forval j = 1/2 {
 	g equation=`modelnum'
 	g df=.
 	forval i=1/$numvar {
-		replace df=`df`i'' if outcome=="agree`i'"
+		replace df=`df`i'' if outcome=="$linoutcome`i'"
 	}
 	save "$temp\CB07_wyoung_linear_model`modelnum'.dta", replace
 }
@@ -857,7 +1063,7 @@ forval i=1/$numvar {
 }
 
 *** ORDERED PROBIT AND LOGIT
-foreach x in ologit oprobit {
+foreach x in ologit  {
 	** model 1
 	* open data
 	setupdataCB07
@@ -877,22 +1083,22 @@ foreach x in ologit oprobit {
 	}
 
 	* wyoung procedure 
-	wyoung, cmd ("`x' $probeq1 $sampresc, $seest" ///
-	"`x' $probeq1 $sampresc, $seest" ///
-	"`x' $probeq1 $sampresc, $seest" ///
-	"`x' $probeq1 $sampresc, $seest" ///
-	"`x' $probeq2 $sampresc, $seest" ///
-	"`x' $probeq2 $sampresc, $seest" ///
-	"`x' $probeq3 $sampresc, $seest" ///
-	"`x' $probeq3 $sampresc, $seest" ///
-	"`x' $probeq4 $sampresc, $seest" ///
-	"`x' $probeq4 $sampresc, $seest" ///
-	"`x' $probeq5 $sampresc, $seest" ///
-	"`x' $probeq5 $sampresc, $seest" ///
-	"`x' $probeq5 $sampresc, $seest" ///
-	"`x' $probeq6 $sampresc, $seest" ///
-	"`x' $probeq6 $sampresc, $seest" ///
-	"`x' $probeq6 $sampresc, $seest") ///
+	wyoung, cmd ("`x' $probeq1 $sampresc, `regress_options'" ///
+	"`x' $probeq1 $sampresc, `regress_options'" ///
+	"`x' $probeq1 $sampresc, `regress_options'" ///
+	"`x' $probeq1 $sampresc, `regress_options'" ///
+	"`x' $probeq2 $sampresc, `regress_options'" ///
+	"`x' $probeq2 $sampresc, `regress_options'" ///
+	"`x' $probeq3 $sampresc, `regress_options'" ///
+	"`x' $probeq3 $sampresc, `regress_options'" ///
+	"`x' $probeq4 $sampresc, `regress_options'" ///
+	"`x' $probeq4 $sampresc, `regress_options'" ///
+	"`x' $probeq5 $sampresc, `regress_options'" ///
+	"`x' $probeq5 $sampresc, `regress_options'" ///
+	"`x' $probeq5 $sampresc, `regress_options'" ///
+	"`x' $probeq6 $sampresc, `regress_options'" ///
+	"`x' $probeq6 $sampresc, `regress_options'" ///
+	"`x' $probeq6 $sampresc, `regress_options'") ///
 	familyp($treatcomb1 /// 
 	$treatcomb2 /// 
 	$treatcomb2 /// 
@@ -905,7 +1111,7 @@ foreach x in ologit oprobit {
 	g equation=1
 	g df=.
 	forval i=1/$numvar {
-		replace df=`df`i'' if outcome=="CB07r_cloned`i'"
+		replace df=`df`i'' if outcome=="$proboutcome`i'"
 	}
 	save "$temp\CB07_wyoung_`x'_model1.dta", replace
 
@@ -914,26 +1120,26 @@ foreach x in ologit oprobit {
 		est clear
 		setupdataCB07
 		forval i = 1/$numvar {
-			qui dsregress CB07r_cloned`i' ib6.lfCB $sampresc, ${covarset`j'}
+			qui dsregress $proboutcome`i' ib6.lfCB $sampresc, ${covarset`j'}
 			gl covarset`j'_select`i' `e(controls_sel)'
 			loc df`i'=`e(N)'
 		}
-		wyoung, cmd ("`x' $probeq1 ${covarset`j'_select1} $sampresc, $seest" ///
-		"`x' $probeq1 ${covarset`j'_select1} $sampresc, $seest" ///
-		"`x' $probeq1 ${covarset`j'_select1} $sampresc, $seest" ///
-		"`x' $probeq1 ${covarset`j'_select1} $sampresc, $seest" ///
-		"`x' $probeq2 ${covarset`j'_select2} $sampresc, $seest" ///
-		"`x' $probeq2 ${covarset`j'_select2} $sampresc, $seest" ///
-		"`x' $probeq3 ${covarset`j'_select3} $sampresc, $seest" ///
-		"`x' $probeq3 ${covarset`j'_select3} $sampresc, $seest" ///
-		"`x' $probeq4 ${covarset`j'_select4} $sampresc, $seest" ///
-		"`x' $probeq4 ${covarset`j'_select4} $sampresc, $seest" ///
-		"`x' $probeq5 ${covarset`j'_select5} $sampresc, $seest" ///
-		"`x' $probeq5 ${covarset`j'_select5} $sampresc, $seest" ///
-		"`x' $probeq5 ${covarset`j'_select5} $sampresc, $seest" ///
-		"`x' $probeq6 ${covarset`j'_select6} $sampresc, $seest" ///
-		"`x' $probeq6 ${covarset`j'_select6} $sampresc, $seest" ///
-		"`x' $probeq6 ${covarset`j'_select6} $sampresc, $seest") ///
+		wyoung, cmd ("`x' $probeq1 ${covarset`j'_select1} $sampresc, `regress_options'" ///
+		"`x' $probeq1 ${covarset`j'_select1} $sampresc, `regress_options'" ///
+		"`x' $probeq1 ${covarset`j'_select1} $sampresc, `regress_options'" ///
+		"`x' $probeq1 ${covarset`j'_select1} $sampresc, `regress_options'" ///
+		"`x' $probeq2 ${covarset`j'_select2} $sampresc, `regress_options'" ///
+		"`x' $probeq2 ${covarset`j'_select2} $sampresc, `regress_options'" ///
+		"`x' $probeq3 ${covarset`j'_select3} $sampresc, `regress_options'" ///
+		"`x' $probeq3 ${covarset`j'_select3} $sampresc, `regress_options'" ///
+		"`x' $probeq4 ${covarset`j'_select4} $sampresc, `regress_options'" ///
+		"`x' $probeq4 ${covarset`j'_select4} $sampresc, `regress_options'" ///
+		"`x' $probeq5 ${covarset`j'_select5} $sampresc, `regress_options'" ///
+		"`x' $probeq5 ${covarset`j'_select5} $sampresc, `regress_options'" ///
+		"`x' $probeq5 ${covarset`j'_select5} $sampresc, `regress_options'" ///
+		"`x' $probeq6 ${covarset`j'_select6} $sampresc, `regress_options'" ///
+		"`x' $probeq6 ${covarset`j'_select6} $sampresc, `regress_options'" ///
+		"`x' $probeq6 ${covarset`j'_select6} $sampresc, `regress_options'") ///
 		familyp($treatcomb1 /// 
 		$treatcomb2 /// 
 		$treatcomb2 /// 
@@ -945,7 +1151,7 @@ foreach x in ologit oprobit {
 		g equation=`modelnum'
 		g df=.
 		forval i=1/$numvar {
-			replace df=`df`i'' if outcome=="CB07r_cloned`i'"
+			replace df=`df`i'' if outcome=="$proboutcome`i'"
 		}
 		save "$temp\CB07_wyoung_`x'_model`modelnum'.dta", replace
 	}
@@ -961,7 +1167,7 @@ foreach x in ologit oprobit {
 }
 
 ** plot 
-foreach x in ologit oprobit {
+foreach x in ologit  {
 	use "$temp\CB07_wyoung_`x'_allmodel.dta", clear 
 	set scheme plotplainblind
 	loc texty .25
@@ -1014,6 +1220,393 @@ forval i = 1/$numvar {
 	notetonote caption("Linear Model 1 uses OLS. Linear Model 2 and 3 use PDS Lasso.", size(tiny)) ///
 	plotr(margin(zero))
 	gr export "$fig\CB07`i'_wyoung_combined.png", replace
+}
+
+* ==== CB8 WYOUNG ==== *
+*** OLS and PD LASSO
+
+** model 1
+* open data
+setupdataCB08
+est clear
+
+* conduct simple linear regressions to obtain df per outcome
+forval i = 1/$numvar {
+	qui reg ${lineq`i'} $sampresc, $seest
+	loc df`i'=`e(df_r)'
+}
+
+* wyoung procedure 
+wyoung, cmd ("reg $lineq1 $sampresc, $seest" ///
+"reg $lineq2 $sampresc, $seest" ///
+"reg $lineq3 $sampresc, $seest" ///
+"reg $lineq4 $sampresc, $seest" ///
+"reg $lineq5 $sampresc, $seest") ///
+familyp($treatcomb1 /// 
+$treatcomb1 /// 
+$treatcomb1 /// 
+$treatcomb1 /// 
+$treatcomb1) /// 
+bootstraps($bstraprep) seed($seednum) replace
+
+* tidy wyoung result
+g equation=1
+g df=.
+forval i=1/$numvar {
+	replace df=`df`i'' if outcome=="$linoutcome`i'"
+}
+save "$temp\CB08_wyoung_linear_model1.dta", replace
+
+** model 2 & 3
+forval j = 1/2 {
+	est clear
+	setupdataCB08
+	forval i = 1/$numvar {
+		qui dsregress $linoutcome`i' ib6.lfCB $sampresc, ${covarset`j'}
+		gl covarset`j'_select`i' `e(controls_sel)'
+		loc df`i'=`e(N)'
+	}
+	wyoung, cmd ("reg $lineq1 ${covarset`j'_select1} $sampresc, $seest" ///
+	"reg $lineq2 ${covarset`j'_select2} $sampresc, $seest" ///
+	"reg $lineq3 ${covarset`j'_select3} $sampresc, $seest" ///
+	"reg $lineq4 ${covarset`j'_select4} $sampresc, $seest" ///
+	"reg $lineq5 ${covarset`j'_select5} $sampresc, $seest") ///
+	familyp($treatcomb1 /// 
+	$treatcomb1 /// 
+	$treatcomb1 /// 
+	$treatcomb1 /// 
+	$treatcomb1) /// 
+	bootstraps($bstraprep) seed($seednum) replace
+	loc modelnum=`j'+1
+	g equation=`modelnum'
+	g df=.
+	forval i=1/$numvar {
+		replace df=`df`i'' if outcome=="$linoutcome`i'"
+	}
+	save "$temp\CB08_wyoung_linear_model`modelnum'.dta", replace
+}
+
+** tidy all wyoung result for plotting
+use "$temp\CB08_wyoung_linear_model1.dta", clear
+forval i = 2/3 {
+	append using "$temp\CB08_wyoung_linear_model`i'.dta"
+}
+calcci
+plotprep 
+save "$temp\CB08_wyoung_linear_allmodel.dta", replace
+
+** plot 
+set scheme plotplainblind
+loc texty .25
+loc textx .4
+loc intval 1
+loc steps .25
+forval i=1/$numvar {
+	loc fignm "CB08`i'_wyoung_linear"
+	preserve
+	keep if outnum==`i'
+	forval j=1/5 {
+		loc val`j'=0
+		loc label`j' " "
+	}
+	qui levelsof treatnm
+	foreach h of numlist `r(levels)' {
+		loc val`h'=0
+		qui sum treat_model if treatnm==`h',d
+		loc val`h'=`r(p50)'
+		if `val`h''>0 {
+			loc label`h' "Treatment 4"
+		}
+	}
+	twoway 	(rcap uci lci treat_model, horizontal lcolor(gray)) ///
+			(dot coef treat_model if equation==1, horizontal) ///
+			(dot coef treat_model if equation==2, horizontal) ///
+			(dot coef treat_model if equation==3, horizontal), ///
+			xtitle("Probability relative to control", size(small)) xline(0, lpattern(dash) lcolor(red)) xscale(range(-`intval' `intval')) xlab(-`intval'(`steps')`intval')  /// 
+			legend(pos(12) row(2) holes(2) order(- "OLS:" 2 "Model 1: Base model" - "PDS Lasso:" 3 "Model 2: Model 1 + covariates" 4 "Model 3: Model 2 + cognitive controls") size(vsmall)) ///
+			yscale(reverse noline) ytitle("") ylabel(`val1' "`label1'" `val2' "`label2'" `val3' "`label3'" `val4' "`label4'" `val5' "`label5'", notick)  ///
+			note("Note: Confidence interval crossing zero indicates a null effect." "Confidence interval >|1| has been trimmed.", size(tiny)) ///
+			text(`texty' -`textx' "Less likely to agree",size(vsmall)) text(`texty' `textx' "More likely to agree",size(vsmall)) ///
+			subtitle("Linear model", size(small)) saving("$fig\\`fignm'.gph", replace )
+	gr export "$fig\\`fignm'.png", replace 		
+	restore 
+}
+
+*** ORDERED PROBIT AND LOGIT
+foreach x in ologit {
+	** model 1
+	* open data
+	setupdataCB08
+	est clear
+
+	* conduct unadjusted regressions to obtain df per outcome
+	if "`x'"=="oprobit" {
+		loc regress_options $seest or
+	}
+	else {
+		loc regress_options $seest
+	}
+
+	forval i = 1/$numvar {
+		qui `x' ${probeq`i'} $sampresc, $seest
+		loc df`i'=`e(N)'
+	}
+
+	* wyoung procedure 
+	wyoung, cmd ("reg $probeq1 $sampresc, `regress_option'" ///
+	"reg $probeq2 $sampresc, `regress_option'" ///
+	"reg $probeq3 $sampresc, `regress_option'" ///
+	"reg $probeq4 $sampresc, `regress_option'" ///
+	"reg $probeq5 $sampresc, `regress_option'") ///
+	familyp($treatcomb1 /// 
+	$treatcomb1 /// 
+	$treatcomb1 /// 
+	$treatcomb1 /// 
+	$treatcomb1) /// 
+	bootstraps($bstraprep) seed($seednum) replace
+
+	* tidy wyoung result
+	g equation=1
+	g df=.
+	forval i=1/$numvar {
+		replace df=`df`i'' if outcome=="$proboutcome`i'"
+	}
+	save "$temp\CB08_wyoung_`x'_model1.dta", replace
+
+	** model 2 & 3
+	forval j = 1/2 {
+		est clear
+		setupdataCB08
+		forval i = 1/$numvar {
+			qui dsregress $proboutcome`i' ib6.lfCB $sampresc, ${covarset`j'}
+			gl covarset`j'_select`i' `e(controls_sel)'
+			loc df`i'=`e(N)'
+		}
+		wyoung, cmd ("reg $probeq1 ${covarset`j'_select1} $sampresc, `regress_option'" ///
+		"reg $probeq2 ${covarset`j'_select2} $sampresc, `regress_option'" ///
+		"reg $probeq3 ${covarset`j'_select3} $sampresc, `regress_option'" ///
+		"reg $probeq4 ${covarset`j'_select4} $sampresc, `regress_option'" ///
+		"reg $probeq5 ${covarset`j'_select5} $sampresc, `regress_option'") ///
+		familyp($treatcomb1 /// 
+		$treatcomb1 /// 
+		$treatcomb1 /// 
+		$treatcomb1 /// 
+		$treatcomb1) /// 
+		bootstraps($bstraprep) seed($seednum) replace
+		loc modelnum=`j'+1
+		g equation=`modelnum'
+		g df=.
+		forval i=1/$numvar {
+			replace df=`df`i'' if outcome=="$proboutcome`i'"
+		}
+		save "$temp\CB08_wyoung_`x'_model`modelnum'.dta", replace
+	}
+
+	** tidy all wyoung result for plotting
+	use "$temp\CB08_wyoung_`x'_model1.dta", clear
+	forval i = 2/3 {
+		append using "$temp\CB08_wyoung_`x'_model`i'.dta"
+	}
+	calcci
+	plotprep 
+	save "$temp\CB08_wyoung_`x'_allmodel.dta", replace 
+}
+
+** plot 
+foreach x in ologit {
+	use "$temp\CB08_wyoung_`x'_allmodel.dta", clear 
+	set scheme plotplainblind
+	loc texty .25
+	loc textx .4
+	loc intval 1
+	loc steps .25
+	if "`x'"=="oprobit" {
+		loc axistitle "z-score/probit index"
+		loc subtitle "Ordered probit"
+	}
+	else {
+		loc axistitle "Odds ratio relative to control"
+		loc subtitle "Ordered logit"
+	}
+	forval i=1/$numvar {
+		loc fignm "CB08`i'_wyoung_`x'"
+		preserve
+		keep if outnum==`i'
+		forval j=1/5 {
+			loc val`j'=0
+			loc label`j' " "
+		}
+		qui levelsof treatnm
+		foreach h of numlist `r(levels)' {
+			loc val`h'=0
+			qui sum treat_model if treatnm==`h',d
+			loc val`h'=`r(p50)'
+			if `val`h''>0 {
+				loc label`h' "Treatment 4"
+			}
+		}
+		twoway 	(rcap uci lci treat_model, horizontal lcolor(gray)) ///
+				(dot coef treat_model if equation==1, horizontal) ///
+				(dot coef treat_model if equation==2, horizontal) ///
+				(dot coef treat_model if equation==3, horizontal), ///
+				xtitle("`axistitle'", size(small)) xline(0, lpattern(dash) lcolor(red)) xscale(range(-`intval' `intval')) xlab(-`intval'(`steps')`intval')  /// 
+				legend(pos(12) row(1) order(2 "Model 1: Base model" 3 "Model 2: Model 1 + covariates" 4 "Model 3: Model 2 + cognitive controls") size(vsmall)) ///
+				yscale(reverse noline) ytitle("") ylabel(`val1' "`label1'" `val2' "`label2'" `val3' "`label3'" `val4' "`label4'" `val5' "`label5'", notick) ///
+				note("Note: Confidence interval crossing zero indicates a null effect.", size(tiny)) ///
+				text(`texty' -`textx' "More inclined to disagree",size(vsmall)) text(`texty' `textx' "More inclined to agree",size(vsmall)) ///
+				subtitle("`subtitle'", size(small)) saving("$fig\\`fignm'.gph", replace )
+		gr export "$fig\\`fignm'.png", replace 		
+		restore 
+	}
+}
+
+*** COMBINE WYOUNG GRAPHS
+forval i = 1/$numvar {
+	grc1leg2  "$fig\CB08`i'_wyoung_ologit.gph" "$fig\CB08`i'_wyoung_linear.gph", row(1) pos(12) ///
+	notetonote caption("Linear Model 1 uses OLS. Linear Model 2 and 3 use PDS Lasso.", size(tiny)) ///
+	plotr(margin(zero))
+	gr export "$fig\CB08`i'_wyoung_combined.png", replace
+}
+
+* ==== TD WYOUNG ==== *
+*** ORDERED PROBIT AND LOGIT
+foreach x in ologit {
+	** model 1
+	* open data
+	setupdataTD
+	est clear
+
+	* conduct unadjusted regressions to obtain df per outcome
+	if "`x'"=="oprobit" {
+		loc regress_options $seest or
+	}
+	else {
+		loc regress_options $seest
+	}
+
+	forval i = 1/$numvar {
+		qui `x' ${probeq`i'} $sampresc, $seest
+		loc df`i'=`e(N)'
+	}
+
+	* wyoung procedure 
+	wyoung, cmd ("reg $probeq1 $sampresc, `regress_option'" ///
+	"reg $probeq2 $sampresc, `regress_option'" ///
+	"reg $probeq3 $sampresc, `regress_option'" ///
+	"reg $probeq4 $sampresc, `regress_option'" ///
+	"reg $probeq5 $sampresc, `regress_option'") ///
+	familyp($treatcomb1 /// 
+	$treatcomb1 /// 
+	$treatcomb1 /// 
+	$treatcomb1 /// 
+	$treatcomb1) /// 
+	bootstraps($bstraprep) seed($seednum) replace
+
+	* tidy wyoung result
+	g equation=1
+	g df=.
+	forval i=1/$numvar {
+		replace df=`df`i'' if outcome=="$proboutcome`i'"
+	}
+	save "$temp\TD_wyoung_`x'_model1.dta", replace
+
+	** model 2 & 3
+	forval j = 1/2 {
+		est clear
+		setupdataTD
+		forval i = 1/$numvar {
+			qui dsregress $proboutcome`i' ib6.lfCB $sampresc, ${covarset`j'}
+			gl covarset`j'_select`i' `e(controls_sel)'
+			loc df`i'=`e(N)'
+		}
+		wyoung, cmd ("reg $probeq1 ${covarset`j'_select1} $sampresc, `regress_option'" ///
+		"reg $probeq2 ${covarset`j'_select2} $sampresc, `regress_option'" ///
+		"reg $probeq3 ${covarset`j'_select3} $sampresc, `regress_option'" ///
+		"reg $probeq4 ${covarset`j'_select4} $sampresc, `regress_option'" ///
+		"reg $probeq5 ${covarset`j'_select5} $sampresc, `regress_option'") ///
+		familyp($treatcomb1 /// 
+		$treatcomb1 /// 
+		$treatcomb1 /// 
+		$treatcomb1 /// 
+		$treatcomb1) /// 
+		bootstraps($bstraprep) seed($seednum) replace
+		loc modelnum=`j'+1
+		g equation=`modelnum'
+		g df=.
+		forval i=1/$numvar {
+			replace df=`df`i'' if outcome=="$proboutcome`i'"
+		}
+		save "$temp\TD_wyoung_`x'_model`modelnum'.dta", replace
+	}
+
+	** tidy all wyoung result for plotting
+	use "$temp\TD_wyoung_`x'_model1.dta", clear
+	forval i = 2/3 {
+		append using "$temp\TD_wyoung_`x'_model`i'.dta"
+	}
+	calcci
+	plotprep 
+	save "$temp\TD_wyoung_`x'_allmodel.dta", replace 
+}
+
+** plot 
+foreach x in ologit {
+	use "$temp\TD_wyoung_`x'_allmodel.dta", clear 
+	set scheme plotplainblind
+	loc texty .25
+	loc textx .4
+	loc intval 1
+	loc steps .25
+	if "`x'"=="oprobit" {
+		loc axistitle "z-score/probit index"
+		loc subtitle "Ordered probit"
+	}
+	else {
+		loc axistitle "Odds ratio relative to control"
+		loc subtitle "Ordered logit"
+	}
+	forval i=1/$numvar {
+		loc fignm "TD`i'_wyoung_`x'"
+		preserve
+		keep if outnum==`i'
+		forval j=1/5 {
+			loc val`j'=0
+			loc label`j' " "
+		}
+		qui levelsof treatnm
+		foreach h of numlist `r(levels)' {
+			loc val`h'=0
+			qui sum treat_model if treatnm==`h',d
+			loc val`h'=`r(p50)'
+			if `val`h''>0 {
+				loc label`h' "Treatment 4"
+			}
+		}
+		if inlist(`i',1,2) {
+			loc posstance "More inclined to think a lot"
+			loc negstance "More inclined to think a little"
+		}
+		else if `i'==3 {
+			loc posstance "More inclined to be optimistic"
+			loc negstance "More inclined to be pessimistic"
+		}
+		else {
+			loc posstance "More inclined to believe huge responsibility"
+			loc negstance "More inclined to believe small responsibility"
+		}
+		twoway 	(rcap uci lci treat_model, horizontal lcolor(gray)) ///
+				(dot coef treat_model if equation==1, horizontal) ///
+				(dot coef treat_model if equation==2, horizontal) ///
+				(dot coef treat_model if equation==3, horizontal), ///
+				xtitle("`axistitle'", size(small)) xline(0, lpattern(dash) lcolor(red)) xscale(range(-`intval' `intval')) xlab(-`intval'(`steps')`intval')  /// 
+				legend(pos(12) row(1) order(2 "Model 1: Base model" 3 "Model 2: Model 1 + covariates" 4 "Model 3: Model 2 + cognitive controls") size(vsmall)) ///
+				yscale(reverse noline) ytitle("") ylabel(`val1' "`label1'" `val2' "`label2'" `val3' "`label3'" `val4' "`label4'" `val5' "`label5'", notick) ///
+				note("Note: Confidence interval crossing zero indicates a null effect.", size(tiny)) ///
+				text(`texty' -`textx' "`negstance'",size(vsmall)) text(`texty' `textx' "`posstance'",size(vsmall)) ///
+				subtitle("`subtitle'", size(small)) saving("$fig\\`fignm'.gph", replace )
+		gr export "$fig\\`fignm'.png", replace 		
+		restore 
+	}
 }
 
 * ==== POLICY SUPPORT - UNADJUSTED ==== *

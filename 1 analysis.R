@@ -4,7 +4,7 @@ graphics.off(); rm(list=ls());cat("\14");
 
 # Load packages
 # install.packages("pacman") # install the package if you haven't 
-pacman::p_load(tidyverse,data.table,hdm,estimatr,broom,stringr,jmv,jmvcore,jmvReadWrite)
+pacman::p_load(tidyverse,data.table,hdm,estimatr,broom,stringr,jmv,jmvcore,jmvReadWrite,purrr)
 
 # Retrieve the current system username
 current_user <- Sys.info()[["user"]]
@@ -170,6 +170,12 @@ vars_to_convert <- c('region1', 'region2', 'region3', 'urban', 'male',
 pdf <- pdf %>%
   mutate(across(all_of(vars_to_convert), as.numeric))
 
+# Agreeing to stimulus
+pdf <- pdf %>%
+  mutate(agreestim = (lfCB == 6) | 
+           (between(CB04, 4, 6) & (between(lfCB, 1, 3) | lfCB == 5)) | 
+           (between(CB04, 1, 3) & lfCB == 4))
+
 # Export analysis data to be imported to omv
 dataname <- paste0("procs_",date,".csv") 
 data <- file.path(temp,dataname) 
@@ -286,4 +292,22 @@ for (treatment in names(dependent_vars)) {
   mancova_results[[treatment]] <- result
 }
 
+##### AGREEING STIMULUS 4 AND OPINION ON GOVERNMENT ROLE #####
+# Define the variables for which t-tests will be performed
+variables <- c("CB08r1", "CB08r2", "CB08r3")
+
+# Filter the dataframe once
+filtered_data <- filter(pdf, lfCB == 4 & crt_intrpt_msg==1)
+
+# Function to perform t-test
+perform_t_test <- function(var) {
+  formula <- as.formula(paste(var, "~ agreestim"))
+  t.test(formula, data = filtered_data)
+}
+
+# Apply the t-test function to each variable
+t_test_results <- map(variables, perform_t_test)
+
+# Optionally, name the list elements for clarity
+names(t_test_results) <- variables
 
