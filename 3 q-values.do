@@ -138,7 +138,7 @@ foreach y in mlte {
 		}
 	}
 	drop if pval==.
-	save "$temp\DK_`y'_pval_adj_linear.dta", replace 
+	save "$temp\DK_`y'_pval_qadj_linear.dta", replace 
 
 * probability model
 	foreach x in oprobit ologit {
@@ -151,7 +151,7 @@ foreach y in mlte {
 		}
 		* save result
 		drop if pval==.
-		save "$temp\DK_`y'_pval_adj_`x'.dta", replace 
+		save "$temp\DK_`y'_pval_qadj_`x'.dta", replace 
 	}
 }
 
@@ -186,7 +186,7 @@ foreach y in mlte {
 		}
 		forval i = 1/13 {
 			foreach z in crt all {
-				loc fignm "DK`i'_`y'_`x'_`z'_adjusted"
+				loc fignm "DK`i'_`y'_`x'_`z'_qadjusted"
 				preserve
 				keep if policy==`i' & outcome=="`x'" & sample=="`z'"
 				forval j=1/5 {
@@ -247,7 +247,7 @@ foreach y in mlte {
 		}
 		forval i = 1/13 {
 			foreach z in crt all {
-				loc fignm "DK`i'_`y'_`x'_`z'_adjusted"
+				loc fignm "DK`i'_`y'_`x'_`z'_qadjusted"
 				preserve
 				keep if policy==`i' & sample=="`z'"
 				forval j=1/5 {
@@ -284,10 +284,10 @@ foreach y in mlte {
 foreach y in mlte {
 	foreach z in crt all {
 		forval i = 1/13 {
-			grc1leg2  "$fig\DK`i'_`y'_ologit_`z'_adjusted.gph" "$fig\DK`i'_`y'_support_`z'_adjusted.gph", row(1) pos(12) ///
-			notetonote caption("Linear Model 1 uses OLS. Linear Model 2 and 3 uses PDS Lasso.", size(tiny)) ///
+			grc1leg2  "$fig\DK`i'_`y'_ologit_`z'_qadjusted.gph" "$fig\DK`i'_`y'_support_`z'_qadjusted.gph", row(1) pos(12) ///
+			notetonote caption("Linear Model 1 uses OLS. Linear Model 2 and 3 use PDS Lasso.", size(tiny)) ///
 			plotr(margin(zero))
-			gr export "$fig\DK`i'_`y'_combined_`z'_adjusted.png", replace
+			gr export "$fig\DK`i'_`y'_combined_`z'_qadjusted.png", replace
 		}	
 	}
 }
