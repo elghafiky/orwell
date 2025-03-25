@@ -90,6 +90,7 @@ set scheme plotplainblind
 	gr export "$fig\VIS_ID06_block_chart.png", replace
 	
 {//	NON - PRIORITY
+/*
 	* (5) CB01 - Correct Stimulus by Treatment Arm
 	tab lfCB crt_intrpt_msg, row nofreq
 	
@@ -195,11 +196,10 @@ set scheme plotplainblind
 			name(fig_CB03E, replace) ///
 			saving("$fig\VIS_CB03_E_bar_chart.gph", replace)
 		gr export "$fig\VIS_CB03_E_bar_chart.png", replace	
-	
+*/	
 }
 
-
-	* (1) ID01 ID02 - Geographical Distribution (Chloropleth Map) [to be added]
+	* (1) ID01 ID02 - Geographical Distribution (Chloropleth Map)
 	** transform prov from 38 to 34
 	clonevar prov_34 = prov
 	recode prov_34 (34 = 33) (36 37 38 = 35)
@@ -274,6 +274,143 @@ set scheme plotplainblind
 		saving("$fig\VIS_ID02_map.gph", replace)
 	gr export "$fig\VIS_ID02_map.png", replace
 
+
+* ==== REVISION (24/03/2025) ==== *
+	
+	* (1) Sex Distribution as Pie Chart
+	 graph pie, over(ID03) /// 
+		 legend(rows(1) position(6) order(2 "Female" 1 "Male"  3 "Choosing not to tell"))       ///
+		 plabel(_all percent, size(medium) format(%7.2f))	///
+		 title(Responden's Sex Distribution (N = 4,315)) ///
+		name("VIS_ID03_pie_chart", replace) ///
+		saving("$fig\VIS_ID03_pie_chart.gph", replace)
+	gr export "$fig\VIS_ID03_pie_chart.png", replace
+
+	 * (2) Education Distribution as Bar Chart
+	la def edlvl 2 "Primary school" 3 "Junior high school" 4 "High school" 5 "Higher education", modify
+	la val edlvl edlvl
+
+	graph bar, over(edlvl) ///
+		ytitle("Proportion (%)") ///
+		title("Respondent's Education Distribution (N = 4,315)") ///
+		blabel(bar, format(%7.2f)) ///
+		name("VIS_ID06_bar_chart", replace) ///
+		saving("$fig\VIS_ID06_bar_chart.gph", replace)
+	gr export "$fig\VIS_ID06_bar_chart.png", replace
+	
+	
+	* (3) Age as Bar Chart (Age Group)
+	gen age_group = .
+		replace age_group = 1 if age>=18 & age<=24
+		replace age_group = 2 if age>=25 & age<=34
+		replace age_group = 3 if age>=35 & age<=44
+		replace age_group = 4 if age>=45 & age<=54
+		replace age_group = 5 if age>=55 & age<=64
+		
+		la def age_group 1 "18-24" 2 "25-34" 3 "35-44" 4 "45-54" 5 "55-64", modify
+		la val age_group age_group
+	
+	graph bar, over(age_group) ///
+		asyvars percentages		///
+		ytitle("Proportion (%)") ///
+		title("Respondent's Age Distribution (N = 4,315)") ///
+		legend(rows(1) position(6)) ///
+		blabel(bar, format(%7.2f)) ///
+		name("VIS_ID04_bar_chart", replace) ///
+		saving("$fig\VIS_ID04_bar_chart.gph", replace)
+	gr export "$fig\VIS_ID04_bar_chart.png", replace
+	
+	
+	* (4) Population of Internet Users
+	u "$ipt\bps_penduduk internet + gender.dta", clear
+	
+	drop if prop_internet_2023 == .
+	
+	gen ADM1_PCODE = ""
+		replace ADM1_PCODE = "ID11" if province=="ACEH"
+		replace ADM1_PCODE = "ID12" if province=="SUMATERA UTARA"
+		replace ADM1_PCODE = "ID13" if province=="SUMATERA BARAT"
+		replace ADM1_PCODE = "ID14" if province=="RIAU"
+		replace ADM1_PCODE = "ID15" if province=="JAMBI"
+		replace ADM1_PCODE = "ID16" if province=="SUMATERA SELATAN"
+		replace ADM1_PCODE = "ID17" if province=="BENGKULU"
+		replace ADM1_PCODE = "ID18" if province=="LAMPUNG"
+		replace ADM1_PCODE = "ID19" if province=="KEP. BANGKA BELITUNG"
+		replace ADM1_PCODE = "ID21" if province=="KEP. RIAU"		
+		replace ADM1_PCODE = "ID31" if province=="DKI JAKARTA"
+		replace ADM1_PCODE = "ID32" if province=="JAWA BARAT"
+		replace ADM1_PCODE = "ID33" if province=="JAWA TENGAH"
+		replace ADM1_PCODE = "ID34" if province=="DI YOGYAKARTA"
+		replace ADM1_PCODE = "ID35" if province=="JAWA TIMUR"
+		replace ADM1_PCODE = "ID36" if province=="BANTEN"
+		replace ADM1_PCODE = "ID51" if province=="BALI"
+		replace ADM1_PCODE = "ID52" if province=="NUSA TENGGARA BARAT"
+		replace ADM1_PCODE = "ID53" if province=="NUSA TENGGARA TIMUR"
+		replace ADM1_PCODE = "ID61" if province=="KALIMANTAN BARAT"
+		replace ADM1_PCODE = "ID62" if province=="KALIMANTAN TENGAH"
+		replace ADM1_PCODE = "ID63" if province=="KALIMANTAN SELATAN"
+		replace ADM1_PCODE = "ID64" if province=="KALIMANTAN TIMUR"
+		replace ADM1_PCODE = "ID65" if province=="KALIMANTAN UTARA"
+		replace ADM1_PCODE = "ID71" if province=="SULAWESI UTARA"
+		replace ADM1_PCODE = "ID72" if province=="SULAWESI TENGAH"
+		replace ADM1_PCODE = "ID73" if province=="SULAWESI SELATAN"
+		replace ADM1_PCODE = "ID74" if province=="SULAWESI TENGGARA"
+		replace ADM1_PCODE = "ID75" if province=="GORONTALO"
+		replace ADM1_PCODE = "ID76" if province=="SULAWESI BARAT"
+		replace ADM1_PCODE = "ID81" if province=="MALUKU"
+		replace ADM1_PCODE = "ID82" if province=="MALUKU UTARA"
+		replace ADM1_PCODE = "ID91" if province=="PAPUA BARAT"
+		replace ADM1_PCODE = "ID94" if province=="PAPUA"
+	
+	merge 1:1 ADM1_PCODE using "idn_admbnda_adm1_bps_20200401.dta"
+		drop if _m != 3
+		drop _m
+	
+	** map	
+	gen perc_internet_2023 = prop_internet_2023*100
+	format perc_internet_2023 %7.2f
+	
+	grmap perc_internet_2023, title("Province Distribution of Internet Users Population (%)") ///
+		 legstyle(2) legend(pos(7) size(3.5)) ///
+		 note("Note: Proportion is calculated from BPS Susenas data (2023)." "The distribution used 34-province classification to accomodate the availability of GIS data", size(small)) ///
+		 name("VIS_ID02_bps_internet_Map", replace) ///
+		saving("$fig\VIS_ID02_bps_internet_Map.gph", replace)
+	gr export "$fig\VIS_ID02_bps_internet_Map.png", replace
+	
+
+	* (5) Pie Chart of Understanding
+	clonevar crt_intrpt_msg_flip = crt_intrpt_msg
+	recode crt_intrpt_msg_flip (1=1) (0=2)
+	la def crt 2 "Incorrect" 1 "Correct", modify
+	la val crt_intrpt_msg_flip crt
+	
+	forval i=1/5 {
+	count if lfCB==`i'
+	local x = `r(N)'
+	
+	graph pie  if lfCB==`i', over(crt_intrpt_msg_flip) /// 
+		 plabel(_all percent, size(small) format(%7.2f))	///
+		 legend(rows(1) position(6)) ///
+		 title(Undestanding of Stimulus `i' (N = `x')) ///
+		saving("$fig\VIS_CB01_correct_stimulus `i'.gph", replace)
+	gr export "$fig\VIS_CB01_correct_stimulus `i'.png", replace
+	}
+
+	
+	* (6) Bar Chart of Agree (Subsample Understand)
+	forval i=1/5 {
+	count if lfCB==`i' & crt_intrpt_msg_flip==1
+	local x = `r(N)'
+	
+	gr hbar if lfCB==`i' & crt_intrpt_msg_flip==1, over(CB04) ///
+		yscale(off) b1title("Proportion (%)") ///
+		title("Agreement of Stimulus `i' from" "Respondents with Correct Undestanding (N = `x')") ///	
+		blabel(bar, size(small) format(%9.1f)) ///
+		saving("$fig\VIS_CB04_agree_stimulus `i'.gph", replace)
+	gr export "$fig\VIS_CB04_agree_stimulus `i'.png", replace	
+	}
+	
+	
 	
 * ==== END OF DO-FILE ==== *	
 	
