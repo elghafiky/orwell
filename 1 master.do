@@ -12,6 +12,9 @@ if "`c(username)'"=="user" {
 else if "`c(username)'"=="azzah" {
 	gl basedir "G:"
 }
+else if "`c(username)'"=="elgha" {
+	gl basedir "G:"
+}
 
 * globals
 cd "$basedir\Shared drives\Projects\2025\Orwell\Breadcrumbs\10 Quantitative Narrative Testing\9 Main survey"
