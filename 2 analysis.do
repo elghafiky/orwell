@@ -205,35 +205,36 @@ pro setupdataCB05
 	foreach x in `varprefix'_cloned {
 		replace `x'3=. if inrange(lfCB,2,4) // c
 		replace `x'5=. if inlist(lfCB,1,2,4) // e
-		replace `x'6=. if inlist(lfCB,1,2,3,5) // f
-		replace `x'7=. if inlist(lfCB,1,2,4) // g
-		replace `x'8=. if inlist(lfCB,1,2,4) // h
-		replace `x'9=. if inrange(lfCB,2,4) // i
-		replace `x'10=. if inlist(lfCB,1,2) // j
-		replace `x'11=. if inrange(lfCB,1,3) // k
-		replace `x'12=. if inlist(lfCB,4) // l
+		replace `x'6=. if inlist(lfCB,1,3,5) // f
+		replace `x'7=. if inlist(lfCB,2,4) // g
+		replace `x'8=. if inlist(lfCB,2,4) // h
+		replace `x'9=. if inlist(lfCB,2,4) // i
+		replace `x'10=. if inlist(lfCB,1,2,4) // j
+		replace `x'11=. if inlist(lfCB,1,3) // k
+		replace `x'12=. if inlist(lfCB,1,4) // l
 	}
 	
 	*** SET EQUATIONS
 	gl cognitivecontrols pagetime`varnm' $basecogctrl
 	gl treatcomb1 treat1 treat5
 	gl treatcomb2 treat3 treat5 
-	gl treatcomb3 treat4 
-	gl treatcomb4 treat3 treat4 treat5  
-	gl treatcomb5 treat4 treat5 
-	gl treatcomb6 treat1 treat2 treat3 treat5 
-
+	gl treatcomb3 treat2 treat4 
+	gl treatcomb4 treat1 treat3 treat5  
+	gl treatcomb5 treat3 treat5 
+	gl treatcomb6 treat2 treat4 treat5 
+	gl treatcomb7 treat2 treat3 treat5 
+	
 	gl linoutcome `varprefix'_cloned
 	foreach x in lin {
 		gl `x'eq3 ${`x'outcome}3 $treatcomb1 // c 
 		gl `x'eq5 ${`x'outcome}5 $treatcomb2 // e
 		gl `x'eq6 ${`x'outcome}6 $treatcomb3 // f
-		gl `x'eq7 ${`x'outcome}7 $treatcomb2 // g
-		gl `x'eq8 ${`x'outcome}8 $treatcomb2 // h
-		gl `x'eq9 ${`x'outcome}9 $treatcomb1 // i
-		gl `x'eq10 ${`x'outcome}10 $treatcomb4 // j
-		gl `x'eq11 ${`x'outcome}11 $treatcomb5 // k
-		gl `x'eq12 ${`x'outcome}12 $treatcomb6 // l
+		gl `x'eq7 ${`x'outcome}7 $treatcomb4 // g
+		gl `x'eq8 ${`x'outcome}8 $treatcomb4 // h
+		gl `x'eq9 ${`x'outcome}9 $treatcomb4 // i
+		gl `x'eq10 ${`x'outcome}10 $treatcomb5 // j
+		gl `x'eq11 ${`x'outcome}11 $treatcomb6 // k
+		gl `x'eq12 ${`x'outcome}12 $treatcomb7 // l
 	}
 end
 
@@ -255,8 +256,8 @@ pro setupdataCB07
 	
 	* matching outcome with treatment
 	foreach x in `varprefix'_cloned agree disagree {
-		replace `x'1=. if inlist(lfCB,4)
-		replace `x'2=. if inlist(lfCB,1,3,5)
+		replace `x'1=. if inlist(lfCB,3,4)
+		replace `x'2=. if inlist(lfCB,1,5)
 		replace `x'3=. if inlist(lfCB,1,3,5)
 		replace `x'4=. if inrange(lfCB,2,4)
 		replace `x'5=. if inrange(lfCB,2,3)
@@ -265,20 +266,21 @@ pro setupdataCB07
 	
 	*** SET EQUATIONS
 	gl cognitivecontrols pagetime`varnm' $basecogctrl
-	gl treatcomb1 treat1 treat2 treat3 treat5
-	gl treatcomb2 treat2 treat4 
-	gl treatcomb3 treat1 treat5 
-	gl treatcomb4 treat1 treat4 treat5  
+	gl treatcomb1 treat1 treat2 treat5
+	gl treatcomb2 treat2 treat3 treat4
+	gl treatcomb3 treat2 treat4 
+	gl treatcomb4 treat1 treat5 
+	gl treatcomb5 treat1 treat4 treat5  
 
 	gl linoutcome agree
 	gl proboutcome `varprefix'_cloned
 	foreach x in lin prob {
 		gl `x'eq1 ${`x'outcome}1 $treatcomb1
 		gl `x'eq2 ${`x'outcome}2 $treatcomb2
-		gl `x'eq3 ${`x'outcome}3 $treatcomb2
-		gl `x'eq4 ${`x'outcome}4 $treatcomb3
-		gl `x'eq5 ${`x'outcome}5 $treatcomb4
-		gl `x'eq6 ${`x'outcome}6 $treatcomb4
+		gl `x'eq3 ${`x'outcome}3 $treatcomb3
+		gl `x'eq4 ${`x'outcome}4 $treatcomb4
+		gl `x'eq5 ${`x'outcome}5 $treatcomb5
+		gl `x'eq6 ${`x'outcome}6 $treatcomb5
 	}
 end
 
@@ -800,30 +802,33 @@ wyoung, cmd ("reg $lineq3 $sampresc, $seest" ///
 "reg $lineq5 $sampresc, $seest" ///
 "reg $lineq5 $sampresc, $seest" ///
 "reg $lineq6 $sampresc, $seest" ///
+"reg $lineq6 $sampresc, $seest" ///
+"reg $lineq7 $sampresc, $seest" ///
 "reg $lineq7 $sampresc, $seest" ///
 "reg $lineq7 $sampresc, $seest" ///
 "reg $lineq8 $sampresc, $seest" ///
 "reg $lineq8 $sampresc, $seest" ///
+"reg $lineq8 $sampresc, $seest" ///
 "reg $lineq9 $sampresc, $seest" ///
 "reg $lineq9 $sampresc, $seest" ///
-"reg $lineq10 $sampresc, $seest" ///
+"reg $lineq9 $sampresc, $seest" ///
 "reg $lineq10 $sampresc, $seest" ///
 "reg $lineq10 $sampresc, $seest" ///
 "reg $lineq11 $sampresc, $seest" ///
 "reg $lineq11 $sampresc, $seest" ///
-"reg $lineq12 $sampresc, $seest" ///
+"reg $lineq11 $sampresc, $seest" ///
 "reg $lineq12 $sampresc, $seest" ///
 "reg $lineq12 $sampresc, $seest" ///
 "reg $lineq12 $sampresc, $seest") ///
 familyp($treatcomb1 /// 
 $treatcomb2 /// 
 $treatcomb3 /// 
-$treatcomb2 /// 
-$treatcomb2 /// 
-$treatcomb1 ///
 $treatcomb4 /// 
+$treatcomb4 /// 
+$treatcomb4 ///
 $treatcomb5 /// 
-$treatcomb6) /// 
+$treatcomb6 /// 
+$treatcomb7) /// 
 bootstraps($bstraprep) seed($seednum) replace
 
 * tidy wyoung result
@@ -843,35 +848,39 @@ forval j = 1/2 {
 		gl covarset`j'_select`i' `e(controls_sel)'
 		loc df`i'=`e(N)'
 	}
+	* wyoung procedure 
 	wyoung, cmd ("reg $lineq3 ${covarset`j'_select3} $sampresc, $seest" ///
 	"reg $lineq3 ${covarset`j'_select3} $sampresc, $seest" ///
 	"reg $lineq5 ${covarset`j'_select5} $sampresc, $seest" ///
 	"reg $lineq5 ${covarset`j'_select5} $sampresc, $seest" ///
 	"reg $lineq6 ${covarset`j'_select6} $sampresc, $seest" ///
+	"reg $lineq6 ${covarset`j'_select6} $sampresc, $seest" ///
+	"reg $lineq7 ${covarset`j'_select7} $sampresc, $seest" ///
 	"reg $lineq7 ${covarset`j'_select7} $sampresc, $seest" ///
 	"reg $lineq7 ${covarset`j'_select7} $sampresc, $seest" ///
 	"reg $lineq8 ${covarset`j'_select8} $sampresc, $seest" ///
 	"reg $lineq8 ${covarset`j'_select8} $sampresc, $seest" ///
+	"reg $lineq8 ${covarset`j'_select8} $sampresc, $seest" ///
 	"reg $lineq9 ${covarset`j'_select9} $sampresc, $seest" ///
 	"reg $lineq9 ${covarset`j'_select9} $sampresc, $seest" ///
-	"reg $lineq10 ${covarset`j'_select10} $sampresc, $seest" ///
+	"reg $lineq9 ${covarset`j'_select9} $sampresc, $seest" ///
 	"reg $lineq10 ${covarset`j'_select10} $sampresc, $seest" ///
 	"reg $lineq10 ${covarset`j'_select10} $sampresc, $seest" ///
 	"reg $lineq11 ${covarset`j'_select11} $sampresc, $seest" ///
 	"reg $lineq11 ${covarset`j'_select11} $sampresc, $seest" ///
-	"reg $lineq12 ${covarset`j'_select12} $sampresc, $seest" ///
+	"reg $lineq11 ${covarset`j'_select11} $sampresc, $seest" ///
 	"reg $lineq12 ${covarset`j'_select12} $sampresc, $seest" ///
 	"reg $lineq12 ${covarset`j'_select12} $sampresc, $seest" ///
 	"reg $lineq12 ${covarset`j'_select12} $sampresc, $seest") ///
 	familyp($treatcomb1 /// 
 	$treatcomb2 /// 
 	$treatcomb3 /// 
-	$treatcomb2 /// 
-	$treatcomb2 /// 
-	$treatcomb1 ///
 	$treatcomb4 /// 
+	$treatcomb4 /// 
+	$treatcomb4 ///
 	$treatcomb5 /// 
-	$treatcomb6) /// 
+	$treatcomb6 /// 
+	$treatcomb7) /// 
 	bootstraps($bstraprep) seed($seednum) replace
 	loc modelnum=`j'+1
 	g equation=`modelnum'
@@ -946,7 +955,7 @@ forval i = 1/$numvar {
 wyoung, cmd ("reg $lineq1 $sampresc, $seest" ///
 "reg $lineq1 $sampresc, $seest" ///
 "reg $lineq1 $sampresc, $seest" ///
-"reg $lineq1 $sampresc, $seest" ///
+"reg $lineq2 $sampresc, $seest" ///
 "reg $lineq2 $sampresc, $seest" ///
 "reg $lineq2 $sampresc, $seest" ///
 "reg $lineq3 $sampresc, $seest" ///
@@ -961,10 +970,10 @@ wyoung, cmd ("reg $lineq1 $sampresc, $seest" ///
 "reg $lineq6 $sampresc, $seest") ///
 familyp($treatcomb1 /// 
 $treatcomb2 /// 
-$treatcomb2 /// 
 $treatcomb3 /// 
 $treatcomb4 /// 
-$treatcomb4) /// 
+$treatcomb5 /// 
+$treatcomb5) /// 
 bootstraps($bstraprep) seed($seednum) replace
 
 * tidy wyoung result
@@ -987,7 +996,7 @@ forval j = 1/2 {
 	wyoung, cmd ("reg $lineq1 ${covarset`j'_select1} $sampresc, $seest" ///
 	"reg $lineq1 ${covarset`j'_select1} $sampresc, $seest" ///
 	"reg $lineq1 ${covarset`j'_select1} $sampresc, $seest" ///
-	"reg $lineq1 ${covarset`j'_select1} $sampresc, $seest" ///
+	"reg $lineq2 ${covarset`j'_select2} $sampresc, $seest" ///
 	"reg $lineq2 ${covarset`j'_select2} $sampresc, $seest" ///
 	"reg $lineq2 ${covarset`j'_select2} $sampresc, $seest" ///
 	"reg $lineq3 ${covarset`j'_select3} $sampresc, $seest" ///
@@ -1002,10 +1011,10 @@ forval j = 1/2 {
 	"reg $lineq6 ${covarset`j'_select6} $sampresc, $seest") ///
 	familyp($treatcomb1 /// 
 	$treatcomb2 /// 
-	$treatcomb2 /// 
 	$treatcomb3 /// 
 	$treatcomb4 /// 
-	$treatcomb4) /// 
+	$treatcomb5 /// 
+	$treatcomb5) /// 
 	bootstraps($bstraprep) seed($seednum) replace
 	loc modelnum=`j'+1
 	g equation=`modelnum'
@@ -1086,7 +1095,7 @@ foreach x in ologit  {
 	wyoung, cmd ("`x' $probeq1 $sampresc, `regress_options'" ///
 	"`x' $probeq1 $sampresc, `regress_options'" ///
 	"`x' $probeq1 $sampresc, `regress_options'" ///
-	"`x' $probeq1 $sampresc, `regress_options'" ///
+	"`x' $probeq2 $sampresc, `regress_options'" ///
 	"`x' $probeq2 $sampresc, `regress_options'" ///
 	"`x' $probeq2 $sampresc, `regress_options'" ///
 	"`x' $probeq3 $sampresc, `regress_options'" ///
@@ -1101,10 +1110,10 @@ foreach x in ologit  {
 	"`x' $probeq6 $sampresc, `regress_options'") ///
 	familyp($treatcomb1 /// 
 	$treatcomb2 /// 
-	$treatcomb2 /// 
 	$treatcomb3 /// 
 	$treatcomb4 /// 
-	$treatcomb4) /// 
+	$treatcomb5 /// 
+	$treatcomb5) ///  
 	bootstraps($bstraprep) seed($seednum) replace
 
 	* tidy wyoung result
@@ -1127,7 +1136,7 @@ foreach x in ologit  {
 		wyoung, cmd ("`x' $probeq1 ${covarset`j'_select1} $sampresc, `regress_options'" ///
 		"`x' $probeq1 ${covarset`j'_select1} $sampresc, `regress_options'" ///
 		"`x' $probeq1 ${covarset`j'_select1} $sampresc, `regress_options'" ///
-		"`x' $probeq1 ${covarset`j'_select1} $sampresc, `regress_options'" ///
+		"`x' $probeq2 ${covarset`j'_select2} $sampresc, `regress_options'" ///
 		"`x' $probeq2 ${covarset`j'_select2} $sampresc, `regress_options'" ///
 		"`x' $probeq2 ${covarset`j'_select2} $sampresc, `regress_options'" ///
 		"`x' $probeq3 ${covarset`j'_select3} $sampresc, `regress_options'" ///
@@ -1142,10 +1151,10 @@ foreach x in ologit  {
 		"`x' $probeq6 ${covarset`j'_select6} $sampresc, `regress_options'") ///
 		familyp($treatcomb1 /// 
 		$treatcomb2 /// 
-		$treatcomb2 /// 
 		$treatcomb3 /// 
 		$treatcomb4 /// 
-		$treatcomb4) /// 
+		$treatcomb5 /// 
+		$treatcomb5) /// 
 		bootstraps($bstraprep) seed($seednum) replace
 		loc modelnum=`j'+1
 		g equation=`modelnum'

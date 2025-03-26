@@ -6,7 +6,7 @@ clear all
 set more off
 
 * directory
-if "`c(username)'"=="user" {
+if "`c(username)'"=="User" {
 	gl basedir "H:"
 } 
 else if "`c(username)'"=="azzah" {
