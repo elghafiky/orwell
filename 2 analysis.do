@@ -392,20 +392,8 @@ pro plotprep
 	}
 end 
 
-* ==== POLICY SUPPORT - MANOVA ==== *
-setupdataDK
-order(QDKr_cloned*), after(treat6)
-
-manova QDKr_cloned1 QDKr_cloned4-QDKr_cloned8 QDKr_cloned10 QDKr_cloned11 = treat1 $sampresc 
-
-manova QDKr_cloned1-QDKr_cloned5 QDKr_cloned8 QDKr_cloned9 QDKr_cloned11-QDKr_cloned13 = treat2 $sampresc 
-
-manova QDKr_cloned2-QDKr_cloned5 QDKr_cloned9 QDKr_cloned12 QDKr_cloned13 = treat3 $sampresc 
-
-manova QDKr_cloned1 QDKr_cloned6 QDKr_cloned7 QDKr_cloned10 = treat5 $sampresc 
-
-* ==== POLICY SUPPORT - WESTFALL YOUNG ==== *
-*** OLS and PD LASSO
+* ==== POLICY SUPPORT: WESTFALL YOUNG ==== *
+*** OLS AND PD LASSO
 
 ** model 1
 * open data
@@ -781,6 +769,496 @@ forval i = 1/$numvar {
 	plotr(margin(zero))
 	gr export "$fig\DK`i'_wyoung_combined.png", replace
 }
+
+*** TABLE
+use "$temp\DK_wyoung_linear_allmodel.dta", clear 
+g estimator=1
+foreach x in ologit oprobit {
+	append using "$temp\DK_wyoung_`x'_allmodel.dta"	
+}
+replace estimator=2 if regexm(model,"ologit")
+replace estimator=3 if regexm(model,"oprobit")
+la def estimatorlab 1 "Linear" 2 "Ordered logit" 3 "Ordered probit"
+la val estimator estimatorlab
+ren tstat_wyoung tstat
+
+qui levelsof outnum
+foreach outcome in `r(levels)' {
+	qui levelsof treatnm
+	foreach treatment in `r(levels)' {
+		qui levelsof estimator
+		foreach estmtr in `r(levels)' {
+			qui levelsof equation 
+			foreach modnum in `r(levels)' {
+				foreach item in coef stderr pwyoung tstat df {
+					qui sum `item' if outnum==`outcome' & treatnm==`treatment' & estimator==`estmtr' & equation==`modnum'
+					if `r(N)'>0 {
+						if "`item'"=="tstat" {
+							loc `item'_o`outcome'_t`treatment'_e`estmtr'_m`modnum'= `r(mean)'
+						}
+						else {
+							if "`item'"=="df" {
+								loc decimal 0
+							}
+							else {
+								loc decimal 4
+							}
+							loc `item'_o`outcome'_t`treatment'_e`estmtr'_m`modnum': di %12.`decimal'fc `r(mean)'
+						}
+					}
+				}
+				if `r(N)'>0 {
+					loc star_o`outcome'_t`treatment'_e`estmtr'_m`modnum'=cond(abs(`tstat_o`outcome'_t`treatment'_e`estmtr'_m`modnum'')>2.58,"***",cond(abs(`tstat_o`outcome'_t`treatment'_e`estmtr'_m`modnum'')>1.96,"**",cond(abs(`tstat_o`outcome'_t`treatment'_e`estmtr'_m`modnum'')>1.645,"*","")))
+					loc N_o`outcome' `df_o`outcome'_t`treatment'_e`estmtr'_m`modnum'' 
+				}
+			}
+		} 
+	}
+} 
+
+texdoc init "$tbl\DK_model2.tex", replace force
+tex \def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi} 
+tex \begin{tabular}{l*{13}{c}} 
+tex \hline\hline 
+tex                    	&\multicolumn{1}{c}{(1)} 
+tex 				   	&\multicolumn{1}{c}{(2)}
+tex 				   	&\multicolumn{1}{c}{(3)}
+tex 					&\multicolumn{1}{c}{(4)}
+tex 					&\multicolumn{1}{c}{(5)}
+tex 					&\multicolumn{1}{c}{(6)}
+tex 					&\multicolumn{1}{c}{(7)}
+tex 					&\multicolumn{1}{c}{(8)}
+tex 					&\multicolumn{1}{c}{(9)}
+tex 					&\multicolumn{1}{c}{(10)}
+tex 					&\multicolumn{1}{c}{(11)}
+tex 					&\multicolumn{1}{c}{(12)}
+tex 					&\multicolumn{1}{c}{(13)}\\
+tex 				   	&\multicolumn{1}{c}{DK1}
+tex 					&\multicolumn{1}{c}{DK2}
+tex 					&\multicolumn{1}{c}{DK3}
+tex 					&\multicolumn{1}{c}{DK4}
+tex 					&\multicolumn{1}{c}{DK5}
+tex 					&\multicolumn{1}{c}{DK6}
+tex 					&\multicolumn{1}{c}{DK7}
+tex 					&\multicolumn{1}{c}{DK8}
+tex 					&\multicolumn{1}{c}{DK9}
+tex 					&\multicolumn{1}{c}{DK10}
+tex 					&\multicolumn{1}{c}{DK11}
+tex 					&\multicolumn{1}{c}{DK12}
+tex 					&\multicolumn{1}{c}{DK13}\\
+tex \hline
+tex &\multicolumn{13}{c}{Panel A: OLS} \\
+tex Narrative 1 		&    `coef_o1_t1_e1_m2'\sym{`star_o1_t1_e1_m2'}    
+tex						&    `coef_o2_t1_e1_m2'\sym{`star_o2_t1_e1_m2'} 		
+tex						&    `coef_o3_t1_e1_m2'\sym{`star_o3_t1_e1_m2'} 
+tex						&    `coef_o4_t1_e1_m2'\sym{`star_o4_t1_e1_m2'} 
+tex						&    `coef_o5_t1_e1_m2'\sym{`star_o5_t1_e1_m2'} 
+tex						&    `coef_o6_t1_e1_m2'\sym{`star_o6_t1_e1_m2'} 
+tex						&    `coef_o7_t1_e1_m2'\sym{`star_o7_t1_e1_m2'} 
+tex						&    `coef_o8_t1_e1_m2'\sym{`star_o8_t1_e1_m2'} 
+tex						&    `coef_o9_t1_e1_m2'\sym{`star_o9_t1_e1_m2'} 
+tex						&    `coef_o10_t1_e1_m2'\sym{`star_o10_t1_e1_m2'} 
+tex						&    `coef_o11_t1_e1_m2'\sym{`star_o11_t1_e1_m2'} 
+tex						&    `coef_o12_t1_e1_m2'\sym{`star_o12_t1_e1_m2'} 
+tex						&    `coef_o13_t1_e1_m2'\sym{`star_o13_t1_e1_m2'}  \\
+tex  					&    (`stderr_o1_t1_e1_m2')    
+tex						&    (`stderr_o2_t1_e1_m2') 		
+tex						&    (`stderr_o3_t1_e1_m2') 
+tex						&    (`stderr_o4_t1_e1_m2') 
+tex						&    (`stderr_o5_t1_e1_m2') 
+tex						&    (`stderr_o6_t1_e1_m2') 
+tex						&    (`stderr_o7_t1_e1_m2') 
+tex						&    (`stderr_o8_t1_e1_m2') 
+tex						&    (`stderr_o9_t1_e1_m2') 
+tex						&    (`stderr_o10_t1_e1_m2') 
+tex						&    (`stderr_o11_t1_e1_m2') 
+tex						&    (`stderr_o12_t1_e1_m2') 
+tex						&    (`stderr_o13_t1_e1_m2')  \\
+tex  					&    [`pwyoung_o1_t1_e1_m2']    
+tex						&    [`pwyoung_o2_t1_e1_m2'] 		
+tex						&    [`pwyoung_o3_t1_e1_m2'] 
+tex						&    [`pwyoung_o4_t1_e1_m2'] 
+tex						&    [`pwyoung_o5_t1_e1_m2'] 
+tex						&    [`pwyoung_o6_t1_e1_m2'] 
+tex						&    [`pwyoung_o7_t1_e1_m2'] 
+tex						&    [`pwyoung_o8_t1_e1_m2'] 
+tex						&    [`pwyoung_o9_t1_e1_m2'] 
+tex						&    [`pwyoung_o10_t1_e1_m2'] 
+tex						&    [`pwyoung_o11_t1_e1_m2'] 
+tex						&    [`pwyoung_o12_t1_e1_m2'] 
+tex						&    [`pwyoung_o13_t1_e1_m2']  \\
+tex Narrative 2 		&    `coef_o1_t2_e1_m2'\sym{`star_o1_t2_e1_m2'}    
+tex						&    `coef_o2_t2_e1_m2'\sym{`star_o2_t2_e1_m2'} 		
+tex						&    `coef_o3_t2_e1_m2'\sym{`star_o3_t2_e1_m2'} 
+tex						&    `coef_o4_t2_e1_m2'\sym{`star_o4_t2_e1_m2'} 
+tex						&    `coef_o5_t2_e1_m2'\sym{`star_o5_t2_e1_m2'} 
+tex						&    `coef_o6_t2_e1_m2'\sym{`star_o6_t2_e1_m2'} 
+tex						&    `coef_o7_t2_e1_m2'\sym{`star_o7_t2_e1_m2'} 
+tex						&    `coef_o8_t2_e1_m2'\sym{`star_o8_t2_e1_m2'} 
+tex						&    `coef_o9_t2_e1_m2'\sym{`star_o9_t2_e1_m2'} 
+tex						&    `coef_o10_t2_e1_m2'\sym{`star_o10_t2_e1_m2'} 
+tex						&    `coef_o11_t2_e1_m2'\sym{`star_o11_t2_e1_m2'} 
+tex						&    `coef_o12_t2_e1_m2'\sym{`star_o12_t2_e1_m2'} 
+tex						&    `coef_o13_t2_e1_m2'\sym{`star_o13_t2_e1_m2'}  \\
+tex  					&    (`stderr_o1_t2_e1_m2')    
+tex						&    (`stderr_o2_t2_e1_m2') 		
+tex						&    (`stderr_o3_t2_e1_m2') 
+tex						&    (`stderr_o4_t2_e1_m2') 
+tex						&    (`stderr_o5_t2_e1_m2') 
+tex						&    (`stderr_o6_t2_e1_m2') 
+tex						&    (`stderr_o7_t2_e1_m2') 
+tex						&    (`stderr_o8_t2_e1_m2') 
+tex						&    (`stderr_o9_t2_e1_m2') 
+tex						&    (`stderr_o10_t2_e1_m2') 
+tex						&    (`stderr_o11_t2_e1_m2') 
+tex						&    (`stderr_o12_t2_e1_m2') 
+tex						&    (`stderr_o13_t2_e1_m2')  \\
+tex  					&    [`pwyoung_o1_t2_e1_m2']    
+tex						&    [`pwyoung_o2_t2_e1_m2'] 		
+tex						&    [`pwyoung_o3_t2_e1_m2'] 
+tex						&    [`pwyoung_o4_t2_e1_m2'] 
+tex						&    [`pwyoung_o5_t2_e1_m2'] 
+tex						&    [`pwyoung_o6_t2_e1_m2'] 
+tex						&    [`pwyoung_o7_t2_e1_m2'] 
+tex						&    [`pwyoung_o8_t2_e1_m2'] 
+tex						&    [`pwyoung_o9_t2_e1_m2'] 
+tex						&    [`pwyoung_o10_t2_e1_m2'] 
+tex						&    [`pwyoung_o11_t2_e1_m2'] 
+tex						&    [`pwyoung_o12_t2_e1_m2'] 
+tex						&    [`pwyoung_o13_t2_e1_m2']  \\
+tex Narrative 3 		&    `coef_o1_t3_e1_m2'\sym{`star_o1_t3_e1_m2'}    
+tex						&    `coef_o2_t3_e1_m2'\sym{`star_o2_t3_e1_m2'} 		
+tex						&    `coef_o3_t3_e1_m2'\sym{`star_o3_t3_e1_m2'} 
+tex						&    `coef_o4_t3_e1_m2'\sym{`star_o4_t3_e1_m2'} 
+tex						&    `coef_o5_t3_e1_m2'\sym{`star_o5_t3_e1_m2'} 
+tex						&    `coef_o6_t3_e1_m2'\sym{`star_o6_t3_e1_m2'} 
+tex						&    `coef_o7_t3_e1_m2'\sym{`star_o7_t3_e1_m2'} 
+tex						&    `coef_o8_t3_e1_m2'\sym{`star_o8_t3_e1_m2'} 
+tex						&    `coef_o9_t3_e1_m2'\sym{`star_o9_t3_e1_m2'} 
+tex						&    `coef_o10_t3_e1_m2'\sym{`star_o10_t3_e1_m2'} 
+tex						&    `coef_o11_t3_e1_m2'\sym{`star_o11_t3_e1_m2'} 
+tex						&    `coef_o12_t3_e1_m2'\sym{`star_o12_t3_e1_m2'} 
+tex						&    `coef_o13_t3_e1_m2'\sym{`star_o13_t3_e1_m2'}  \\
+tex  					&    (`stderr_o1_t3_e1_m2')    
+tex						&    (`stderr_o2_t3_e1_m2') 		
+tex						&    (`stderr_o3_t3_e1_m2') 
+tex						&    (`stderr_o4_t3_e1_m2') 
+tex						&    (`stderr_o5_t3_e1_m2') 
+tex						&    (`stderr_o6_t3_e1_m2') 
+tex						&    (`stderr_o7_t3_e1_m2') 
+tex						&    (`stderr_o8_t3_e1_m2') 
+tex						&    (`stderr_o9_t3_e1_m2') 
+tex						&    (`stderr_o10_t3_e1_m2') 
+tex						&    (`stderr_o11_t3_e1_m2') 
+tex						&    (`stderr_o12_t3_e1_m2') 
+tex						&    (`stderr_o13_t3_e1_m2')  \\
+tex  					&    [`pwyoung_o1_t3_e1_m2']    
+tex						&    [`pwyoung_o2_t3_e1_m2'] 		
+tex						&    [`pwyoung_o3_t3_e1_m2'] 
+tex						&    [`pwyoung_o4_t3_e1_m2'] 
+tex						&    [`pwyoung_o5_t3_e1_m2'] 
+tex						&    [`pwyoung_o6_t3_e1_m2'] 
+tex						&    [`pwyoung_o7_t3_e1_m2'] 
+tex						&    [`pwyoung_o8_t3_e1_m2'] 
+tex						&    [`pwyoung_o9_t3_e1_m2'] 
+tex						&    [`pwyoung_o10_t3_e1_m2'] 
+tex						&    [`pwyoung_o11_t3_e1_m2'] 
+tex						&    [`pwyoung_o12_t3_e1_m2'] 
+tex						&    [`pwyoung_o13_t3_e1_m2']  \\
+tex Narrative 4 		&    `coef_o1_t4_e1_m2'\sym{`star_o1_t4_e1_m2'}    
+tex						&    `coef_o2_t4_e1_m2'\sym{`star_o2_t4_e1_m2'} 		
+tex						&    `coef_o3_t4_e1_m2'\sym{`star_o3_t4_e1_m2'} 
+tex						&    `coef_o4_t4_e1_m2'\sym{`star_o4_t4_e1_m2'} 
+tex						&    `coef_o5_t4_e1_m2'\sym{`star_o5_t4_e1_m2'} 
+tex						&    `coef_o6_t4_e1_m2'\sym{`star_o6_t4_e1_m2'} 
+tex						&    `coef_o7_t4_e1_m2'\sym{`star_o7_t4_e1_m2'} 
+tex						&    `coef_o8_t4_e1_m2'\sym{`star_o8_t4_e1_m2'} 
+tex						&    `coef_o9_t4_e1_m2'\sym{`star_o9_t4_e1_m2'} 
+tex						&    `coef_o10_t4_e1_m2'\sym{`star_o10_t4_e1_m2'} 
+tex						&    `coef_o11_t4_e1_m2'\sym{`star_o11_t4_e1_m2'} 
+tex						&    `coef_o12_t4_e1_m2'\sym{`star_o12_t4_e1_m2'} 
+tex						&    `coef_o13_t4_e1_m2'\sym{`star_o13_t4_e1_m2'}  \\
+tex  					&    (`stderr_o1_t4_e1_m2')    
+tex						&    (`stderr_o2_t4_e1_m2') 		
+tex						&    (`stderr_o3_t4_e1_m2') 
+tex						&    (`stderr_o4_t4_e1_m2') 
+tex						&    (`stderr_o5_t4_e1_m2') 
+tex						&    (`stderr_o6_t4_e1_m2') 
+tex						&    (`stderr_o7_t4_e1_m2') 
+tex						&    (`stderr_o8_t4_e1_m2') 
+tex						&    (`stderr_o9_t4_e1_m2') 
+tex						&    (`stderr_o10_t4_e1_m2') 
+tex						&    (`stderr_o11_t4_e1_m2') 
+tex						&    (`stderr_o12_t4_e1_m2') 
+tex						&    (`stderr_o13_t4_e1_m2')  \\
+tex  					&    [`pwyoung_o1_t4_e1_m2']    
+tex						&    [`pwyoung_o2_t4_e1_m2'] 		
+tex						&    [`pwyoung_o3_t4_e1_m2'] 
+tex						&    [`pwyoung_o4_t4_e1_m2'] 
+tex						&    [`pwyoung_o5_t4_e1_m2'] 
+tex						&    [`pwyoung_o6_t4_e1_m2'] 
+tex						&    [`pwyoung_o7_t4_e1_m2'] 
+tex						&    [`pwyoung_o8_t4_e1_m2'] 
+tex						&    [`pwyoung_o9_t4_e1_m2'] 
+tex						&    [`pwyoung_o10_t4_e1_m2'] 
+tex						&    [`pwyoung_o11_t4_e1_m2'] 
+tex						&    [`pwyoung_o12_t4_e1_m2'] 
+tex						&    [`pwyoung_o13_t4_e1_m2']  \\
+tex Narrative 5 		&    `coef_o1_t5_e1_m2'\sym{`star_o1_t5_e1_m2'}    
+tex						&    `coef_o2_t5_e1_m2'\sym{`star_o2_t5_e1_m2'} 		
+tex						&    `coef_o3_t5_e1_m2'\sym{`star_o3_t5_e1_m2'} 
+tex						&    `coef_o4_t5_e1_m2'\sym{`star_o4_t5_e1_m2'} 
+tex						&    `coef_o5_t5_e1_m2'\sym{`star_o5_t5_e1_m2'} 
+tex						&    `coef_o6_t5_e1_m2'\sym{`star_o6_t5_e1_m2'} 
+tex						&    `coef_o7_t5_e1_m2'\sym{`star_o7_t5_e1_m2'} 
+tex						&    `coef_o8_t5_e1_m2'\sym{`star_o8_t5_e1_m2'} 
+tex						&    `coef_o9_t5_e1_m2'\sym{`star_o9_t5_e1_m2'} 
+tex						&    `coef_o10_t5_e1_m2'\sym{`star_o10_t5_e1_m2'} 
+tex						&    `coef_o11_t5_e1_m2'\sym{`star_o11_t5_e1_m2'} 
+tex						&    `coef_o12_t5_e1_m2'\sym{`star_o12_t5_e1_m2'} 
+tex						&    `coef_o13_t5_e1_m2'\sym{`star_o13_t5_e1_m2'}  \\
+tex  					&    (`stderr_o1_t5_e1_m2')    
+tex						&    (`stderr_o2_t5_e1_m2') 		
+tex						&    (`stderr_o3_t5_e1_m2') 
+tex						&    (`stderr_o4_t5_e1_m2') 
+tex						&    (`stderr_o5_t5_e1_m2') 
+tex						&    (`stderr_o6_t5_e1_m2') 
+tex						&    (`stderr_o7_t5_e1_m2') 
+tex						&    (`stderr_o8_t5_e1_m2') 
+tex						&    (`stderr_o9_t5_e1_m2') 
+tex						&    (`stderr_o10_t5_e1_m2') 
+tex						&    (`stderr_o11_t5_e1_m2') 
+tex						&    (`stderr_o12_t5_e1_m2') 
+tex						&    (`stderr_o13_t5_e1_m2')  \\
+tex  					&    [`pwyoung_o1_t5_e1_m2']    
+tex						&    [`pwyoung_o2_t5_e1_m2'] 		
+tex						&    [`pwyoung_o3_t5_e1_m2'] 
+tex						&    [`pwyoung_o4_t5_e1_m2'] 
+tex						&    [`pwyoung_o5_t5_e1_m2'] 
+tex						&    [`pwyoung_o6_t5_e1_m2'] 
+tex						&    [`pwyoung_o7_t5_e1_m2'] 
+tex						&    [`pwyoung_o8_t5_e1_m2'] 
+tex						&    [`pwyoung_o9_t5_e1_m2'] 
+tex						&    [`pwyoung_o10_t5_e1_m2'] 
+tex						&    [`pwyoung_o11_t5_e1_m2'] 
+tex						&    [`pwyoung_o12_t5_e1_m2'] 
+tex						&    [`pwyoung_o13_t5_e1_m2']  \\
+tex \hline
+tex &\multicolumn{13}{c}{Panel B: Ordered Logit} \\
+tex Narrative 1 		&    `coef_o1_t1_e2_m2'\sym{`star_o1_t1_e2_m2'}    
+tex						&    `coef_o2_t1_e2_m2'\sym{`star_o2_t1_e2_m2'} 		
+tex						&    `coef_o3_t1_e2_m2'\sym{`star_o3_t1_e2_m2'} 
+tex						&    `coef_o4_t1_e2_m2'\sym{`star_o4_t1_e2_m2'} 
+tex						&    `coef_o5_t1_e2_m2'\sym{`star_o5_t1_e2_m2'} 
+tex						&    `coef_o6_t1_e2_m2'\sym{`star_o6_t1_e2_m2'} 
+tex						&    `coef_o7_t1_e2_m2'\sym{`star_o7_t1_e2_m2'} 
+tex						&    `coef_o8_t1_e2_m2'\sym{`star_o8_t1_e2_m2'} 
+tex						&    `coef_o9_t1_e2_m2'\sym{`star_o9_t1_e2_m2'} 
+tex						&    `coef_o10_t1_e2_m2'\sym{`star_o10_t1_e2_m2'} 
+tex						&    `coef_o11_t1_e2_m2'\sym{`star_o11_t1_e2_m2'} 
+tex						&    `coef_o12_t1_e2_m2'\sym{`star_o12_t1_e2_m2'} 
+tex						&    `coef_o13_t1_e2_m2'\sym{`star_o13_t1_e2_m2'}  \\
+tex  					&    (`stderr_o1_t1_e2_m2')    
+tex						&    (`stderr_o2_t1_e2_m2') 		
+tex						&    (`stderr_o3_t1_e2_m2') 
+tex						&    (`stderr_o4_t1_e2_m2') 
+tex						&    (`stderr_o5_t1_e2_m2') 
+tex						&    (`stderr_o6_t1_e2_m2') 
+tex						&    (`stderr_o7_t1_e2_m2') 
+tex						&    (`stderr_o8_t1_e2_m2') 
+tex						&    (`stderr_o9_t1_e2_m2') 
+tex						&    (`stderr_o10_t1_e2_m2') 
+tex						&    (`stderr_o11_t1_e2_m2') 
+tex						&    (`stderr_o12_t1_e2_m2') 
+tex						&    (`stderr_o13_t1_e2_m2')  \\
+tex  					&    [`pwyoung_o1_t1_e2_m2']    
+tex						&    [`pwyoung_o2_t1_e2_m2'] 		
+tex						&    [`pwyoung_o3_t1_e2_m2'] 
+tex						&    [`pwyoung_o4_t1_e2_m2'] 
+tex						&    [`pwyoung_o5_t1_e2_m2'] 
+tex						&    [`pwyoung_o6_t1_e2_m2'] 
+tex						&    [`pwyoung_o7_t1_e2_m2'] 
+tex						&    [`pwyoung_o8_t1_e2_m2'] 
+tex						&    [`pwyoung_o9_t1_e2_m2'] 
+tex						&    [`pwyoung_o10_t1_e2_m2'] 
+tex						&    [`pwyoung_o11_t1_e2_m2'] 
+tex						&    [`pwyoung_o12_t1_e2_m2'] 
+tex						&    [`pwyoung_o13_t1_e2_m2']  \\
+tex Narrative 2 		&    `coef_o1_t2_e2_m2'\sym{`star_o1_t2_e2_m2'}    
+tex						&    `coef_o2_t2_e2_m2'\sym{`star_o2_t2_e2_m2'} 		
+tex						&    `coef_o3_t2_e2_m2'\sym{`star_o3_t2_e2_m2'} 
+tex						&    `coef_o4_t2_e2_m2'\sym{`star_o4_t2_e2_m2'} 
+tex						&    `coef_o5_t2_e2_m2'\sym{`star_o5_t2_e2_m2'} 
+tex						&    `coef_o6_t2_e2_m2'\sym{`star_o6_t2_e2_m2'} 
+tex						&    `coef_o7_t2_e2_m2'\sym{`star_o7_t2_e2_m2'} 
+tex						&    `coef_o8_t2_e2_m2'\sym{`star_o8_t2_e2_m2'} 
+tex						&    `coef_o9_t2_e2_m2'\sym{`star_o9_t2_e2_m2'} 
+tex						&    `coef_o10_t2_e2_m2'\sym{`star_o10_t2_e2_m2'} 
+tex						&    `coef_o11_t2_e2_m2'\sym{`star_o11_t2_e2_m2'} 
+tex						&    `coef_o12_t2_e2_m2'\sym{`star_o12_t2_e2_m2'} 
+tex						&    `coef_o13_t2_e2_m2'\sym{`star_o13_t2_e2_m2'}  \\
+tex  					&    (`stderr_o1_t2_e2_m2')    
+tex						&    (`stderr_o2_t2_e2_m2') 		
+tex						&    (`stderr_o3_t2_e2_m2') 
+tex						&    (`stderr_o4_t2_e2_m2') 
+tex						&    (`stderr_o5_t2_e2_m2') 
+tex						&    (`stderr_o6_t2_e2_m2') 
+tex						&    (`stderr_o7_t2_e2_m2') 
+tex						&    (`stderr_o8_t2_e2_m2') 
+tex						&    (`stderr_o9_t2_e2_m2') 
+tex						&    (`stderr_o10_t2_e2_m2') 
+tex						&    (`stderr_o11_t2_e2_m2') 
+tex						&    (`stderr_o12_t2_e2_m2') 
+tex						&    (`stderr_o13_t2_e2_m2')  \\
+tex  					&    [`pwyoung_o1_t2_e2_m2']    
+tex						&    [`pwyoung_o2_t2_e2_m2'] 		
+tex						&    [`pwyoung_o3_t2_e2_m2'] 
+tex						&    [`pwyoung_o4_t2_e2_m2'] 
+tex						&    [`pwyoung_o5_t2_e2_m2'] 
+tex						&    [`pwyoung_o6_t2_e2_m2'] 
+tex						&    [`pwyoung_o7_t2_e2_m2'] 
+tex						&    [`pwyoung_o8_t2_e2_m2'] 
+tex						&    [`pwyoung_o9_t2_e2_m2'] 
+tex						&    [`pwyoung_o10_t2_e2_m2'] 
+tex						&    [`pwyoung_o11_t2_e2_m2'] 
+tex						&    [`pwyoung_o12_t2_e2_m2'] 
+tex						&    [`pwyoung_o13_t2_e2_m2']  \\
+tex Narrative 3 		&    `coef_o1_t3_e2_m2'\sym{`star_o1_t3_e2_m2'}    
+tex						&    `coef_o2_t3_e2_m2'\sym{`star_o2_t3_e2_m2'} 		
+tex						&    `coef_o3_t3_e2_m2'\sym{`star_o3_t3_e2_m2'} 
+tex						&    `coef_o4_t3_e2_m2'\sym{`star_o4_t3_e2_m2'} 
+tex						&    `coef_o5_t3_e2_m2'\sym{`star_o5_t3_e2_m2'} 
+tex						&    `coef_o6_t3_e2_m2'\sym{`star_o6_t3_e2_m2'} 
+tex						&    `coef_o7_t3_e2_m2'\sym{`star_o7_t3_e2_m2'} 
+tex						&    `coef_o8_t3_e2_m2'\sym{`star_o8_t3_e2_m2'} 
+tex						&    `coef_o9_t3_e2_m2'\sym{`star_o9_t3_e2_m2'} 
+tex						&    `coef_o10_t3_e2_m2'\sym{`star_o10_t3_e2_m2'} 
+tex						&    `coef_o11_t3_e2_m2'\sym{`star_o11_t3_e2_m2'} 
+tex						&    `coef_o12_t3_e2_m2'\sym{`star_o12_t3_e2_m2'} 
+tex						&    `coef_o13_t3_e2_m2'\sym{`star_o13_t3_e2_m2'}  \\
+tex  					&    (`stderr_o1_t3_e2_m2')    
+tex						&    (`stderr_o2_t3_e2_m2') 		
+tex						&    (`stderr_o3_t3_e2_m2') 
+tex						&    (`stderr_o4_t3_e2_m2') 
+tex						&    (`stderr_o5_t3_e2_m2') 
+tex						&    (`stderr_o6_t3_e2_m2') 
+tex						&    (`stderr_o7_t3_e2_m2') 
+tex						&    (`stderr_o8_t3_e2_m2') 
+tex						&    (`stderr_o9_t3_e2_m2') 
+tex						&    (`stderr_o10_t3_e2_m2') 
+tex						&    (`stderr_o11_t3_e2_m2') 
+tex						&    (`stderr_o12_t3_e2_m2') 
+tex						&    (`stderr_o13_t3_e2_m2')  \\
+tex  					&    [`pwyoung_o1_t3_e2_m2']    
+tex						&    [`pwyoung_o2_t3_e2_m2'] 		
+tex						&    [`pwyoung_o3_t3_e2_m2'] 
+tex						&    [`pwyoung_o4_t3_e2_m2'] 
+tex						&    [`pwyoung_o5_t3_e2_m2'] 
+tex						&    [`pwyoung_o6_t3_e2_m2'] 
+tex						&    [`pwyoung_o7_t3_e2_m2'] 
+tex						&    [`pwyoung_o8_t3_e2_m2'] 
+tex						&    [`pwyoung_o9_t3_e2_m2'] 
+tex						&    [`pwyoung_o10_t3_e2_m2'] 
+tex						&    [`pwyoung_o11_t3_e2_m2'] 
+tex						&    [`pwyoung_o12_t3_e2_m2'] 
+tex						&    [`pwyoung_o13_t3_e2_m2']  \\
+tex Narrative 4 		&    `coef_o1_t4_e2_m2'\sym{`star_o1_t4_e2_m2'}    
+tex						&    `coef_o2_t4_e2_m2'\sym{`star_o2_t4_e2_m2'} 		
+tex						&    `coef_o3_t4_e2_m2'\sym{`star_o3_t4_e2_m2'} 
+tex						&    `coef_o4_t4_e2_m2'\sym{`star_o4_t4_e2_m2'} 
+tex						&    `coef_o5_t4_e2_m2'\sym{`star_o5_t4_e2_m2'} 
+tex						&    `coef_o6_t4_e2_m2'\sym{`star_o6_t4_e2_m2'} 
+tex						&    `coef_o7_t4_e2_m2'\sym{`star_o7_t4_e2_m2'} 
+tex						&    `coef_o8_t4_e2_m2'\sym{`star_o8_t4_e2_m2'} 
+tex						&    `coef_o9_t4_e2_m2'\sym{`star_o9_t4_e2_m2'} 
+tex						&    `coef_o10_t4_e2_m2'\sym{`star_o10_t4_e2_m2'} 
+tex						&    `coef_o11_t4_e2_m2'\sym{`star_o11_t4_e2_m2'} 
+tex						&    `coef_o12_t4_e2_m2'\sym{`star_o12_t4_e2_m2'} 
+tex						&    `coef_o13_t4_e2_m2'\sym{`star_o13_t4_e2_m2'}  \\
+tex  					&    (`stderr_o1_t4_e2_m2')    
+tex						&    (`stderr_o2_t4_e2_m2') 		
+tex						&    (`stderr_o3_t4_e2_m2') 
+tex						&    (`stderr_o4_t4_e2_m2') 
+tex						&    (`stderr_o5_t4_e2_m2') 
+tex						&    (`stderr_o6_t4_e2_m2') 
+tex						&    (`stderr_o7_t4_e2_m2') 
+tex						&    (`stderr_o8_t4_e2_m2') 
+tex						&    (`stderr_o9_t4_e2_m2') 
+tex						&    (`stderr_o10_t4_e2_m2') 
+tex						&    (`stderr_o11_t4_e2_m2') 
+tex						&    (`stderr_o12_t4_e2_m2') 
+tex						&    (`stderr_o13_t4_e2_m2')  \\
+tex  					&    [`pwyoung_o1_t4_e2_m2']    
+tex						&    [`pwyoung_o2_t4_e2_m2'] 		
+tex						&    [`pwyoung_o3_t4_e2_m2'] 
+tex						&    [`pwyoung_o4_t4_e2_m2'] 
+tex						&    [`pwyoung_o5_t4_e2_m2'] 
+tex						&    [`pwyoung_o6_t4_e2_m2'] 
+tex						&    [`pwyoung_o7_t4_e2_m2'] 
+tex						&    [`pwyoung_o8_t4_e2_m2'] 
+tex						&    [`pwyoung_o9_t4_e2_m2'] 
+tex						&    [`pwyoung_o10_t4_e2_m2'] 
+tex						&    [`pwyoung_o11_t4_e2_m2'] 
+tex						&    [`pwyoung_o12_t4_e2_m2'] 
+tex						&    [`pwyoung_o13_t4_e2_m2']  \\
+tex Narrative 5 		&    `coef_o1_t5_e2_m2'\sym{`star_o1_t5_e2_m2'}    
+tex						&    `coef_o2_t5_e2_m2'\sym{`star_o2_t5_e2_m2'} 		
+tex						&    `coef_o3_t5_e2_m2'\sym{`star_o3_t5_e2_m2'} 
+tex						&    `coef_o4_t5_e2_m2'\sym{`star_o4_t5_e2_m2'} 
+tex						&    `coef_o5_t5_e2_m2'\sym{`star_o5_t5_e2_m2'} 
+tex						&    `coef_o6_t5_e2_m2'\sym{`star_o6_t5_e2_m2'} 
+tex						&    `coef_o7_t5_e2_m2'\sym{`star_o7_t5_e2_m2'} 
+tex						&    `coef_o8_t5_e2_m2'\sym{`star_o8_t5_e2_m2'} 
+tex						&    `coef_o9_t5_e2_m2'\sym{`star_o9_t5_e2_m2'} 
+tex						&    `coef_o10_t5_e2_m2'\sym{`star_o10_t5_e2_m2'} 
+tex						&    `coef_o11_t5_e2_m2'\sym{`star_o11_t5_e2_m2'} 
+tex						&    `coef_o12_t5_e2_m2'\sym{`star_o12_t5_e2_m2'} 
+tex						&    `coef_o13_t5_e2_m2'\sym{`star_o13_t5_e2_m2'}  \\
+tex  					&    (`stderr_o1_t5_e2_m2')    
+tex						&    (`stderr_o2_t5_e2_m2') 		
+tex						&    (`stderr_o3_t5_e2_m2') 
+tex						&    (`stderr_o4_t5_e2_m2') 
+tex						&    (`stderr_o5_t5_e2_m2') 
+tex						&    (`stderr_o6_t5_e2_m2') 
+tex						&    (`stderr_o7_t5_e2_m2') 
+tex						&    (`stderr_o8_t5_e2_m2') 
+tex						&    (`stderr_o9_t5_e2_m2') 
+tex						&    (`stderr_o10_t5_e2_m2') 
+tex						&    (`stderr_o11_t5_e2_m2') 
+tex						&    (`stderr_o12_t5_e2_m2') 
+tex						&    (`stderr_o13_t5_e2_m2')  \\
+tex  					&    [`pwyoung_o1_t5_e2_m2']    
+tex						&    [`pwyoung_o2_t5_e2_m2'] 		
+tex						&    [`pwyoung_o3_t5_e2_m2'] 
+tex						&    [`pwyoung_o4_t5_e2_m2'] 
+tex						&    [`pwyoung_o5_t5_e2_m2'] 
+tex						&    [`pwyoung_o6_t5_e2_m2'] 
+tex						&    [`pwyoung_o7_t5_e2_m2'] 
+tex						&    [`pwyoung_o8_t5_e2_m2'] 
+tex						&    [`pwyoung_o9_t5_e2_m2'] 
+tex						&    [`pwyoung_o10_t5_e2_m2'] 
+tex						&    [`pwyoung_o11_t5_e2_m2'] 
+tex						&    [`pwyoung_o12_t5_e2_m2'] 
+tex						&    [`pwyoung_o13_t5_e2_m2']  \\
+tex \hline
+tex N             		&      `N_o1'        					
+tex 					&      `N_o2'         					
+tex 					&      `N_o3'         					
+tex 					&      `N_o4'         					
+tex 					&      `N_o5'         					
+tex 					&      `N_o6'         					
+tex 					&      `N_o7'         					
+tex 					&      `N_o8'         					
+tex 					&      `N_o9'         					
+tex 					&      `N_o10'        					
+tex 					&      `N_o11'        					
+tex 					&      `N_o12'        					
+tex 					&      `N_o13' \\     
+tex \hline\hline
+tex \multicolumn{14}{l}{\footnotesize Standard errors in parentheses}\\
+tex \multicolumn{14}{l}{\footnotesize \sym{*} \(p<0.10\), \sym{**} \(p<0.05\), \sym{***} \(p<0.01\)}\\
+tex \end{tabular}
+texdoc close
 
 * ==== CB5 WYOUNG ==== *
 *** OLS and PD LASSO
