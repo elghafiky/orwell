@@ -31,5 +31,4 @@ gl date "20250304"
 
 * ==== CODES ==== *
 // do "$codedir\2 analysis.do"
-// do "$codedir\3 q-values.do"
 // do "$codedir\4 descriptive.do"

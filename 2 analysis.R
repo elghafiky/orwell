@@ -4,14 +4,17 @@ graphics.off(); rm(list=ls());cat("\14");
 
 # Load packages
 # install.packages("pacman") # install the package if you haven't 
-pacman::p_load(tidyverse,data.table,hdm,estimatr,broom,stringr,jmv,jmvcore,jmvReadWrite,purrr)
+pacman::p_load(tidyverse,data.table,broom,stringr,readxl,purrr,
+               jmv,jmvcore,jmvReadWrite,conjoint,survey)
 
 # Retrieve the current system username
 current_user <- Sys.info()[["user"]]
 
 # Check if the username matches and set the working directory accordingly
-if (current_user == "user") {
+if (current_user == "User") {
   base_dir <- "H:/"
+} else if (current_user == "elgha") {
+  base_dir <- "G:/"
 }
 
 # Set directory
@@ -212,35 +215,6 @@ cogctrl <- c('pagetimeQDK', 'read_stim_time', 'sdbi')
 
 fullcov <- c(basechar, cogctrl)
 
-##### LASSO #####
-
-# Define the outcome variables
-outcomes <- names(pdf)[grepl("^QDKr_cloned", names(pdf))]
-
-# Apply the rlassoEffect function to each outcome variable
-rlasso_models <- lapply(outcomes, function(var) {
-  # Keep only rows where the outcome is not missing AND crt_intrpt_msg == 1
-  valid_rows <- !is.na(pdf[[var]]) & pdf$crt_intrpt_msg == 1
-  
-  rlassoEffect(
-    x = as.matrix(pdf[valid_rows, ..basechar]),  # Covariates
-    y = pdf[valid_rows, ..var],  # Outcome
-    d = pdf[valid_rows, lfCB],  # Treatment
-    method = "double selection"
-  )
-})
-
-# Name the list elements for clarity
-names(rlasso_models) <- outcomes
-
-# Extract the selected variables for each outcome
-selected_variables <- lapply(rlasso_models, function(model) {
-  names(model$selection.index)[model$selection.index]
-})
-
-# Name the list elements for clarity
-names(selected_variables) <- outcomes
-
 ##### MANCOVA #####
 # Define the function to perform MANCOVA
 perform_mancova <- function(treatment, dep_vars, covariates, data) {
@@ -292,22 +266,61 @@ for (treatment in names(dependent_vars)) {
   mancova_results[[treatment]] <- result
 }
 
-##### AGREEING STIMULUS 4 AND OPINION ON GOVERNMENT ROLE #####
-# Define the variables for which t-tests will be performed
-variables <- c("CB08r1", "CB08r2", "CB08r3")
+##### CONJOINT #####
 
-# Filter the dataframe once
-filtered_data <- filter(pdf, lfCB == 4 & crt_intrpt_msg==1)
+# Define the attributes and their levels
+econ <- c(
+  "econ1",
+  "econ2",
+  "econ3"
+)
 
-# Function to perform t-test
-perform_t_test <- function(var) {
-  formula <- as.formula(paste(var, "~ agreestim"))
-  t.test(formula, data = filtered_data)
-}
+rights <- c(
+  "rights1",
+  "rights2",
+  "rights3"
+)
 
-# Apply the t-test function to each variable
-t_test_results <- map(variables, perform_t_test)
+env <- c(
+  "env1",
+  "env2"
+)
 
-# Optionally, name the list elements for clarity
-names(t_test_results) <- variables
+participation <- c(
+  "participation1",
+  "participation2"
+)
 
+# Create levels data frame
+levels <- c(econ,rights,env,participation) %>% data.table() %>% rename(levels=".")
+
+# Create profile data frame
+profile_excel <- file.path(ipt,"sampled_profiles.xlsx")
+profiles <- read_excel(profile_excel) %>% 
+  rename(econ=improvement_of_economic_conditions,
+         rights=rights_of_others,
+         env=environmental_preservation,
+         participation=citizen_participation) %>%
+  mutate(econ=case_when(
+    econ=="The income of the wealthy has increased the most, while the income of others has only increased modestly." ~ "1",
+    econ=="The income of the poor or near-poor has increased the most, while the income of those in the middle and upper classes has only increased modestly." ~ "2",
+    econ=="All layers of society have experienced a modest increase in income, but no one has become poorer." ~ "3"
+  ),
+  rights=case_when(
+    rights=="To build something that will benefit many people in the future, no group should be displaced or lose their livelihood, even if there is adequate compensation." ~ "1",
+    rights=="To build something that will benefit many people in the future, residents should not only receive adequate compensation but also financial benefits derived from what is built." ~ "2",
+    rights=="To build something that will benefit many people in the future, it is reasonable if some residents are forced to be displaced or lose their livelihood, as long as there is adequate compensation." ~ "3"
+  ),
+  env=case_when(
+    env=="Environmental destruction must not occur at all, even if it is to build something that will benefit many people in the future." ~ "1",
+    env=="Environmental destruction, to a certain extent, can be accepted, as long as it is to build something that will benefit many people in the future." ~ "2"
+  ),
+  participation=case_when(
+    participation=="Residents feel comfortable and free to actively provide input, ask questions, or express complaints to the government, so that development programs can proceed more carefully." ~ "1",
+    participation=="After voting in elections, residents trust and give the government freedom to carry out development programs, so that these programs can proceed more smoothly and quickly." ~ "2"
+  )) %>%
+  dplyr::select(!profile_number) %>%
+  mutate(across(everything(),as.numeric))
+
+# Create preference data frame
+preferences <- pdf %>% dplyr::select(starts_with("Profile"))
