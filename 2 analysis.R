@@ -4,8 +4,8 @@ graphics.off(); rm(list=ls());cat("\14");
 
 # Load packages
 # install.packages("pacman") # install the package if you haven't 
-pacman::p_load(tidyverse,data.table,broom,stringr,readxl,purrr,
-               jmv,jmvcore,jmvReadWrite,conjoint,survey,fastDummies)
+pacman::p_load(tidyverse,data.table,broom,stringr,readxl,purrr,furrr,
+               jmv,jmvcore,jmvReadWrite,logitr,fastDummies)
 
 # Retrieve the current system username
 current_user <- Sys.info()[["user"]]
@@ -267,7 +267,6 @@ for (treatment in names(dependent_vars)) {
 }
 
 ##### CONJOINT #####
-
 ## Prepare chosen profile data 
 # Subset profile and pairing data
 profpairw <- pdf %>% dplyr::select(uuid,starts_with("Profile"),starts_with("PairingID"))
@@ -350,10 +349,42 @@ data_logitr <- cjdfm %>%
   mutate(rights = fct_relevel(rights, "3", "1", "2")) %>% # Reorder the levels of 'rights' so that "3" is the first level
   dummy_cols(select_columns=c("econ","rights","env","participation"),
              remove_selected_columns=TRUE, remove_first_dummy=TRUE) %>% # Dummify data
-  mutate(obsID = (respID - 1) * 10 + task) # Create a unique observation ID for each choice task
+  mutate(obsID = (respID - 1) * 10 + task) %>% # Create a unique observation ID for each choice task
+  arrange(respID, obsID, alt)
 
-# Pooled mixed logit model
-mixed_model <- logitr(data = data_logitr, outcome = "alt_chosen", obsID = "obsID",
+## Split data into a list by respondent for individual estimation
+data_logitr_nested <- data_logitr %>% group_by(respID) %>% nest()
+
+### Multinomial logit
+## Pooled MNL
+mnl_pooled <- logitr(data = data_logitr,
+                     outcome = "alt_chosen",
+                     obsID = "obsID",
+                     panelID = "respID",
+                     pars = c("econ_2","econ_3",
+                               "rights_1","rights_2",
+                               "env_2","participation_2"),
+                     robust = T)
+
+## Individual MNL
+# Fitting individual model
+plan(multisession)  # or multicore for parallel on Unix
+data_mnl <- data_logitr_nested %>% 
+  mutate(model = future_map(data, ~ logitr(
+    data    = .x,
+    outcome = "alt_chosen", 
+    obsID = "obsID",
+    pars = c("econ_2","econ_3",
+             "rights_1","rights_2",
+             "env_2","participation_2"),
+    robust = T
+  )))
+ 
+### Mixed logit 
+## Pooled mixed logit model
+mixed_model <- logitr(data = data_logitr, 
+                      outcome = "alt_chosen", 
+                      obsID = "obsID",
                       panelID = "respID",
                       pars = c("econ_2","econ_3",
                                "rights_1","rights_2",
@@ -361,5 +392,29 @@ mixed_model <- logitr(data = data_logitr, outcome = "alt_chosen", obsID = "obsID
                       randPars = c(econ_2="n", econ_3="n",
                                    rights_1="n", rights_2="n",
                                    env_2="n",participation_2="n"),
-                      numMultiStarts = 5, numDraws = 100)
+                      numMultiStarts = 5, 
+                      drawType = "sobol",
+                      numDraws = 100,
+                      robust = T)
 summary(mixed_model)
+
+## Individual mixed logit model
+# Fitting individual model
+plan(multisession)  # or multicore for parallel on Unix
+data_mxl <- data_logitr_nested %>% 
+  mutate(model = future_map(data, ~ logitr(
+    data    = .x,
+    outcome = "alt_chosen", 
+    obsID = "obsID",
+    pars = c("econ_2","econ_3",
+             "rights_1","rights_2",
+             "env_2","participation_2"),
+    randPars = c(econ_2="n", econ_3="n",
+                 rights_1="n", rights_2="n",
+                 env_2="n",participation_2="n"),
+    numMultiStarts = 5, 
+    numDraws = 100,
+    drawType = "sobol",
+    numCores = 1,
+    robust = T
+  )))
