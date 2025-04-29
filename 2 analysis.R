@@ -5,7 +5,7 @@ graphics.off(); rm(list=ls());cat("\14");
 # Load packages
 # install.packages("pacman") # install the package if you haven't 
 pacman::p_load(tidyverse,data.table,broom,stringr,readxl,purrr,
-               jmv,jmvcore,jmvReadWrite,conjoint,survey)
+               jmv,jmvcore,jmvReadWrite,conjoint,survey,fastDummies)
 
 # Retrieve the current system username
 current_user <- Sys.info()[["user"]]
@@ -268,35 +268,53 @@ for (treatment in names(dependent_vars)) {
 
 ##### CONJOINT #####
 
-# Define the attributes and their levels
-econ <- c(
-  "econ1",
-  "econ2",
-  "econ3"
+## Prepare chosen profile data 
+# Subset profile and pairing data
+profpairw <- pdf %>% dplyr::select(uuid,starts_with("Profile"),starts_with("PairingID"))
+
+# Reshape the data from wide to long format
+profpairl <- melt(
+  profpairw,
+  id.vars = "uuid",
+  measure.vars = patterns(
+    profile = "^Profile_\\d+$",
+    pairing_id = "^PairingID_\\d+$"
+  ),
+  variable.name = "task",
+  na.rm = TRUE
 )
 
-rights <- c(
-  "rights1",
-  "rights2",
-  "rights3"
+# Import pairing data
+filenm = file.path(ipt,"profile_pairings.xlsx")
+pairings <- read_excel(filenm)
+
+# Merge profile and pairing with pairing data
+cjdfw <- left_join(profpairl,pairings,by=join_by(pairing_id==Pairing_ID),relationship="many-to-one") %>%
+  rename(profile_chosen=profile)
+
+# Melt the data on Profile_A and Profile_B
+cjdfl <- melt(
+  cjdfw,
+  id.vars = c("uuid", "task", "profile_chosen", "pairing_id"),
+  measure.vars = c("Profile_A", "Profile_B"),
+  variable.name = "alt",
+  value.name = "profile_id"
 )
 
-env <- c(
-  "env1",
-  "env2"
-)
+# Step 1: Convert 'alt' to numeric
+cjdfl[, alt := fifelse(alt == "Profile_A", 1L, 
+                       fifelse(alt == "Profile_B", 2L, NA_integer_))]
 
-participation <- c(
-  "participation1",
-  "participation2"
-)
+# Step 2: Create 'alt_chosen' column
+cjdfl[, alt_chosen := as.integer(profile_chosen == profile_id)]
 
-# Create levels data frame
-levels <- c(econ,rights,env,participation) %>% data.table() %>% rename(levels=".")
+# Drop profile_chosen and pairing_id
+cjdfl <- cjdfl %>% dplyr::select(!(c(profile_chosen,pairing_id)))
 
+## Prepare profile attributes dta
 # Create profile data frame
-profile_excel <- file.path(ipt,"sampled_profiles.xlsx")
-profiles <- read_excel(profile_excel) %>% 
+filenm <- file.path(ipt,"sampled_profiles.xlsx")
+profiles <- read_excel(filenm) %>% 
   rename(econ=improvement_of_economic_conditions,
          rights=rights_of_others,
          env=environmental_preservation,
@@ -319,8 +337,29 @@ profiles <- read_excel(profile_excel) %>%
     participation=="Residents feel comfortable and free to actively provide input, ask questions, or express complaints to the government, so that development programs can proceed more carefully." ~ "1",
     participation=="After voting in elections, residents trust and give the government freedom to carry out development programs, so that these programs can proceed more smoothly and quickly." ~ "2"
   )) %>%
-  dplyr::select(!profile_number) %>%
   mutate(across(everything(),as.numeric))
 
-# Create preference data frame
-preferences <- pdf %>% dplyr::select(starts_with("Profile"))
+## Merge chosen profile data with profile attributes data
+cjdfm <- full_join(cjdfl,profiles,by=join_by(profile_id==profile_number),relationship="many-to-one")
+
+## Prepare data for logitr: dummy-code all attribute levels (except one per factor)
+data_logitr <- cjdfm %>%
+  mutate(econ = factor(econ), rights = factor(rights),
+         env = factor(env), participation = factor(participation),
+         respID = as.integer(factor(uuid)), task=as.numeric(task)) %>%
+  mutate(rights = fct_relevel(rights, "3", "1", "2")) %>% # Reorder the levels of 'rights' so that "3" is the first level
+  dummy_cols(select_columns=c("econ","rights","env","participation"),
+             remove_selected_columns=TRUE, remove_first_dummy=TRUE) %>% # Dummify data
+  mutate(obsID = (respID - 1) * 10 + task) # Create a unique observation ID for each choice task
+
+# Pooled mixed logit model
+mixed_model <- logitr(data = data_logitr, outcome = "alt_chosen", obsID = "obsID",
+                      panelID = "respID",
+                      pars = c("econ_2","econ_3",
+                               "rights_1","rights_2",
+                               "env_2","participation_2"),
+                      randPars = c(econ_2="n", econ_3="n",
+                                   rights_1="n", rights_2="n",
+                                   env_2="n",participation_2="n"),
+                      numMultiStarts = 5, numDraws = 100)
+summary(mixed_model)
