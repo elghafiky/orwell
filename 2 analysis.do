@@ -347,6 +347,27 @@ pro setupdataTD
 	}
 end
 
+*** SETUP DATA FOR CONJOINT ANALYSIS
+pro setupdataCJ
+	setupdatagen 
+	keep record region urban male age edlvl hhhead_female nosocast hhsize $basecogctrl ConjointOverall_Time Profile* Pairing* treat* lfCB
+	forval i=1/10 {
+		foreach x in Profile PairingID {
+			loc lowcase=strlower("`x'")
+			ren `x'_`i' `lowcase'`i'
+		}
+	}
+	reshape long profile pairingid, i(record) j(numtask)
+	ren profile chosen_profile
+	merge m:1 pairingid using "$ipt\profile_pairings.dta"
+	drop if _m==2
+	drop _m
+	ren (profile_a profile_b) (profile1 profile2)
+	reshape long profile, i(record numtask) j(alt) 
+	g chosen=profile==chosen_profile 
+	merge m:1 profile using "$ipt\sampled_profiles.dta", nogen
+end
+
 *** SAVE PVALUE UNADJUSTED
 pro savepval
 	regsave, tstat pval
@@ -391,6 +412,54 @@ pro plotprep
 		loc j=`j'+4
 	}
 end 
+
+* ==== CONJOINT ANALYSIS ==== *
+** prepare profile pairing data
+import excel "$ipt\profile_pairings.xlsx", clear first
+ren *, lower
+ren pairing_id pairingid
+save "$ipt\profile_pairings.dta", replace 
+
+** prepare profile attributes data
+import excel "$ipt\sampled_profiles.xlsx", clear first
+ren (profile_number improvement_of_economic_conditio rights_of_others environmental_preservation citizen_participation) ///
+	(profile econ rights env participation)
+
+* recode attributes
+generate econ_num = .
+replace econ_num = 1 if econ == "The income of the wealthy has increased the most, while the income of others has only increased modestly."
+replace econ_num = 2 if econ == "The income of the poor or near-poor has increased the most, while the income of those in the middle and upper classes has only increased modestly."
+replace econ_num = 3 if econ == "All layers of society have experienced a modest increase in income, but no one has become poorer."
+
+generate rights_num = .
+replace rights_num = 1 if rights == "To build something that will benefit many people in the future, no group should be displaced or lose their livelihood, even if there is adequate compensation."
+replace rights_num = 2 if rights == "To build something that will benefit many people in the future, residents should not only receive adequate compensation but also financial benefits derived from what is built."
+replace rights_num = 3 if rights == "To build something that will benefit many people in the future, it is reasonable if some residents are forced to be displaced or lose their livelihood, as long as there is adequate compensation."
+
+generate env_num = .
+replace env_num = 1 if env == "Environmental destruction must not occur at all, even if it is to build something that will benefit many people in the future."
+replace env_num = 2 if env == "Environmental destruction, to a certain extent, can be accepted, as long as it is to build something that will benefit many people in the future."
+
+generate participation_num = .
+replace participation_num = 1 if participation == "Residents feel comfortable and free to actively provide input, ask questions, or express complaints to the government, so that development programs can proceed more carefully."
+replace participation_num = 2 if participation == "After voting in elections, residents trust and give the government freedom to carry out development programs, so that these programs can proceed more smoothly and quickly."
+
+* label attributes
+foreach x in econ rights env participation {
+	labmask `x'_num, values(`x')
+	drop `x'
+	ren `x'_num `x'
+}
+
+* save data
+save "$ipt\sampled_profiles.dta", replace 
+
+*** OLS AND PD LASSO
+
+** model 1
+* open data
+setupdataCJ
+est clear 
 
 * ==== POLICY SUPPORT: WESTFALL YOUNG ==== *
 *** OLS AND PD LASSO

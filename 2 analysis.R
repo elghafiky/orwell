@@ -2,10 +2,12 @@
 # Clear console and environment 
 graphics.off(); rm(list=ls());cat("\14");
 
-# Load packages
+# Clear and load packages 
 # install.packages("pacman") # install the package if you haven't 
-pacman::p_load(tidyverse,data.table,broom,stringr,readxl,purrr,furrr,
-               jmv,jmvcore,jmvReadWrite,logitr,fastDummies)
+library(pacman)
+p_unload(p_loaded(), character.only = TRUE)
+p_load(tidyverse,data.table,broom,stringr,readxl,purrr,furrr,
+       jmv,jmvcore,jmvReadWrite,logitr,fastDummies)
 
 # Retrieve the current system username
 current_user <- Sys.info()[["user"]]
@@ -269,18 +271,17 @@ for (treatment in names(dependent_vars)) {
 ##### CONJOINT #####
 ## Prepare chosen profile data 
 # Subset profile and pairing data
-profpairw <- pdf %>% dplyr::select(uuid,starts_with("Profile"),starts_with("PairingID"))
+profpairw <- pdf %>% dplyr::select(record,starts_with("Profile"),starts_with("PairingID"))
 
 # Reshape the data from wide to long format
 profpairl <- melt(
   profpairw,
-  id.vars = "uuid",
+  id.vars = "record",
   measure.vars = patterns(
     profile = "^Profile_\\d+$",
     pairing_id = "^PairingID_\\d+$"
   ),
-  variable.name = "task",
-  na.rm = TRUE
+  variable.name = "task"
 )
 
 # Import pairing data
@@ -294,7 +295,7 @@ cjdfw <- left_join(profpairl,pairings,by=join_by(pairing_id==Pairing_ID),relatio
 # Melt the data on Profile_A and Profile_B
 cjdfl <- melt(
   cjdfw,
-  id.vars = c("uuid", "task", "profile_chosen", "pairing_id"),
+  id.vars = c("record", "task", "profile_chosen", "pairing_id"),
   measure.vars = c("Profile_A", "Profile_B"),
   variable.name = "alt",
   value.name = "profile_id"
@@ -306,9 +307,6 @@ cjdfl[, alt := fifelse(alt == "Profile_A", 1L,
 
 # Step 2: Create 'alt_chosen' column
 cjdfl[, alt_chosen := as.integer(profile_chosen == profile_id)]
-
-# Drop profile_chosen and pairing_id
-cjdfl <- cjdfl %>% dplyr::select(!(c(profile_chosen,pairing_id)))
 
 ## Prepare profile attributes dta
 # Create profile data frame
@@ -341,86 +339,12 @@ profiles <- read_excel(filenm) %>%
 ## Merge chosen profile data with profile attributes data
 cjdfm <- full_join(cjdfl,profiles,by=join_by(profile_id==profile_number),relationship="many-to-one")
 
-## Prepare data for logitr: dummy-code all attribute levels (except one per factor)
-data_logitr <- cjdfm %>%
+## Prepare data for estimation: dummy-code all attribute levels (except one per factor)
+cjdff <- cjdfm %>%
   mutate(econ = factor(econ), rights = factor(rights),
          env = factor(env), participation = factor(participation),
-         respID = as.integer(factor(uuid)), task=as.numeric(task)) %>%
-  mutate(rights = fct_relevel(rights, "3", "1", "2")) %>% # Reorder the levels of 'rights' so that "3" is the first level
+         task=as.numeric(task)) %>%
+  mutate(rights = fct_relevel(rights, "3", "1", "2"), # Reorder the levels of 'rights' so that "3" is the first level
+         participation = fct_relevel(participation, "2", "1")) %>% 
   dummy_cols(select_columns=c("econ","rights","env","participation"),
-             remove_selected_columns=TRUE, remove_first_dummy=TRUE) %>% # Dummify data
-  mutate(obsID = (respID - 1) * 10 + task) %>% # Create a unique observation ID for each choice task
-  arrange(respID, obsID, alt)
-
-## Split data into a list by respondent for individual estimation
-data_logitr_nested <- data_logitr %>% group_by(respID) %>% nest()
-
-### Multinomial logit
-## Pooled MNL
-mnl_pooled <- logitr(data = data_logitr,
-                     outcome = "alt_chosen",
-                     obsID = "obsID",
-                     panelID = "respID",
-                     pars = c("econ_2","econ_3",
-                               "rights_1","rights_2",
-                               "env_2","participation_2"),
-                     robust = T)
-
-## Individual MNL
-# Fitting individual model
-start_time <- Sys.time()
-plan(multisession)  # or multicore for parallel on Unix
-data_mnl <- data_logitr_nested %>% 
-  mutate(model = future_map(data, ~ logitr(
-    data    = .x,
-    outcome = "alt_chosen", 
-    obsID = "obsID",
-    pars = c("econ_2","econ_3",
-             "rights_1","rights_2",
-             "env_2","participation_2"),
-    robust = T
-  )))
-end_time <- Sys.time()
-print(end_time - start_time)
- 
-### Mixed logit 
-## Pooled mixed logit model
-mixed_model <- logitr(data = data_logitr, 
-                      outcome = "alt_chosen", 
-                      obsID = "obsID",
-                      panelID = "respID",
-                      pars = c("econ_2","econ_3",
-                               "rights_1","rights_2",
-                               "env_2","participation_2"),
-                      randPars = c(econ_2="n", econ_3="n",
-                                   rights_1="n", rights_2="n",
-                                   env_2="n",participation_2="n"),
-                      numMultiStarts = 5, 
-                      drawType = "sobol",
-                      numDraws = 100,
-                      robust = T)
-summary(mixed_model)
-
-## Individual mixed logit model
-# Fitting individual model
-start_time <- Sys.time()
-plan(multisession)  # or multicore for parallel on Unix
-data_mxl <- data_logitr_nested %>% 
-  mutate(model = future_map(data, ~ logitr(
-    data    = .x,
-    outcome = "alt_chosen", 
-    obsID = "obsID",
-    pars = c("econ_2","econ_3",
-             "rights_1","rights_2",
-             "env_2","participation_2"),
-    randPars = c(econ_2="n", econ_3="n",
-                 rights_1="n", rights_2="n",
-                 env_2="n",participation_2="n"),
-    numMultiStarts = 5, 
-    numDraws = 100,
-    drawType = "sobol",
-    numCores = 1,
-    robust = T
-  )))
-end_time <- Sys.time()
-print(end_time - start_time)
+             remove_selected_columns=TRUE, remove_first_dummy=TRUE) # Dummify data
