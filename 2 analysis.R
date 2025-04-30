@@ -368,6 +368,7 @@ mnl_pooled <- logitr(data = data_logitr,
 
 ## Individual MNL
 # Fitting individual model
+start_time <- Sys.time()
 plan(multisession)  # or multicore for parallel on Unix
 data_mnl <- data_logitr_nested %>% 
   mutate(model = future_map(data, ~ logitr(
@@ -379,6 +380,8 @@ data_mnl <- data_logitr_nested %>%
              "env_2","participation_2"),
     robust = T
   )))
+end_time <- Sys.time()
+print(end_time - start_time)
  
 ### Mixed logit 
 ## Pooled mixed logit model
@@ -400,6 +403,7 @@ summary(mixed_model)
 
 ## Individual mixed logit model
 # Fitting individual model
+start_time <- Sys.time()
 plan(multisession)  # or multicore for parallel on Unix
 data_mxl <- data_logitr_nested %>% 
   mutate(model = future_map(data, ~ logitr(
@@ -418,3 +422,5 @@ data_mxl <- data_logitr_nested %>%
     numCores = 1,
     robust = T
   )))
+end_time <- Sys.time()
+print(end_time - start_time)
