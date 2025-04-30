@@ -1,0 +1,142 @@
+---
+title: "Orwell paper descriptive analysis data dump"
+author: "Azzah (C4C)"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r environment-data-setup, include = F}
+##### PRELIMINARIES #####
+# Clear console and environment 
+graphics.off(); rm(list=ls());cat("\14");
+
+# Load packages
+#install.packages("pacman") # install the package if you haven't 
+pacman::p_load(tidyverse,data.table,dplyr,knitr,tinytex,corrplot,stringr,
+               Hmisc,showtext,stats,pollster,sjPlot,psych,lavaan, viridis)
+
+# Retrieve the current system username
+current_user <- Sys.info()[["user"]]
+
+# Check if the username matches and set the working directory accordingly
+if (current_user == "User") {
+  base_dir <- "H:/"
+} else if (current_user %in% c("azzah", "USER")) {
+  base_dir <- "G:/"
+} 
+
+# Set directory
+master <- file.path(base_dir, 
+                    "Shared drives", 
+                    "Projects", 
+                    "2025", 
+                    "Orwell", 
+                    "Breadcrumbs", 
+                    "10 Quantitative Narrative Testing", 
+                    "9 Main survey")
+setwd(master)
+
+arc = file.path(getwd(), "1 archive")
+ipt = file.path(getwd(),"2a input")
+temp = file.path(getwd(),"2b temp")
+opt = file.path(getwd(),"2c output")
+lg = file.path(getwd(),"3 log")
+fig = file.path(getwd(),"4 figures")
+tbl = file.path(getwd(),"5 tables")
+
+##### DATA PREPARATION #####
+# Set data date
+date <- "20250304"
+
+# Load data
+dataname <- paste0("raw_",date,".csv") 
+data <- file.path(ipt,dataname) 
+rdf <- fread(data)
+
+# Generate value for total obs
+total = nrow(rdf)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F, fig.path = 'figure-', fig.ext = 'png')
+```
+
+``` {r setup_plot_detail}
+##### SET UP PLOT DETAILS #####
+# Set graphic dimension for upcoming graphs
+width = 3840
+height = 2094
+res = 300
+
+# Setup custom font for plots
+font_add_google("Barlow", "barlow")
+showtext_auto()
+
+# setting palette for plotplainblind
+plotplainblind <- grDevices::colorRampPalette(
+          colors = c("#808080", "#d0d0d0", "#abdaf4","#80cfb9","#f3cf80","#e6bcd3","#eaaf80", "#80b9d9","#f8f2a1"))(9)
+
+subtitle <- paste0("(N=", total, ")")
+
+# Setup base function for stacked bar chart
+base_stack_bar <- function(data, x_var, y_var, fill_var) {
+  ggplot(data, aes(x = {{ x_var }}, y = {{ y_var }}, fill = {{ fill_var }})) +
+    geom_bar(stat = "identity", linewidth = 0.5) +
+    geom_text(aes(label = scales::percent({{ y_var }}/100, accuracy = 1)),
+              position = position_stack(vjust = 0.5),
+              hjust = 0.5,
+              size = 3) +
+    scale_fill_manual(values = plotplainblind,
+                      name = NULL) +
+    guides(fill = guide_legend(reverse = TRUE)) +
+    coord_flip() +
+    scale_y_continuous(labels = NULL)
+}
+
+# Setup template customization for plot
+custom_theme <- function() {
+  theme_minimal() +
+    theme(
+      legend.position = "bottom",
+      legend.margin = margin(t = -20),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      text = element_text(family = "barlow"),
+      plot.title = element_text(face = "bold"),
+      axis.text.x = element_text(angle = 0,
+                                 hjust = 0.5,
+                                 vjust = 5,
+                                 size = 10
+      )
+    )
+}
+
+```
+
+## 1) Kable for tabulating % of accuracy and % agreement of those who is correctly interpret
+
+
+## 2) T-test of accuracy by demographics
+### Gender
+### Age group
+### Urban
+### Education level
+
+## 3) T-test of agreement by demographics (for subsample that is correctly interpret)
+### Gender
+### Age group
+### Urban
+### Education level
+
+
+## 4a) Heatmap of most evoked emotion by each statement
+
+## 4b?) Grouped bar chart of evoked emotion by agreement (for subsample that is correctly interpret)
+
+## 4b?) T-test of evoked emotion with agreement (for subsample that is correctly interpret)
+
+
+## 5) Grouped bar chart of sentence resonation by correctly interpret/not
+
+## 5) Grouped bar chart of sentence resonation by agreement (for subsample that is correctly interpret) -- mungkin bisa sekalian bar chart yang ada significance level beda atau ngga
+
