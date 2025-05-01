@@ -4,10 +4,9 @@ graphics.off(); rm(list=ls());cat("\14");
 
 # Clear and load packages 
 # install.packages("pacman") # install the package if you haven't 
-library(pacman)
-p_unload(p_loaded(), character.only = TRUE)
-p_load(tidyverse,data.table,broom,stringr,readxl,purrr,furrr,
-       jmv,jmvcore,jmvReadWrite,logitr,fastDummies)
+pacman::p_unload(p_loaded(), character.only = TRUE)
+pacman::p_load(tidyverse,data.table,broom,stringr,readxl,purrr,furrr,
+       jmv,jmvcore,jmvReadWrite,logitr,fastDummies,hdm)
 
 # Retrieve the current system username
 current_user <- Sys.info()[["user"]]
@@ -213,9 +212,9 @@ basechar <- c('region1',
               'nosocast',
               'hhsize')
 
-cogctrl <- c('pagetimeQDK', 'read_stim_time', 'sdbi')
+basecogctrl <- c('read_stim_time', 'sdbi', 'agreestim')
 
-fullcov <- c(basechar, cogctrl)
+basecovlist <- c(basechar, basecogctrl)
 
 ##### MANCOVA #####
 # Define the function to perform MANCOVA
@@ -271,10 +270,12 @@ for (treatment in names(dependent_vars)) {
 ##### CONJOINT #####
 ## Prepare chosen profile data 
 # Subset profile and pairing data
-profpairw <- pdf %>% dplyr::select(record,starts_with("Profile"),starts_with("PairingID"))
+profpairw <- pdf %>% dplyr::select(record,
+                                   starts_with("Profile"),
+                                   starts_with("PairingID"))
 
 # Reshape the data from wide to long format
-profpairl <- melt(
+profpairl <- data.table::melt(
   profpairw,
   id.vars = "record",
   measure.vars = patterns(
@@ -308,7 +309,7 @@ cjdfl[, alt := fifelse(alt == "Profile_A", 1L,
 # Step 2: Create 'alt_chosen' column
 cjdfl[, alt_chosen := as.integer(profile_chosen == profile_id)]
 
-## Prepare profile attributes dta
+## Prepare profile attributes data
 # Create profile data frame
 filenm <- file.path(ipt,"sampled_profiles.xlsx")
 profiles <- read_excel(filenm) %>% 
@@ -347,4 +348,12 @@ cjdff <- cjdfm %>%
   mutate(rights = fct_relevel(rights, "3", "1", "2"), # Reorder the levels of 'rights' so that "3" is the first level
          participation = fct_relevel(participation, "2", "1")) %>% 
   dummy_cols(select_columns=c("econ","rights","env","participation"),
-             remove_selected_columns=TRUE, remove_first_dummy=TRUE) # Dummify data
+             remove_selected_columns=TRUE, remove_first_dummy=TRUE) %>% # Dummify data
+  left_join(dplyr::select(pdf,
+                          record,
+                          all_of(basecovlist),
+                          ConjointOverall_Time,
+                          starts_with("treat")),
+            by="record",relationship="many-to-one") # Obtain treatment status and covariates
+
+## PD Lasso estimation
