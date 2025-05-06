@@ -30,5 +30,5 @@ gl codedir "C:\Users\\`c(username)'\Documents\GitHub\orwell"
 gl date "20250304"
 
 * ==== CODES ==== *
-// do "$codedir\2 analysis.do"
-// do "$codedir\4 descriptive.do"
+// do "$codedir\2 data preparation.do"
+// do "$codedir\3 analysis.do"
