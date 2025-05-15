@@ -2,8 +2,14 @@
 title: "Orwell paper descriptive analysis data dump"
 author: "Azzah (C4C)"
 date: "`r Sys.Date()`"
-output: pdf_document
+output:
+  word_document: default
+  pdf_document: default
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+```
 
 ```{r environment-data-setup, include = F}
 ##### PRELIMINARIES #####
@@ -12,8 +18,9 @@ graphics.off(); rm(list=ls());cat("\14");
 
 # Load packages
 #install.packages("pacman") # install the package if you haven't 
-pacman::p_load(tidyverse,data.table,dplyr,knitr,tinytex,corrplot,stringr,
-               Hmisc,showtext,stats,pollster,sjPlot,psych,lavaan, viridis)
+pacman::p_load(tidyverse,data.table,dplyr,knitr,tinytex,corrplot,stringr,summarytable,
+               Hmisc,showtext,stats,pollster,sjPlot,psych,lavaan, viridis, texreg,kableExtra,
+               rempsyc, effectsize, flextable, broom, report, stargazer, modelsummary, margins)
 
 # Retrieve the current system username
 current_user <- Sys.info()[["user"]]
@@ -49,17 +56,14 @@ tbl = file.path(getwd(),"5 tables")
 date <- "20250304"
 
 # Load data
-dataname <- paste0("raw_",date,".csv") 
-data <- file.path(ipt,dataname) 
+dataname <- paste0("processed_",date,".csv") 
+data <- file.path(temp,dataname) 
 rdf <- fread(data)
 
 # Generate value for total obs
 total = nrow(rdf)
 ```
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F, warning = F, message = F, fig.path = 'figure-', fig.ext = 'png')
-```
 
 ``` {r setup_plot_detail}
 ##### SET UP PLOT DETAILS #####
@@ -77,21 +81,6 @@ plotplainblind <- grDevices::colorRampPalette(
           colors = c("#808080", "#d0d0d0", "#abdaf4","#80cfb9","#f3cf80","#e6bcd3","#eaaf80", "#80b9d9","#f8f2a1"))(9)
 
 subtitle <- paste0("(N=", total, ")")
-
-# Setup base function for stacked bar chart
-base_stack_bar <- function(data, x_var, y_var, fill_var) {
-  ggplot(data, aes(x = {{ x_var }}, y = {{ y_var }}, fill = {{ fill_var }})) +
-    geom_bar(stat = "identity", linewidth = 0.5) +
-    geom_text(aes(label = scales::percent({{ y_var }}/100, accuracy = 1)),
-              position = position_stack(vjust = 0.5),
-              hjust = 0.5,
-              size = 3) +
-    scale_fill_manual(values = plotplainblind,
-                      name = NULL) +
-    guides(fill = guide_legend(reverse = TRUE)) +
-    coord_flip() +
-    scale_y_continuous(labels = NULL)
-}
 
 # Setup template customization for plot
 custom_theme <- function() {
@@ -113,11 +102,222 @@ custom_theme <- function() {
 
 ```
 
-## 1) Kable for tabulating % of accuracy and % agreement of those who is correctly interpret
+``` {r prep_variables}
 
+cb_data <- rdf %>%
+  select(record, lfCB, starts_with("CB"))
+
+# generate dummy for agreeing with statement
+cb_data <- cb_data %>%
+  mutate(
+    d_agree = case_when(
+      CB04 %in% c(4, 5, 6) ~ 1,
+      CB04 %in% c(1, 2, 3) ~ 0,
+      TRUE ~ NA_integer_  # Keep other values as NA
+    )) %>%
+  mutate(d_agree = factor(d_agree,
+                          levels = c(0, 1), 
+                          labels = c("Disagree", "Agree")))
+
+
+# generate dummy for correct interpretation
+narrative <- c("A", "B", "C", "D", "E")
+
+for (x in narrative) {
+  col_name <- paste0("CB01_cor_", x)
+  cb01_col <- paste0("CB01", x)
+
+  if (x == "D") {
+    cb_data <- cb_data %>%
+      mutate(!!sym(col_name) := ifelse(CB01D >= 2 & CB01D <= 3, 1, 0))
+  } else {
+    cb_data <- cb_data %>%
+      mutate(!!sym(col_name) := ifelse(!!sym(cb01_col) == 1, 1, 0))
+  }
+  
+cb_data <- cb_data %>%
+    mutate(!!sym(col_name) := ifelse(lfCB == 6, 1, !!sym(col_name)))
+}
+
+
+
+correct_cols <- paste0("CB01_cor_", narrative)
+
+cb_data <- cb_data %>%
+  rowwise() %>%
+  mutate(d_correct := max(c_across(all_of(correct_cols)), na.rm = TRUE)) %>%
+  ungroup()
+
+cb_data$d_correct <- factor(cb_data$d_correct, 
+                             levels = c(0, 1), 
+                             labels = c("wrong", "right"))
+```
+
+
+``` {r demog_prep}
+## prepare demographics
+demographics <- rdf %>%
+  mutate(prov = ID01) %>%
+  mutate(urban = case_when(
+    ID02 == 1 ~ 1,
+    ID02 == 2 ~ 0
+  )) %>%
+  mutate(urban = factor(urban,
+                        levels = c(1,0),
+                        labels = c("Urban", "Rural"))) %>%
+  mutate(gender = case_when(
+    ID03 == 1 ~ 1,
+    ID03 == 2 ~ 0
+  )) %>%
+  mutate(gender = factor(male,
+                       levels = c(1,0),
+                       labels = c("Male", "Female"))) %>%
+  mutate(age = ID04) %>%
+  mutate(age_group = case_when(
+    age>=18 & age<=24 ~ 1,
+    age>=25 & age<=34 ~ 2,
+    age>=35 & age<=44 ~ 3, 
+    age>=45 & age<=54 ~ 4,
+    age>=55 & age<=64 ~ 5
+  )) %>%
+  mutate(age_group=factor(age_group,
+                          levels = c(1,2,3,4,5),
+                          labels = c("18-24", "25-34", "35-44", "45-54", "55-64"))) %>%
+	mutate(educ = factor(ID06,
+	                     levels = c(1,2,3,4,5),
+	                     labels = c("Below primary school", "Primary school", 
+	                                "Junior high school", "High school", "Higher education")))
+
+demographics <- demographics %>%
+  select(record, prov, urban, age, age_group, male, educ)
+
+
+```
+
+
+## 1) Kable for tabulating % of accuracy and % agreement of those who is correctly interpret
+``` {r sum_accurate}
+# Calculate percentage of correct interpretation by narrative
+sum_accurate <- cb_data %>%
+  group_by(lfCB, d_correct) %>%
+  summarise(freq = n(), .groups = "drop") %>%
+  group_by(lfCB) %>%
+  mutate(total_nar = sum(freq), .groups = "drop") %>%
+  group_by(lfCB, d_correct) %>%
+  mutate(percent_correct = (freq/total_nar)*100)
+
+sum_accurate_kable <- sum_accurate %>%
+  filter(d_correct == "right") %>%
+  rename(stimulus = lfCB) %>%
+  select(stimulus, percent_correct)
+
+
+# Calculate percentage of agree by narrative and accuracy
+sum_agree <- cb_data %>%
+  group_by(lfCB, d_correct, d_agree) %>%
+  summarise(freq = n(), .groups = "drop") %>%
+  group_by(lfCB, d_correct) %>%
+  mutate(total_cor_nar = sum(freq), .groups = "drop") %>%
+  group_by(lfCB, d_correct, d_agree) %>%
+  mutate(percent_agree = (freq/total_cor_nar)*100)
+
+sum_agree_kable <- sum_agree %>%
+  filter(d_correct == "right" & d_agree == "Agree") %>%
+  rename(stimulus = lfCB) %>%
+  select(stimulus, percent_agree)
+
+# Combining the table for specified column
+sum_kable <- sum_accurate_kable %>%
+  full_join(sum_agree_kable, by = "stimulus") %>%
+  select(stimulus, percent_correct, percent_agree) %>%
+  filter(stimulus!=6)
+
+kable(sum_kable,
+      digits = 2,
+      caption = "Percentage of stimulus accuracy and agreement",
+      col.names = c("Stimulus", "Correct (%)", "Agree(%)"),
+      align = c("l", "r", "r")
+      ) 
+cat("Notes: percentage of agreement is calculated of those who interpret stimulus correctly.\n")
+
+```
 
 ## 2) T-test of accuracy by demographics
+
+
 ### Gender
+``` {r chi_square_post_hoc}
+
+
+```
+
+``` {r t_test?}
+# T-test assuming likert scale in CB04 (agree) 
+
+nice_t_test(
+  data = reg_data_nar1,
+  response = "CB04",
+  group = "male",
+  warning = FALSE
+)
+
+model <- t.test(CB04 ~ am, data = mtcars)
+
+model <- aov(CB04 ~ male, data = reg_data_nar1)
+report(model)
+
+
+```
+
+``` {r logit_check_ME}
+
+reg_data <- cb_data %>%
+  inner_join(demographics, by = "record")
+
+reg_data_nar1 <- reg_data %>%
+  filter(lfCB == 1)
+
+# Notes: Chi-Square cannot define the sign of correlation between groups.
+
+# Coba logit ke dummy correct by demographics
+logit_correct <- glm(d_correct ~ male + age + educ + urban , data = reg_data_nar1, family = "binomial")
+
+summary(logit_correct)
+
+n_obs <- nobs(logit_correct)
+tidy_result <- tidy(logit_correct) %>%
+  mutate(
+    p_value = ifelse(p.value < 0.001, "<0.001", format(round(p.value, 3), nsmall = 3)),
+    significance = case_when(
+      p.value < 0.001 ~ "***",
+      p.value < 0.01 ~ "**",
+      p.value < 0.05 ~ "*",
+      p.value < 0.1 ~ ".",
+      TRUE ~ ""
+    )
+  ) %>%
+  select(term, estimate, p_value, significance)
+
+
+
+cat("Tidy Logistic Regression Results:\n")
+print(tidy_result)
+cat("\nNumber of Observations:", n_obs, "\n")
+
+texreg(logit_correct, caption = "Logistic Regression Results", label = "tab:logit")
+
+
+stargazer(logit_correct,
+          title = "Logistic Regression Results",
+          dep.var.labels = "Dependent Variable (d_agree)",
+          covariate.labels = c("Male", "Age", "Education", "Urban"),
+          #omit.stat = c("ll", "aic", "bic", "f.statistic"), # Omit less common statistics
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          notes = "Significance levels: * p<0.05, ** p<0.01, *** p<0.001",
+          type = "latex") # Or "html" or "text"
+
+```
+
 ### Age group
 ### Urban
 ### Education level
@@ -130,13 +330,412 @@ custom_theme <- function() {
 
 
 ## 4a) Heatmap of most evoked emotion by each statement
+``` {r emotion_prep}
+cb02_data <- cb_data %>%
+  select(record, lfCB, starts_with("CB02"))
 
-## 4b?) Grouped bar chart of evoked emotion by agreement (for subsample that is correctly interpret)
+emotion_var <- cb02_data %>% select(starts_with("CB02")) %>% names()
+cb02_base <- c("CB02Ar", "CB02Br", "CB02Cr", "CB02Dr", "CB02Er")
 
-## 4b?) T-test of evoked emotion with agreement (for subsample that is correctly interpret)
+# Replace answer 2 "no" into 0
+cb02_data <- cb02_data %>%
+  mutate(across(all_of(emotion_var), ~ replace(., . %in% c(2), 0)))
 
 
-## 5) Grouped bar chart of sentence resonation by correctly interpret/not
+# Prepare emotion name
+emotion_list <- c(
+  "1" = "Anger",
+  "2" = "Anxiety",
+  "3" = "Disgust",
+  "4" = "Fear",
+  "5" = "Sad",
+  "6" = "Happy",
+  "7" = "Calm",
+  "8" = "Longing",
+  "9" = "Hopeless"
+)
 
-## 5) Grouped bar chart of sentence resonation by agreement (for subsample that is correctly interpret) -- mungkin bisa sekalian bar chart yang ada significance level beda atau ngga
 
+# for narrative 1
+nar1_summary_list <- list()
+
+  for (i in 1:9) {
+  emotions <- emotion_list[i] 
+  emotion_col <- paste0("CB02Ar", i)
+
+  summary_df <- cb02_data %>%
+  filter(lfCB == 1) %>%
+  group_by(!!sym(emotion_col)) %>%
+  summarise(freq=n(), .groups = 'drop') %>%
+  mutate(percent = (freq/sum(freq))*100, .groups = 'drop') %>%
+  filter(!!sym(emotion_col) == 1) %>%
+  mutate(emotion = emotions) %>%
+  select(emotion, freq, percent) 
+
+  nar1_summary_list[[i]] <- summary_df
+  }
+
+sum_emotion_nar1 <- bind_rows(nar1_summary_list) %>%
+  mutate(narrative = 1)
+
+
+# for narrative 2
+nar2_summary_list <- list()
+
+  for (i in 1:9) {
+  emotions <- emotion_list[i] 
+  emotion_col <- paste0("CB02Br", i)
+
+  summary_df <- cb02_data %>%
+  filter(lfCB == 2) %>%
+  group_by(!!sym(emotion_col)) %>%
+  summarise(freq=n(), .groups = 'drop') %>%
+  mutate(percent = (freq/sum(freq))*100, .groups = 'drop') %>%
+  filter(!!sym(emotion_col) == 1) %>%
+  mutate(emotion = emotions) %>%
+  select(emotion, freq, percent) 
+
+  nar2_summary_list[[i]] <- summary_df
+  }
+
+sum_emotion_nar2 <- bind_rows(nar2_summary_list) %>%
+  mutate(narrative = 2)
+
+
+# for narrative 3
+nar3_summary_list <- list()
+
+  for (i in 1:9) {
+  emotions <- emotion_list[i] 
+  emotion_col <- paste0("CB02Cr", i)
+
+  summary_df <- cb02_data %>%
+  filter(lfCB == 3) %>%
+  group_by(!!sym(emotion_col)) %>%
+  summarise(freq=n(), .groups = 'drop') %>%
+  mutate(percent = (freq/sum(freq))*100, .groups = 'drop') %>%
+  filter(!!sym(emotion_col) == 1) %>%
+  mutate(emotion = emotions) %>%
+  select(emotion, freq, percent) 
+
+  nar3_summary_list[[i]] <- summary_df
+  }
+
+sum_emotion_nar3 <- bind_rows(nar3_summary_list) %>%
+  mutate(narrative = 3)
+
+
+# for narrative 4
+nar4_summary_list <- list()
+
+  for (i in 1:9) {
+  emotions <- emotion_list[i] 
+  emotion_col <- paste0("CB02Dr", i)
+
+  summary_df <- cb02_data %>%
+  filter(lfCB == 4) %>%
+  group_by(!!sym(emotion_col)) %>%
+  summarise(freq=n(), .groups = 'drop') %>%
+  mutate(percent = (freq/sum(freq))*100, .groups = 'drop') %>%
+  filter(!!sym(emotion_col) == 1) %>%
+  mutate(emotion = emotions) %>%
+  select(emotion, freq, percent) 
+
+  nar4_summary_list[[i]] <- summary_df
+  }
+
+sum_emotion_nar4 <- bind_rows(nar4_summary_list) %>%
+  mutate(narrative = 4)
+
+
+# for narrative 5
+nar5_summary_list <- list()
+
+  for (i in 1:9) {
+  emotions <- emotion_list[i] 
+  emotion_col <- paste0("CB02Er", i)
+
+  summary_df <- cb02_data %>%
+  filter(lfCB == 5) %>%
+  group_by(!!sym(emotion_col)) %>%
+  summarise(freq=n(), .groups = 'drop') %>%
+  mutate(percent = (freq/sum(freq))*100, .groups = 'drop') %>%
+  filter(!!sym(emotion_col) == 1) %>%
+  mutate(emotion = emotions) %>%
+  select(emotion, freq, percent) 
+
+  nar5_summary_list[[i]] <- summary_df
+  }
+
+sum_emotion_nar5 <- bind_rows(nar5_summary_list) %>%
+  mutate(narrative = 5)
+
+
+## Binding all narratives' emotion
+
+sum_emotion_all <- bind_rows(sum_emotion_nar1, sum_emotion_nar2, sum_emotion_nar3,
+                             sum_emotion_nar4, sum_emotion_nar5)
+
+
+```
+
+``` {r heatmap+_emotion}
+
+breaks_val <- c(0, 20, 40, 60, 80)
+colors_val <- c("white", "#D3D3D3", "#808080", "#595959", "#363636") # Example gray scale
+
+obs_counts <- cb02_data %>%
+  group_by(narrative = factor(ifelse(lfCB == 1, 1,
+                                     ifelse(lfCB == 2, 2,
+                                            ifelse(lfCB == 3, 3,
+                                                   ifelse(lfCB == 4, 4, 
+                                                          ifelse(lfCB == 5,5,NA))))))) %>%
+  summarise(n_obs = n(), .groups = 'drop')
+
+label_nar <- paste0(levels(factor(sum_emotion_all$narrative)),
+                    "\n(n=", obs_counts$n_obs, ")")
+
+heatmap_emo <- ggplot(sum_emotion_all, aes(x = factor(narrative), y = reorder(emotion, (percent)), fill = percent)) +
+  geom_tile() +
+  scale_fill_gradientn(colors = colors_val, breaks = breaks_val, limits = c(0, 80)) +
+  geom_text(aes(label = round(percent, 2)), color = "black", size = 3) +
+  #facet_wrap(~ Foundation, scales = "free") +
+  labs(title = "Emotions evoked by each narrative (%)",
+       #subtitle = subtitle,
+       x = "Narrative",
+       y = "Emotion",
+       fill = "Percentage") +
+  theme_minimal() +
+  custom_theme() +
+  scale_x_discrete(position="top",
+                   labels = label_nar) +
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=0.5),
+        legend.position = "right")
+print(heatmap_emo)
+```
+
+
+## 4) Test of two proportion for evoked emotion and agreement
+``` {r proportion_emotion}
+
+results_df <- data.frame()
+
+for (nar in 1:5) {
+  for (i in 1:9) {
+    emotion_col <- paste0("CB02", LETTERS[nar], "r", i)
+    emotion_name <- emotion_list[as.character(i)]
+
+    temp_table <- cb02_data_all %>%
+      filter(lfCB == nar) %>%
+      mutate(selected = !!sym(emotion_col) == 1) %>%
+      group_by(d_agree, selected) %>%
+      summarise(count = n(), .groups = "drop") %>%
+      pivot_wider(names_from = selected, values_from = count, values_fill = 0)
+
+    if (nrow(temp_table) == 2 && all(c("TRUE", "FALSE") %in% colnames(temp_table))) {
+      x <- c(temp_table$`TRUE`[1], temp_table$`TRUE`[2])
+      n <- rowSums(temp_table[, c("TRUE", "FALSE")])
+      test <- prop.test(x = x, n = n)
+      
+      sig_star <- case_when(
+        test$p.value <= 0.001 ~ "***",
+        test$p.value <= 0.01  ~ "**",
+        test$p.value <= 0.05  ~ "*",
+        TRUE                  ~ ""
+        )
+
+      results_df <- rbind(results_df, data.frame(
+        narrative = nar,
+        emotion = emotion_name,
+        agree_yes = x[2],
+        agree_total = n[2],
+        disagree_yes = x[1],
+        disagree_total = n[1],
+        p_value = round(test$p.value, 4),
+        agree_prop = round(test$estimate[2], 3),
+        disagree_prop = round(test$estimate[1], 3),
+        significance = sig_star
+      ))
+    }
+  }
+}
+
+```
+
+``` {r kable_proportion_test}
+
+narrative_tables <- results_df %>%
+  arrange(narrative, emotion) %>%
+  group_split(narrative)
+
+for (i in 1:5) {
+  
+  caption_kable <- paste0("Emotion differences between agree and disagree groups (Narrative ", i, ")")
+  
+  narrative_tables[[i]] %>%
+    mutate(
+      agree_prop = scales::percent(agree_prop, accuracy = 1),
+      disagree_prop = scales::percent(disagree_prop, accuracy = 1),
+      p_value = ifelse(p_value < 0.001, "<0.001", sprintf("%.3f", p_value))
+    ) %>%
+    select(emotion, agree_prop, disagree_prop, p_value, significant) %>%
+    kable(
+      caption = caption_kable,
+      col.names = c("Emotion", "Agree (%)", "Disagree (%)", "P-value", "Sig"),
+      align = c("l", "r", "r", "r", "c")
+    ) %>%
+    kable_styling(
+      #bootstrap_options = c("striped", "condensed"),
+      font_size = 12,
+      full_width = FALSE
+    ) %>%
+    column_spec(1, width = "12em") %>%
+    column_spec(2:4, width = "10em", border_left = FALSE, border_right = FALSE) %>%
+    column_spec(5, width = "4em", border_right = FALSE) %>%
+    print()
+}
+
+```
+
+
+\newpage
+## 5) Bar chart of sentence resonation
+
+### Narrative 1 - Sentence resonance by correct interpretation
+``` {r prep_cb03a_correct}
+
+sum_cb03_correct_nar1 <- cb_data %>%
+  filter(lfCB == 1) %>%
+  group_by(d_correct, CB03A) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(d_correct) %>%
+  mutate(total_correct = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_correct)*100) %>%
+  mutate(d_correct = factor(d_correct,
+                            levels = c("right", "wrong"),
+                            labels = c("Correct", "Incorrect"))) %>%
+  mutate(sentence = factor(CB03A,
+                           levels = c(1,2,3,4),
+                           labels = c("What is the point of Indonesia continuing to develop\nif only a few people get to experience the results?",
+                                      "All this time, the benefits of development have not\nreached all citizens.Those who enjoy it are the rich and\npowerful.Those at the bottom are still not prosperous.",
+                                      "The government should improve the distribution of\ndevelopment benefits.The government must ensure that\nthe benefits can be enjoyed by all Indonesians.",
+                                      "If the government can improve the distribution of\ndevelopment benefits,then all levels of society can thrive\nand improve their standard of living wherever they are.")))
+
+
+
+```
+
+``` {r plot_cb03a_correct, fig.width = 10, fig.height = 3.5}
+
+label_counts <- sum_cb03_correct_nar1 %>%
+  filter(CB03A==1) %>%
+  select(d_correct, total_correct) %>%
+  mutate(label = paste0(d_correct, " (n = ", total_correct, ")")) %>%
+  select(d_correct, label) %>%
+  deframe()  # Convert to named vector
+
+
+# Bar plot
+p_cb03_nar1 <- ggplot(sum_cb03_correct_nar1) +
+    aes(x = sentence, y = percent) +
+    facet_wrap(~d_correct, nrow=1, strip.position="top",
+               labeller = labeller(d_correct = label_counts)) +
+    geom_bar(stat = "identity", fill=plotplainblind[1]) +
+    geom_text(aes(label = paste(round(percent, 0),"%")),
+      vjust = 0.5,
+      hjust = -0.1,
+      size = 4
+    ) +
+    coord_flip() +
+  scale_y_continuous(limit = c(0,50), labels=NULL) +
+    labs(
+      #title = paste("Sentence resonance of narrative 1"),
+      #subtitle = subtitle,
+      x = "",
+      y = ""
+    ) +
+  custom_theme() +
+  theme(
+    legend.position = "none",
+    plot.caption = element_text(hjust=0),
+    strip.text = element_text(size = 11)
+  ) 
+print(p_cb03_nar1)
+
+```
+
+### Narrative 1 - Sentence resonance by agreement
+``` {r prep_cb03a_agree}
+
+sum_cb03_nar1 <- cb_data %>%
+  filter(lfCB == 1) %>%
+  group_by(d_agree, CB03A) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(d_agree) %>%
+  mutate(total_agree = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_agree)*100) %>%
+  mutate(sentence = factor(CB03A,
+                           levels = c(1,2,3,4),
+                           labels = c("What is the point of Indonesia continuing to develop\nif only a few people get to experience the results?",
+                                      "All this time, the benefits of development have not\nreached all citizens.Those who enjoy it are the rich and\npowerful.Those at the bottom are still not prosperous.",
+                                      "The government should improve the distribution of\ndevelopment benefits.The government must ensure that\nthe benefits can be enjoyed by all Indonesians.",
+                                      "If the government can improve the distribution of\ndevelopment benefits,then all levels of society can thrive\nand improve their standard of living wherever they are.")))
+
+
+
+```
+
+``` {r plot_cb03a_agree, fig.width = 10, fig.height = 3.5}
+
+label_counts <- sum_cb03_nar1 %>%
+  filter(CB03A==1) %>%
+  select(d_agree, total_agree) %>%
+  mutate(label = paste0(d_agree, " (n = ", total_agree, ")")) %>%
+  select(d_agree, label) %>%
+  deframe()  # Convert to named vector
+
+print(label_counts)
+# Bar plot
+p_cb03_nar1 <- ggplot(sum_cb03_nar1) +
+    aes(x = sentence, y = percent) +
+    facet_wrap(~d_agree, nrow=1, strip.position="top",
+               labeller = labeller(d_agree = label_counts)) +
+    geom_bar(stat = "identity", fill=plotplainblind[1]) +
+    geom_text(aes(label = paste(round(percent, 0),"%")),
+      vjust = 0.5,
+      hjust = -0.1,
+      size = 4
+    ) +
+    coord_flip() +
+  scale_y_continuous(limit = c(0,50), labels=NULL) +
+    labs(
+      #title = paste("Sentence resonance of narrative 1"),
+      #subtitle = subtitle,
+      x = "",
+      y = ""
+    ) +
+  custom_theme() +
+  theme(
+    legend.position = "none",
+    plot.caption = element_text(hjust=0),
+    strip.text = element_text(size = 11)
+  ) 
+print(p_cb03_nar1)
+
+```
+
+### Narrative 2 - Sentence resonance by correct interpretation
+### Narrative 2 - Sentence resonance by agreement
+
+### Narrative 3 - Sentence resonance by correct interpretation
+### Narrative 3 - Sentence resonance by agreement
+
+### Narrative 4 - Sentence resonance by correct interpretation
+### Narrative 4 - Sentence resonance by agreement
+
+### Narrative 5 - Sentence resonance by correct interpretation
+### Narrative 5 - Sentence resonance by agreement
+
+
+
+## 6) Demographics figure (Statistical difference of key characteristics between the sample and the population) -- see paper draft [upcoming]
