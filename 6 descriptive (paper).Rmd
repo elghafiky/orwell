@@ -3,8 +3,8 @@ title: "Orwell paper descriptive analysis data dump"
 author: "Azzah (C4C)"
 date: "`r Sys.Date()`"
 output:
-  word_document: default
   pdf_document: default
+always_allow_html: true
 ---
 
 ```{r setup, include=FALSE}
@@ -18,8 +18,8 @@ graphics.off(); rm(list=ls());cat("\14");
 
 # Load packages
 #install.packages("pacman") # install the package if you haven't 
-pacman::p_load(tidyverse,data.table,dplyr,knitr,tinytex,corrplot,stringr,summarytable,
-               Hmisc,showtext,stats,pollster,sjPlot,psych,lavaan, viridis, texreg,kableExtra,
+pacman::p_load(tidyverse,data.table,dplyr,knitr,tinytex,corrplot,stringr,summarytable,makecell,
+               Hmisc,showtext,stats,pollster,sjPlot,psych,lavaan, viridis, texreg, kableExtra,
                rempsyc, effectsize, flextable, broom, report, stargazer, modelsummary, margins)
 
 # Retrieve the current system username
@@ -105,19 +105,16 @@ custom_theme <- function() {
 ``` {r prep_variables}
 
 cb_data <- rdf %>%
-  select(record, lfCB, starts_with("CB"))
+  select(record, lfCB, starts_with("CB"), crt_intrpt_msg, agreestim)
 
 # generate dummy for agreeing with statement
 cb_data <- cb_data %>%
   mutate(
-    d_agree = case_when(
-      CB04 %in% c(4, 5, 6) ~ 1,
-      CB04 %in% c(1, 2, 3) ~ 0,
-      TRUE ~ NA_integer_  # Keep other values as NA
-    )) %>%
-  mutate(d_agree = factor(d_agree,
-                          levels = c(0, 1), 
-                          labels = c("Disagree", "Agree")))
+    d_agree = factor(agreestim,
+                     levels=c(0,1),
+                     labels=c("Disagree", "Agree")))
+
+## notes: g agreestim=(lfCB==6)|(inrange(CB04,4,6) & (inrange(lfCB,1,3) | lfCB==5))|(inrange(CB04,1,3) & lfCB==4)
 
 
 # generate dummy for correct interpretation
@@ -150,7 +147,7 @@ cb_data <- cb_data %>%
 
 cb_data$d_correct <- factor(cb_data$d_correct, 
                              levels = c(0, 1), 
-                             labels = c("wrong", "right"))
+                             labels = c("Incorrect", "Correct"))
 ```
 
 
@@ -195,7 +192,7 @@ demographics <- demographics %>%
 ```
 
 
-## 1) Kable for tabulating % of accuracy and % agreement of those who is correctly interpret
+## 1) Tabulation: % of accuracy and % agreement of those who is correctly interpret
 ``` {r sum_accurate}
 # Calculate percentage of correct interpretation by narrative
 sum_accurate <- cb_data %>%
@@ -207,7 +204,7 @@ sum_accurate <- cb_data %>%
   mutate(percent_correct = (freq/total_nar)*100)
 
 sum_accurate_kable <- sum_accurate %>%
-  filter(d_correct == "right") %>%
+  filter(d_correct == "Correct") %>%
   rename(stimulus = lfCB) %>%
   select(stimulus, percent_correct)
 
@@ -222,7 +219,7 @@ sum_agree <- cb_data %>%
   mutate(percent_agree = (freq/total_cor_nar)*100)
 
 sum_agree_kable <- sum_agree %>%
-  filter(d_correct == "right" & d_agree == "Agree") %>%
+  filter(d_correct == "Correct" & d_agree == "Agree") %>%
   rename(stimulus = lfCB) %>%
   select(stimulus, percent_agree)
 
@@ -242,94 +239,174 @@ cat("Notes: percentage of agreement is calculated of those who interpret stimulu
 
 ```
 
-## 2) T-test of accuracy by demographics
+## 2) Logit regression of demographics on accuracy 
+Depedent variable is binary variable of accuracy (1: correct interpretaion of stimulus, 0: incorrect interpretation). Base group for age_group is "18-24", base group for education is "Primary school"
 
-
-### Gender
-``` {r chi_square_post_hoc}
-
-
-```
-
-``` {r t_test?}
-# T-test assuming likert scale in CB04 (agree) 
-
-nice_t_test(
-  data = reg_data_nar1,
-  response = "CB04",
-  group = "male",
-  warning = FALSE
-)
-
-model <- t.test(CB04 ~ am, data = mtcars)
-
-model <- aov(CB04 ~ male, data = reg_data_nar1)
-report(model)
-
-
-```
-
-``` {r logit_check_ME}
-
+``` {r prep_reg_data}
 reg_data <- cb_data %>%
   inner_join(demographics, by = "record")
+```
 
-reg_data_nar1 <- reg_data %>%
-  filter(lfCB == 1)
+``` {r loop_logit_correct}
 
-# Notes: Chi-Square cannot define the sign of correlation between groups.
+all_results <- list()
 
-# Coba logit ke dummy correct by demographics
-logit_correct <- glm(d_correct ~ male + age + educ + urban , data = reg_data_nar1, family = "binomial")
+for (i in 1:5) {
+  # Filter for one narrative
+  data_nar <- reg_data %>%
+    filter(lfCB == i) %>%
+    droplevels()  # Drop unused factor levels
+  
+  # Run logistic regression
+  model <- glm(d_correct ~ male + age_group + educ + urban,
+               data = data_nar, family = "binomial")
+  
+  # Get marginal effects
+  marginal <- margins(model)
+  summary_marginal <- summary(marginal)
+  
+  # Format result
+  formatted <- summary_marginal %>%
+    as_tibble() %>%
+    mutate(
+      marginal_effect = scales::percent(AME, accuracy = 0.1),
+      p_value = ifelse(p < 0.001, "<0.001", format(round(p, 3), nsmall = 3)),
+      significance = case_when(
+        p < 0.001 ~ "***",
+        p < 0.01 ~ "**",
+        p < 0.05 ~ "*",
+        p < 0.1 ~ ".",
+        TRUE ~ ""
+      ),
+      narrative = i
+    ) %>%
+    select(narrative, factor, AME, p_value, significance)
+  
+  all_results[[i]] <- formatted
+}
 
-summary(logit_correct)
+# Combine all into one table
+final_table <- bind_rows(all_results)
 
-n_obs <- nobs(logit_correct)
-tidy_result <- tidy(logit_correct) %>%
-  mutate(
-    p_value = ifelse(p.value < 0.001, "<0.001", format(round(p.value, 3), nsmall = 3)),
-    significance = case_when(
-      p.value < 0.001 ~ "***",
-      p.value < 0.01 ~ "**",
-      p.value < 0.05 ~ "*",
-      p.value < 0.1 ~ ".",
-      TRUE ~ ""
-    )
-  ) %>%
-  select(term, estimate, p_value, significance)
-
-
-
-cat("Tidy Logistic Regression Results:\n")
-print(tidy_result)
-cat("\nNumber of Observations:", n_obs, "\n")
-
-texreg(logit_correct, caption = "Logistic Regression Results", label = "tab:logit")
-
-
-stargazer(logit_correct,
-          title = "Logistic Regression Results",
-          dep.var.labels = "Dependent Variable (d_agree)",
-          covariate.labels = c("Male", "Age", "Education", "Urban"),
-          #omit.stat = c("ll", "aic", "bic", "f.statistic"), # Omit less common statistics
-          star.cutoffs = c(0.05, 0.01, 0.001),
-          notes = "Significance levels: * p<0.05, ** p<0.01, *** p<0.001",
-          type = "latex") # Or "html" or "text"
 
 ```
 
-### Age group
-### Urban
-### Education level
+```{r kable_output_ame_correct, results='asis'}
+# Format cell content as simple plain-text strings
+formatted_table <- final_table %>%
+  mutate(
+    p_value_num = as.numeric(p_value),
+    p_value_fmt = ifelse(
+      is.na(p_value_num),
+      as.character(p_value),
+      sprintf("%.3f", p_value_num)
+    ),
+    cell = paste0(sprintf("%.3f", AME), " ", "(p = ", p_value_fmt, ")", significance)
+  ) %>%
+  select(narrative, factor, cell) %>%
+  pivot_wider(names_from = narrative, values_from = cell, names_prefix = "Narrative ")
 
-## 3) T-test of agreement by demographics (for subsample that is correctly interpret)
-### Gender
-### Age group
-### Urban
-### Education level
+# Output simple PDF-friendly kable
+formatted_table %>%
+  rename(`Predictor` = factor) %>%
+  kable(
+    booktabs = TRUE,
+    longtable = TRUE,
+    escape = TRUE,
+    caption = "Average Marginal Effects on Correct Interpretation"
+  ) %>%
+  kable_styling(
+    latex_options = c("hold_position", "repeat_header"),
+    font_size = 6.5
+  ) %>%
+  column_spec(1, bold = TRUE)
+```
 
 
-## 4a) Heatmap of most evoked emotion by each statement
+
+## 3) Logit regression of demographics on agreement 
+Depedent variable is binary variable of agreement (1: agree with stimulus, 0: disagree). Base group for age_group is "18-24", base group for education is "Primary school"
+
+``` {r loop_logit_agree}
+
+all_results <- list()
+
+for (i in 1:5) {
+  # Filter for one narrative
+  data_nar <- reg_data %>%
+    filter(lfCB == i) %>%
+    droplevels()  # Drop unused factor levels
+  
+  # Run logistic regression
+  model <- glm(d_agree ~ male + age_group + educ + urban,
+               data = data_nar, family = "binomial")
+  
+  # Get marginal effects
+  marginal <- margins(model)
+  summary_marginal <- summary(marginal)
+  
+  # Format result
+  formatted <- summary_marginal %>%
+    as_tibble() %>%
+    mutate(
+      marginal_effect = scales::percent(AME, accuracy = 0.1),
+      p_value = ifelse(p < 0.001, "<0.001", format(round(p, 3), nsmall = 3)),
+      significance = case_when(
+        p < 0.001 ~ "***",
+        p < 0.01 ~ "**",
+        p < 0.05 ~ "*",
+        p < 0.1 ~ ".",
+        TRUE ~ ""
+      ),
+      narrative = i
+    ) %>%
+    select(narrative, factor, AME, p_value, significance)
+  
+  all_results[[i]] <- formatted
+}
+
+# Combine all into one table
+final_table <- bind_rows(all_results)
+
+
+```
+
+``` {r kable_output_ame_agree}
+
+# Format cell content as simple plain-text strings
+formatted_table <- final_table %>%
+  mutate(
+    p_value_num = as.numeric(p_value),
+    p_value_fmt = ifelse(
+      is.na(p_value_num),
+      as.character(p_value),
+      sprintf("%.3f", p_value_num)
+    ),
+    cell = paste0(sprintf("%.3f", AME), " ", "(p = ", p_value_fmt, ")", significance)
+  ) %>%
+  select(narrative, factor, cell) %>%
+  pivot_wider(names_from = narrative, values_from = cell, names_prefix = "Narrative ")
+
+# Output simple PDF-friendly kable
+formatted_table %>%
+  rename(`Predictor` = factor) %>%
+  kable(
+    booktabs = TRUE,
+    longtable = TRUE,
+    escape = TRUE,
+    caption = "Average Marginal Effects on Agreement to Stimulus"
+  ) %>%
+  kable_styling(
+    latex_options = c("hold_position", "repeat_header"),
+    font_size = 6.5
+  ) %>%
+  column_spec(1, bold = TRUE)
+
+```
+
+
+\newpage
+## 4) Heatmap of most evoked emotion by each statement
 ``` {r emotion_prep}
 cb02_data <- cb_data %>%
   select(record, lfCB, starts_with("CB02"))
@@ -515,8 +592,13 @@ print(heatmap_emo)
 ```
 
 
-## 4) Test of two proportion for evoked emotion and agreement
+## 4a) Test of two proportion for evoked emotion and agreement
 ``` {r proportion_emotion}
+
+cb02_data_all <- cb_data %>%
+  select(record, d_correct, d_agree) %>%
+  inner_join(cb02_data, by = "record")
+
 
 results_df <- data.frame()
 
@@ -568,38 +650,49 @@ narrative_tables <- results_df %>%
   arrange(narrative, emotion) %>%
   group_split(narrative)
 
+kable_outputs <- list() # Create an empty list to store the kable outputs
+
 for (i in 1:5) {
+  caption_kable <- paste0("Emotion differences of agree and disagree groups \n(Narrative ", i, ")")
+  kable_name <- paste0("kable_", i)
   
-  caption_kable <- paste0("Emotion differences between agree and disagree groups (Narrative ", i, ")")
-  
-  narrative_tables[[i]] %>%
+  table_data <- narrative_tables[[i]] %>%
     mutate(
       agree_prop = scales::percent(agree_prop, accuracy = 1),
       disagree_prop = scales::percent(disagree_prop, accuracy = 1),
       p_value = ifelse(p_value < 0.001, "<0.001", sprintf("%.3f", p_value))
     ) %>%
-    select(emotion, agree_prop, disagree_prop, p_value, significant) %>%
-    kable(
-      caption = caption_kable,
-      col.names = c("Emotion", "Agree (%)", "Disagree (%)", "P-value", "Sig"),
-      align = c("l", "r", "r", "r", "c")
-    ) %>%
-    kable_styling(
-      #bootstrap_options = c("striped", "condensed"),
-      font_size = 12,
-      full_width = FALSE
-    ) %>%
-    column_spec(1, width = "12em") %>%
-    column_spec(2:4, width = "10em", border_left = FALSE, border_right = FALSE) %>%
-    column_spec(5, width = "4em", border_right = FALSE) %>%
-    print()
+    select(emotion, agree_prop, disagree_prop, p_value, significance)
+
+  kable_outputs[[i]] <- kable(
+    table_data,
+    caption = caption_kable,
+    col.names = c("Emotion", "Agree (%)", "Disagree (%)", "P-value", "Sig"),
+    align = c("l", "r", "r", "r", "c")
+  ) %>%
+    kable_styling(font_size = 10, full_width = FALSE) %>%
+    column_spec(1, width = "8em") %>%
+    column_spec(2:4, width = "6em") %>%
+    column_spec(5, width = "3em")
+}
+```
+
+``` {r print_kable, , results='asis'}
+print(kable_outputs[1])
+cat("\\newpage\n")
+
+for (i in 2:4) {
+  print(kable_outputs[[i]])
+  cat("\n") # Add a newline for spacing
 }
 
+cat("\\newpage\n")
+print(kable_outputs[5])
 ```
 
 
 \newpage
-## 5) Bar chart of sentence resonation
+## 5) Bar chart of sentence resonance
 
 ### Narrative 1 - Sentence resonance by correct interpretation
 ``` {r prep_cb03a_correct}
@@ -611,9 +704,6 @@ sum_cb03_correct_nar1 <- cb_data %>%
   group_by(d_correct) %>%
   mutate(total_correct = sum(freq), .groups = 'drop') %>%
   mutate(percent = (freq/total_correct)*100) %>%
-  mutate(d_correct = factor(d_correct,
-                            levels = c("right", "wrong"),
-                            labels = c("Correct", "Incorrect"))) %>%
   mutate(sentence = factor(CB03A,
                            levels = c(1,2,3,4),
                            labels = c("What is the point of Indonesia continuing to develop\nif only a few people get to experience the results?",
@@ -694,7 +784,6 @@ label_counts <- sum_cb03_nar1 %>%
   select(d_agree, label) %>%
   deframe()  # Convert to named vector
 
-print(label_counts)
 # Bar plot
 p_cb03_nar1 <- ggplot(sum_cb03_nar1) +
     aes(x = sentence, y = percent) +
@@ -737,5 +826,5 @@ print(p_cb03_nar1)
 ### Narrative 5 - Sentence resonance by agreement
 
 
-
+\newpage
 ## 6) Demographics figure (Statistical difference of key characteristics between the sample and the population) -- see paper draft [upcoming]
