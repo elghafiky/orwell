@@ -80,9 +80,10 @@ foreach i of numlist 5 7 9 10 13 {
 }
 egen sdbi=rowtotal(SBr*)
 
-* separate treatment group
+* separate treatment group and compliance indicator
 forval i = 1/6 {
 	g treat`i'=lfCB==`i'
+	g complytreat`i'=treat`i'*crt_intrpt_msg
 }
 
 * agreement with stimulus
