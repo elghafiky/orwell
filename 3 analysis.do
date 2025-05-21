@@ -371,8 +371,9 @@ pro plotprep
 	replace sig = "**"  if pwyoung >= 0.01 & pwyoung < 0.05
 	replace sig = "*"   if pwyoung >= 0.05 & pwyoung < 0.1
 	g treat=subinstr(familyp,"treat","Treatment ",.)
-	replace treat="Treatment 4" if familyp=="treat5"
-	replace treat="Treatment 5" if familyp=="treat4"
+	replace treat=subinstr(treat,"comply","",.)
+	replace treat="Treatment 4" if inlist(familyp,"treat5","complytreat5")
+	replace treat="Treatment 5" if inlist(familyp,"treat4","complytreat4")
 	rename equation eqnum
 	clonevar equation=eqnum
 	tostring equation, replace 
