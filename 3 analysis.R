@@ -177,9 +177,9 @@ CB07_labels_set1 <- c(
 
 # Set 2 labels
 CB07_labels_set2 <- c(
-  "5" = "Wealth inequality is normal",
-  "6" = "Gov.-made laws and reg. determine people's opportunity for success",
-  "7" = "Gov. decisions determine who rules in the economy"
+  "4" = "Wealth inequality is normal",
+  "5" = "Gov.-made laws and reg. determine people's opportunity for success",
+  "6" = "Gov. decisions determine who rules in the economy"
 )
 
 #### CB08
@@ -1145,7 +1145,7 @@ model_labels <- c(
 )
 
 # Plot
-fignm <- file.path(fig,paste0("conjoint_allmodel_TOT_.png"))
+fignm <- file.path(fig,paste0("conjoint_allmodel_TOT.png"))
 plotcjTOT <- plotnsave(allmodres, filepath = fignm)
 
 ##### EXPORT DATA TO JAMOVI #####
