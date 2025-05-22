@@ -18,9 +18,9 @@ graphics.off(); rm(list=ls());cat("\14");
 
 # Load packages
 #install.packages("pacman") # install the package if you haven't 
-pacman::p_load(tidyverse,data.table,dplyr,knitr,tinytex,corrplot,stringr,summarytable,makecell,
+pacman::p_load(tidyverse,data.table,dplyr,knitr,tinytex,corrplot,stringr,summarytable,makecell,haven,
                Hmisc,showtext,stats,pollster,sjPlot,psych,lavaan, viridis, texreg, kableExtra,
-               rempsyc, effectsize, flextable, broom, report, stargazer, modelsummary, margins)
+               rempsyc, effectsize, flextable, broom, report, stargazer, modelsummary, margins, srvyr, ggtext)
 
 # Retrieve the current system username
 current_user <- Sys.info()[["user"]]
@@ -106,23 +106,9 @@ custom_theme <- function() {
 
 ``` {r demog_prep}
 ## prepare demographics
-demographics <- rdf %>%
-  mutate(prov = ID01) %>%
-  mutate(urban = case_when(
-    ID02 == 1 ~ 1,
-    ID02 == 2 ~ 0
-  )) %>%
-  mutate(urban = factor(urban,
-                        levels = c(1,0),
-                        labels = c("Urban", "Rural"))) %>%
-  mutate(gender = case_when(
-    ID03 == 1 ~ 1,
-    ID03 == 2 ~ 0
-  )) %>%
-  mutate(gender = factor(male,
-                       levels = c(1,0),
-                       labels = c("Male", "Female"))) %>%
-  mutate(age = ID04) %>%
+
+demog_raw <- rdf %>%
+  select(record, region, prov, urban, male, age, edlvl, hhhead_gender, nosocast, hhsize, sdbi) %>%
   mutate(age_group = case_when(
     age>=18 & age<=24 ~ 1,
     age>=25 & age<=34 ~ 2,
@@ -133,13 +119,22 @@ demographics <- rdf %>%
   mutate(age_group=factor(age_group,
                           levels = c(1,2,3,4,5),
                           labels = c("18-24", "25-34", "35-44", "45-54", "55-64"))) %>%
-	mutate(educ = factor(ID06,
+  mutate(region = factor(region,
+                         levels = c(1,2,3),
+                         labels = c("West", "Central", "East"))) %>%
+  mutate(educ = factor(edlvl,
 	                     levels = c(1,2,3,4,5),
 	                     labels = c("Below primary school", "Primary school", 
-	                                "Junior high school", "High school", "Higher education")))
+	                                "Junior high school", "High school", "Higher education"))) %>%
+  mutate(urban = factor(urban,
+                        levels = c(1,0),
+                        labels = c("Urban", "Rural"))) %>%
+  mutate(gender = factor(male,
+                       levels = c(1,0),
+                       labels = c("Male", "Female")))
 
-demographics <- demographics %>%
-  select(record, prov, urban, age, age_group, male, educ)
+  
+
 
 
 ```
@@ -147,15 +142,15 @@ demographics <- demographics %>%
 
 ## SUBSECTION 1: TREATMENT COMPLIANCE
 
-## 1.1 Stimulus reading time
+## 1.1 Stimulus reading time (read_stim_time)
 Visualize statistical difference of stimulus reading time between each treatment arm and the control group
 
-``` {r prep_pagetime}
+``` {r archive_prep_pagetime}
 
 pagetime_data <- rdf %>%
   select(record, lfCB, crt_intrpt_msg, agreestim, starts_with("pagetime"))
 
-sum_readtime <- pagetime_data %>%
+sum_pagetime <- pagetime_data %>%
   group_by(lfCB) %>%
   summarise(mean = mean(pagetimeIntroSectionCB, na.rm=TRUE),
             sd = sd(pagetimeIntroSectionCB, na.rm=TRUE),
@@ -168,10 +163,69 @@ sum_readtime <- pagetime_data %>%
                         labels = c("1", "2", "3",
                                    "4", "5", "Control"))
          )
+  
+```
+
+``` {r prep_readstimtime}
+
+read_stim_time <- rdf %>%
+  select(record, lfCB, crt_intrpt_msg, agreestim, read_stim_time, starts_with("pagetime"))
+
+sum_readtime <- read_stim_time %>%
+  group_by(lfCB) %>%
+  summarise(mean = mean(read_stim_time, na.rm=TRUE),
+            sd = sd(read_stim_time, na.rm=TRUE),
+            med = median(read_stim_time, na.rm=TRUE),
+            min = min(read_stim_time, na.rm=TRUE),
+            max = max(read_stim_time, na.rm=TRUE),
+            n = n(),
+            se = sd/sqrt(n), na.rm=TRUE) %>%
+    mutate(treat = factor(lfCB,
+                        levels = c(1,2,3,4,5, 6),
+                        labels = c("1", "2", "3",
+                                   "4", "5", "Control"))
+         )
+
+```
+
+
+
+``` {r archive_barplot_readtime_mean}
+### Mean reading time
+## Barplot reading time CB
+barplot_mean_readtime <- ggplot(sum_readtime, aes(x = treat, y = mean, fill = factor(treat))) +
+  geom_col() +  # or geom_bar(stat="identity")
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), 
+                width = 0.1, color = plotplainblind[3], size = 0.5) +
+  scale_y_continuous(labels=NULL) +
+   geom_text(aes(label = round(mean, 1)),
+            hjust = 0.5, 
+            vjust = -0.25,  
+            size = 4) + 
+  labs(title = "Mean of stimulus reading time (in seconds)", 
+       caption = "Notes: error bars shows standard error (SE)",
+       x = "Stimulus", y = "") +
+  custom_theme() +
+  scale_fill_manual(values = c(
+    "Control" = plotplainblind[2],
+    "1" = plotplainblind[1],
+    "2" = plotplainblind[1],
+    "3" = plotplainblind[1],
+    "4" = plotplainblind[1],
+    "5" = plotplainblind[1]),
+    name=NULL) +
+  theme(legend.position = "none",
+        plot.caption = element_text(hjust = 0))
+  
+```
+
+
+``` {r archive_barplot_readtime_med}
+### Median reading time
 
 ## Barplot reading time CB
-ggplot(sum_readtime, aes(x = treat, y = mean, fill = factor(treat))) +
-  geom_col(alpha = 0.7) +  # or geom_bar(stat="identity")
+barplot_med_readtime <- ggplot(sum_readtime, aes(x = treat, y = med, fill = factor(treat))) +
+  geom_col() +  # or geom_bar(stat="identity")
   #geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), 
    #             width = 0.2, color = "black", size = 1) +
   scale_y_continuous(labels=NULL) +
@@ -179,7 +233,7 @@ ggplot(sum_readtime, aes(x = treat, y = mean, fill = factor(treat))) +
             hjust = 0.5, 
             vjust = -0.25,  
             size = 4) + 
-  labs(title = "Stimulus reading time (minutes)", 
+  labs(title = "Median of stimulus reading time (in seconds)", 
        x = "Stimulus", y = "") +
   custom_theme() +
   scale_fill_manual(values = c(
@@ -194,7 +248,8 @@ ggplot(sum_readtime, aes(x = treat, y = mean, fill = factor(treat))) +
   
 ```
 
-### With significant result from t-test
+
+### Mean difference from control 
 
 ``` {r plot_diff_control}
 ## Statistics of control group
@@ -215,13 +270,13 @@ sum_diff_readtime <- sum_readtime %>%
          ) %>%
   filter(lfCB != 6) %>%
   mutate(treat = factor(lfCB,
-                        levels = c(1,2,3,4,5),
+                        levels = c(1,2,3,5,4),
                         labels = c("Stimulus 1", "Stimulus 2", "Stimulus 3",
                                    "Stimulus 4", "Stimulus 5"))
          )
 
 ## Plot
-ggplot(sum_diff_readtime, aes(x = mean_diff, 
+plot_diff_readtime <- ggplot(sum_diff_readtime, aes(x = mean_diff, 
                               y = fct_relevel(treat, rev(levels(treat))))
        ) +
   geom_point(size = 4, color = "#abdaf4") +
@@ -229,19 +284,29 @@ ggplot(sum_diff_readtime, aes(x = mean_diff,
   geom_vline(xintercept = 0, linetype = "dashed", color = "#d0d0d0") +
   geom_hline(yintercept = 0, linetype = "dashed", color = "#d0d0d0") +
   labs(
-    title = "Difference stimulus reading time from control group (minutes)",
-    x = "Mean difference (Treatment - Control)",
-    caption = paste0("Notes: control group mean of reading time is ", round(control_mean, 2), " minutes"),
+    title = "Difference stimulus reading time from control group (in seconds)",
+    x = "",
+    caption = paste0("Notes: control group mean of reading time is ", round(control_mean, 2), " seconds"),
     y = ""
   ) +
   custom_theme() +
-  theme(plot.caption = element_text(hjust=0.5))
+  theme(plot.caption = element_text(hjust=0))
+
+print(plot_diff_readtime)
+
+ggsave(filename = file.path(fig, "paper_meandiff_readtime.png"),
+       plot = plot_diff_readtime,
+       width = 8,
+       height = 4,
+       dpi = 100)
+
 
 ```
 
-### With significant result from t-test
 
-``` {r ttest_readtime_diff}
+``` {r archive_ttest_readtime_diff}
+### Mean difference from control (with result from t-test)
+
 # Control group data
 control_data <- pagetime_data %>% filter(lfCB == 6)
 control_reading_times <- control_data$pagetimeIntroSectionCB
@@ -274,7 +339,7 @@ sum_diff_readtime_ttest <- sum_diff_readtime %>%
   )
 
 # Plot with significance labels
-ggplot(sum_diff_readtime_ttest, aes(x = mean_diff,
+plot_ttest_readtime <- ggplot(sum_diff_readtime_ttest, aes(x = mean_diff,
                                    y = fct_relevel(treat, rev(levels(treat))))) +
   geom_point(size = 4, color = "#abdaf4") +
   geom_errorbarh(aes(xmin = ci_lower, xmax = ci_upper), height = 0.25, color = "#808080") +
@@ -286,9 +351,9 @@ ggplot(sum_diff_readtime_ttest, aes(x = mean_diff,
             hjust = 0.5, 
             size = 3) +
   labs(
-    title = "Difference stimulus reading time from control group (minutes)",
+    title = "Difference stimulus reading time from control group (in seconds)",
     x = "Mean difference (Treatment - Control)",
-    caption = paste0("Notes: control group mean of reading time is ", round(control_mean, 2), " minutes\nSignificance levels: *** < 0.001, ** < 0.01, * < 0.05, ns = not significant"),
+    caption = paste0("Notes: control group mean of reading time is ", round(control_mean, 2), " seconds\nSignificance levels: *** < 0.001, ** < 0.01, * < 0.05, ns = not significant"),
     y = ""
   ) +
   custom_theme() +
@@ -339,9 +404,11 @@ sum_accurate_kable <- sum_accurate %>%
   filter(stimulus != 6) %>%
   select(stimulus, percent_correct) %>%
   ungroup() %>%
-  mutate(word_count = c(75, 98, 89, 70, 130))
+  mutate(word_count = c(75, 98, 89, 70, 130)) %>%
+  mutate(stim = c(1,2,3,5,4)) %>%
+  arrange(stim)
 
-kable(sum_accurate_kable[c("stimulus", "word_count","percent_correct")],
+kable(sum_accurate_kable[c("stim", "word_count","percent_correct")],
       digits = 2,
       caption = "Percentage of stimulus accuracy",
       col.names = c("Stimulus", "Word count","Correct (%)"),
@@ -355,15 +422,15 @@ kable(sum_accurate_kable[c("stimulus", "word_count","percent_correct")],
 Visualize statistical difference of stimulus reading time between units who accurately interpreted their stimulus and those who don't
 
 
-``` {r prep_pagetime_correct_treatment}
+``` {r prep_stimtime_correct_treatment}
 
-sum_time_correct <- pagetime_data %>%
+sum_time_correct <- read_stim_time %>%
   filter(lfCB != 6) %>%
   group_by(crt_intrpt_msg) %>%
-  summarise(mean = mean(pagetimeIntroSectionCB, na.rm=TRUE),
-            sd = sd(pagetimeIntroSectionCB, na.rm=TRUE),
-            min = min(pagetimeIntroSectionCB, na.rm=TRUE),
-            max = max(pagetimeIntroSectionCB, na.rm=TRUE),
+  summarise(mean = mean(read_stim_time, na.rm=TRUE),
+            sd = sd(read_stim_time, na.rm=TRUE),
+            min = min(read_stim_time, na.rm=TRUE),
+            max = max(read_stim_time, na.rm=TRUE),
             n = n(),
             se = sd/sqrt(n), na.rm=TRUE) %>%
   mutate(d_correct = factor(crt_intrpt_msg,
@@ -377,15 +444,15 @@ count_treatment <- rdf %>% filter(lfCB != 6) %>% nrow()
 ```
 
 
-### Without significant result from t-test
-``` {r prep_pagetime_correct_all}
 
-sum_time_correct_all <- pagetime_data %>%
+``` {r prep_stimtime_correct_all}
+### Without significant result from t-test
+sum_time_correct_all <- read_stim_time %>%
   group_by(crt_intrpt_msg) %>%
-  summarise(mean = mean(pagetimeIntroSectionCB, na.rm=TRUE),
-            sd = sd(pagetimeIntroSectionCB, na.rm=TRUE),
-            min = min(pagetimeIntroSectionCB, na.rm=TRUE),
-            max = max(pagetimeIntroSectionCB, na.rm=TRUE),
+  summarise(mean = mean(read_stim_time, na.rm=TRUE),
+            sd = sd(read_stim_time, na.rm=TRUE),
+            min = min(read_stim_time, na.rm=TRUE),
+            max = max(read_stim_time, na.rm=TRUE),
             n = n(),
             se = sd/sqrt(n), na.rm=TRUE) %>%
   mutate(d_correct = factor(crt_intrpt_msg,
@@ -397,7 +464,7 @@ sum_time_correct_all <- pagetime_data %>%
 count_all <- rdf %>% nrow()
 ```
 
-``` {r facetplot_readingtime}
+``` {r archive_facetplot_readingtime}
 combined_summary <- bind_rows(sum_time_correct, sum_time_correct_all) %>%
   mutate(subtitle = case_when(
     group == "Treatment group" ~ paste0("Treatment group (N = ", count_treatment, ")"),
@@ -405,7 +472,7 @@ combined_summary <- bind_rows(sum_time_correct, sum_time_correct_all) %>%
   ))
 
 
-ggplot(combined_summary, aes(x = d_correct, y = mean, fill = d_correct)) +
+plot_means_time_acc <- ggplot(combined_summary, aes(x = d_correct, y = mean, fill = d_correct)) +
   geom_col(alpha = 0.7, fill = plotplainblind[1]) +
   geom_text(aes(label = round(mean, 1)),
     hjust = 0.5,
@@ -416,7 +483,7 @@ ggplot(combined_summary, aes(x = d_correct, y = mean, fill = d_correct)) +
     scales = "free_y", # Allows y-axes to scale independently if needed
     ncol = 2
   ) +
-  scale_y_continuous(limits = c(0,12), labels = NULL) +
+  scale_y_continuous(limits = c(0,60), labels = NULL) +
   labs(
     title = "Means of stimulus reading time by accuracy (minutes)",
     caption = "Notes: All control observations are assumed to have correct interpretation",
@@ -426,15 +493,14 @@ ggplot(combined_summary, aes(x = d_correct, y = mean, fill = d_correct)) +
   theme(
     legend.position = "none",
     #strip.background = element_rect(fill = "#d0d0d0"), # Optional: style facet labels
-    strip.text = element_text(face = "bold"),          # Optional: style facet labels
+    #strip.text = element_text(face = "bold"),          # Optional: style facet labels
     plot.caption = element_text(hjust = 0)
   ) 
 
 ```
 
-### With significant result from t-test
 ``` {r ttest_readtime}
-## Option 1: t-test
+### With significant result from t-test
 all_sample_test <- t.test(pagetimeIntroSectionCB ~ crt_intrpt_msg,
                           data = pagetime_data,
                           var.equal = FALSE) 
@@ -484,9 +550,9 @@ combined_summary <- combined_summary %>%
 
 ```
 
-``` {r plot_ttest}
+``` {r archive_plot_ttest}
 
-ggplot(combined_summary, aes(x = d_correct, y = mean, fill = d_correct)) +
+plot_med_time_acc <- ggplot(combined_summary, aes(x = d_correct, y = mean, fill = d_correct)) +
   geom_col(fill = plotplainblind[1], width = 0.75) +
   geom_text(aes(label = round(mean, 1)),
             hjust = 0.5,
@@ -514,6 +580,67 @@ ggplot(combined_summary, aes(x = d_correct, y = mean, fill = d_correct)) +
   geom_text(aes(y = y_position, label = significance), size = 3, vjust = 0)
 
 ```
+
+
+### Mean difference of reading time (correct - incorrect)
+``` {r plot_diff_incorrect, fig.height=3, fig.width = 8}
+## Statistics of incorrect group
+incorr_mean <- sum_time_correct %>% 
+  filter(d_correct == "Incorrect") %>% pull(mean)
+incorr_se <- sum_time_correct %>% 
+  filter(d_correct == "Incorrect") %>% pull(se)
+
+
+## Summary difference stats (Treatment group)
+sum_diff_corr_treat <- sum_time_correct %>%
+  mutate(mean_diff = mean - incorr_mean,
+         se_diff = sqrt(se^2 + control_se^2),
+         ci_lower = mean_diff - 1.96 * se_diff,
+         ci_upper = mean_diff + 1.96 * se_diff
+         ) %>%
+  filter(d_correct == "Correct") %>%
+  mutate(group = "Treatment group only")
+
+## Summary difference stats (Treatment group)
+sum_diff_corr_all <- sum_time_correct_all %>%
+  mutate(mean_diff = mean - incorr_mean,
+         se_diff = sqrt(se^2 + control_se^2),
+         ci_lower = mean_diff - 1.96 * se_diff,
+         ci_upper = mean_diff + 1.96 * se_diff
+         ) %>%
+  filter(d_correct == "Correct") %>%
+  mutate(group = "All sample")
+
+## Binding row
+sum_diff_corr_combined <- bind_rows(sum_diff_corr_all, sum_diff_corr_treat)
+
+## Plot
+plot_meandiff_read_correct <- ggplot(sum_diff_corr_combined, aes(x = mean_diff, 
+                              y = group)) +
+  geom_point(size = 4, color = "#abdaf4") +
+  geom_errorbarh(aes(xmin = ci_lower, xmax = ci_upper), height = 0.2, color = "#808080") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "#d0d0d0") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "#d0d0d0") +
+  labs(
+    title = "Difference stimulus reading time from incorrect group (in seconds)",
+    x = "",
+    caption = paste0("Notes: Incorrect group mean of reading time is ", round(incorr_mean, 2), " seconds\n", "All control observations are assumed to have correct interpretation"),
+    y = ""
+  ) +
+  custom_theme() +
+  theme(plot.caption = element_text(hjust=0))
+
+print(plot_meandiff_read_correct)
+
+ggsave(filename = file.path(fig, "paper_meandiff_readtime_correct.png"),
+       plot = plot_meandiff_read_correct,
+       width = 8,
+       height = 3,
+       dpi = 100)
+
+```
+
+
 
 ###################################################################################
 \newpage
@@ -596,10 +723,16 @@ p_cb03_nar1 <- ggplot(sum_cb03_nar1) +
   ) 
 print(p_cb03_nar1)
 
+ggsave(filename = file.path(fig, "paper_cb03_stim1.png"),
+       plot = p_cb03_nar1,
+       width = 10,
+       height = 3.5,
+       dpi = 100)
+
 ```
 
 
-### 2.1.2 Do they agree with the sentence? (CB04)
+### 2.1.2a Do they agree with the sentence? (CB04) -- All Sample
 For each statement in each stimulus, visualize the rate of agreement
 
 ``` {r prep_cb04_nar1}
@@ -635,7 +768,7 @@ sum_cb04_nar1 <- sum_cb04_nar1 %>%
 diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
 names(diverging_colors) <- 1:6
 
-ggplot(sum_cb04_nar1, aes(x = fct_relevel(sentence, rev(levels(sentence))), 
+p_cb04_nar1 <- ggplot(sum_cb04_nar1, aes(x = fct_relevel(sentence, rev(levels(sentence))), 
                           y = percent_div, 
                           fill = agree_level)) +
   geom_bar(stat = "identity", width = 0.7) +
@@ -649,7 +782,7 @@ ggplot(sum_cb04_nar1, aes(x = fct_relevel(sentence, rev(levels(sentence))),
             position = position_stack(vjust = 0.5)
             ) +
   labs(
-    title = "Degree of Agreement (Stimulus 1)",
+    title = "Degree of Agreement (Stimulus 1, All Treatment)",
     y = "",
     x = ""
   ) +
@@ -675,12 +808,1305 @@ ggplot(sum_cb04_nar1, aes(x = fct_relevel(sentence, rev(levels(sentence))),
       title.hjust = 0.5  # Center the title
     ))
 
+print(p_cb04_nar1)
+
+ggsave(filename = file.path(fig, "paper_cb04_stim1.png"),
+       plot = p_cb04_nar1,
+       width = 10,
+       height = 4.5,
+       dpi = 100)
 ```
 
-### 2.1.3 What emotions were evoked by the narrative (CB02)
-Show a comparison between the entire sample and the compliers
+### 2.1.2b Do they agree with the sentence? (CB04) -- Compliers
 
+``` {r prep_cb04_nar1_sub}
+
+sum_cb04_nar1_sub <- cb_data %>%
+  filter(lfCB == 1 & d_correct == "Correct") %>%
+  group_by(CB03A, CB04) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(CB03A) %>%
+  mutate(total_sent = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_sent)*100) %>%
+  mutate(percent_div = case_when(
+    CB04 %in% c(4,5,6) ~ percent,
+    CB04 %in% c(1,2,3) ~ -percent
+  )) %>%
+  mutate(agree_level = factor(CB04,
+                              levels =c(1,2,3,6,5,4))) 
+
+
+sum_cb04_nar1_sub <- sum_cb04_nar1_sub %>%
+    mutate(sentence = factor(CB03A,
+                           levels = c(1,2,3,4),
+                           labels = c("What is the point of Indonesia continuing to develop\nif only a few people get to experience the results?",
+                                      "All this time, the benefits of development have not\nreached all citizens.Those who enjoy it are the rich and\npowerful.Those at the bottom are still not prosperous.",
+                                      "The government should improve the distribution of\ndevelopment benefits.The government must ensure that\nthe benefits can be enjoyed by all Indonesians.",
+                                      "If the government can improve the distribution of\ndevelopment benefits,then all levels of society can thrive\nand improve their standard of living wherever they are.")))
+
+
+
+```
+
+``` {r plot_cb04_nar1_sub, fig.height = 4.5, fig.width=10}
+diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+names(diverging_colors) <- 1:6
+
+p_cb04_sub_nar1 <- ggplot(sum_cb04_nar1_sub, aes(x = fct_relevel(sentence, rev(levels(sentence))), 
+                          y = percent_div, 
+                          fill = agree_level)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  scale_fill_manual(values = rev(diverging_colors), name = "",
+                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                                    "Strongly Agree", "Agree", "Slightly Agree")) +
+  coord_flip() +
+  geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
+            size = 3,
+            hjust= 0.5,
+            position = position_stack(vjust = 0.5)
+            ) +
+  labs(
+    title = "Degree of Agreement (Stimulus 1, Compliers)",
+    y = "",
+    x = ""
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
+  scale_y_continuous(labels=NULL) +
+  theme_minimal() +
+  custom_theme() +
+  theme(
+    legend.position = "bottom",
+    #legend.nrow = 1,
+    axis.text.y = element_text(hjust = 0), # Align statement labels to the left
+    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+  ) +
+  guides(
+    fill = guide_legend(
+      ncol = 2,
+      #order = 1,  # Controls the order of the legend
+      breaks = c("Strongly Disagree",  "Slightly Agree", 
+                 "Disagree", "Agree",
+                 "Slightly Disagree", "Strongly Agree"),
+      title = "",  # Title for the legend
+      #title.position = "top",  # Position of the title
+      title.hjust = 0.5  # Center the title
+    ))
+
+print(p_cb04_sub_nar1)
+
+ggsave(filename = file.path(fig, "paper_cb04_sub_stim1.png"),
+       plot = p_cb04_sub_nar1,
+       width = 10,
+       height = 4.5,
+       dpi = 100)
+
+```
+
+
+## 2.2 - NARRATIVE 2
+
+### 2.2.1 Which resonated the most (CB03)
+``` {r prep_cb03b_correct}
+
+sum_cb03_correct_nar2 <- cb_data %>%
+  filter(lfCB == 2) %>%
+  group_by(d_correct, CB03B) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(d_correct) %>%
+  mutate(total_correct = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_correct)*100) 
+
+sum_cb03_all_nar2 <- cb_data %>%
+  filter(lfCB == 2) %>%
+  group_by(CB03B) %>%
+  summarise(freq = n(), .groups = 'drop') %>%
+  ungroup() %>%
+  mutate(total_correct = sum(freq)) %>%
+  mutate(percent = (freq/total_correct)*100) %>%
+  mutate(d_correct = "All Treatment 2")
+
+sum_cb03_nar2 <- bind_rows(sum_cb03_correct_nar2, sum_cb03_all_nar2) %>%
+  filter(d_correct != "Incorrect") %>%
+  mutate(d_correct = replace(d_correct, d_correct == "Correct", "Correct Interpretation"))%>%
+    mutate(sentence = factor(CB03B,
+                           levels = c(1,2,3,4),
+                           labels = c("What is the point of Indonesia developing \nbut there are so many people victimized?", 
+                                      "For the sake of development, forests are deforested. \nFor the sake of development, many people \nlose their homes or livelihoods. This is \nnot progress, but regression.",
+                                      "We might be able to get good jobs if many \nfactories and mines are built by destroying forests. \nBut what good is it if we get sick from pollution? \nHow will our children fare in the future \nif there are frequent floods or landslides? \nAnd if someone else is evicted today, what \nguarantee that we won't be evicted too?",
+                                      "The government should ensure that no one's life \nor the environment is sacrificed \nfor the sake of development."
+                                      )))
+
+
+
+```
+
+``` {r plot_cb03b_correct, fig.width = 10, fig.height = 4.5}
+
+label_counts <- sum_cb03_nar2 %>%
+  filter(CB03B==1) %>%
+  select(d_correct, total_correct) %>%
+  mutate(label = paste0(d_correct, " (n = ", total_correct, ")")) %>%
+  select(d_correct, label) %>%
+  deframe()  # Convert to named vector
+
+
+# Bar plot
+p_cb03_nar2 <- ggplot(sum_cb03_nar2) +
+    aes(x = fct_relevel(sentence, rev(levels(sentence))), 
+        y = percent) +
+    facet_wrap(~d_correct, nrow=1, strip.position="top",
+               labeller = labeller(d_correct = label_counts)) +
+    geom_bar(stat = "identity", fill=plotplainblind[1]) +
+    geom_text(aes(label = paste(round(percent, 0),"%")),
+      vjust = 0.5,
+      hjust = -0.1,
+      size = 4
+    ) +
+    coord_flip() +
+  scale_y_continuous(limit = c(0,50), labels=NULL) +
+    labs(
+      #title = paste("Sentence resonance of narrative 1"),
+      #subtitle = subtitle,
+      x = "",
+      y = ""
+    ) +
+  custom_theme() +
+  theme(
+    legend.position = "none",
+    plot.caption = element_text(hjust=0),
+    strip.text = element_text(size = 11),
+    axis.text.y = element_text(hjust = 0), 
+  ) 
+
+print(p_cb03_nar2)
+
+ggsave(filename = file.path(fig, "paper_cb03_stim2.png"),
+       plot = p_cb03_nar2,
+       width = 10,
+       height = 4.5,
+       dpi = 100)
+
+
+```
+
+
+### 2.2.2a Do they agree with the sentence? (CB04) -- All Sample
+``` {r prep_cb04_nar2}
+
+sum_cb04_nar2 <- cb_data %>%
+  filter(lfCB == 2) %>%
+  group_by(CB03B, CB04) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(CB03B) %>%
+  mutate(total_sent = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_sent)*100) %>%
+  mutate(percent_div = case_when(
+    CB04 %in% c(4,5,6) ~ percent,
+    CB04 %in% c(1,2,3) ~ -percent
+  )) %>%
+  mutate(agree_level = factor(CB04,
+                              levels =c(1,2,3,6,5,4))) 
+
+
+sum_cb04_nar2 <- sum_cb04_nar2 %>%
+    mutate(sentence = factor(CB03B,
+                           levels = c(1,2,3,4),
+                           labels =  c("What is the point of Indonesia developing \nbut there are so many people victimized?", 
+                                      "For the sake of development, forests are deforested. \nFor the sake of development, many people \nlose their homes or livelihoods. This is \nnot progress, but regression.",
+                                      "We might be able to get good jobs if many \nfactories and mines are built by destroying forests. \nBut what good is it if we get sick from pollution? \nHow will our children fare in the future \nif there are frequent floods or landslides? \nAnd if someone else is evicted today, what \nguarantee that we won't be evicted too?",
+                                      "The government should ensure that no one's life \nor the environment is sacrificed \nfor the sake of development."
+                                      )))
+
+
+
+```
+
+``` {r plot_cb04_nar2, fig.height = 5.5, fig.width=10}
+diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+names(diverging_colors) <- 1:6
+
+p_cb04_nar2 <- ggplot(sum_cb04_nar2, aes(x = fct_relevel(sentence, rev(levels(sentence))), 
+                          y = percent_div, 
+                          fill = agree_level)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  scale_fill_manual(values = rev(diverging_colors), name = "",
+                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                                    "Strongly Agree", "Agree", "Slightly Agree")) +
+  coord_flip() +
+  geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
+            size = 3,
+            hjust= 0.5,
+            position = position_stack(vjust = 0.5)
+            ) +
+  labs(
+    title = "Degree of Agreement (Stimulus 2, All Treatment)",
+    y = "",
+    x = ""
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
+  scale_y_continuous(labels=NULL) +
+  theme_minimal() +
+  custom_theme() +
+  theme(
+    legend.position = "bottom",
+    #legend.nrow = 1,
+    axis.text.y = element_text(hjust = 0), # Align statement labels to the left
+    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+  ) +
+  guides(
+    fill = guide_legend(
+      ncol = 2,
+      #order = 1,  # Controls the order of the legend
+      breaks = c("Strongly Disagree",  "Slightly Agree", 
+                 "Disagree", "Agree",
+                 "Slightly Disagree", "Strongly Agree"),
+      title = "",  # Title for the legend
+      #title.position = "top",  # Position of the title
+      title.hjust = 0.5  # Center the title
+    ))
+
+print(p_cb04_nar2)
+
+ggsave(filename = file.path(fig, "paper_cb04_stim2.png"),
+       plot = p_cb04_nar2,
+       width = 10,
+       height = 5.5,
+       dpi = 100)
+
+```
+
+### 2.2.2a Do they agree with the sentence? (CB04) -- Compliers
+``` {r prep_cb04_nar2_sub}
+
+sum_cb04_nar2_sub <- cb_data %>%
+  filter(lfCB == 2 & d_correct=="Correct") %>%
+  group_by(CB03B, CB04) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(CB03B) %>%
+  mutate(total_sent = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_sent)*100) %>%
+  mutate(percent_div = case_when(
+    CB04 %in% c(4,5,6) ~ percent,
+    CB04 %in% c(1,2,3) ~ -percent
+  )) %>%
+  mutate(agree_level = factor(CB04,
+                              levels =c(1,2,3,6,5,4))) 
+
+
+sum_cb04_nar2_sub <- sum_cb04_nar2_sub %>%
+    mutate(sentence = factor(CB03B,
+                           levels = c(1,2,3,4),
+                           labels =  c("What is the point of Indonesia developing \nbut there are so many people victimized?", 
+                                      "For the sake of development, forests are deforested. \nFor the sake of development, many people \nlose their homes or livelihoods. This is \nnot progress, but regression.",
+                                      "We might be able to get good jobs if many \nfactories and mines are built by destroying forests. \nBut what good is it if we get sick from pollution? \nHow will our children fare in the future \nif there are frequent floods or landslides? \nAnd if someone else is evicted today, what \nguarantee that we won't be evicted too?",
+                                      "The government should ensure that no one's life \nor the environment is sacrificed \nfor the sake of development."
+                                      )))
+
+
+
+```
+
+``` {r plot_cb04_nar2_sub, fig.height = 5.5, fig.width=10}
+diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+names(diverging_colors) <- 1:6
+
+p_cb04_sub_nar2 <- ggplot(sum_cb04_nar2_sub, aes(x = fct_relevel(sentence, rev(levels(sentence))), 
+                          y = percent_div, 
+                          fill = agree_level)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  scale_fill_manual(values = rev(diverging_colors), name = "",
+                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                                    "Strongly Agree", "Agree", "Slightly Agree")) +
+  coord_flip() +
+  geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
+            size = 3,
+            hjust= 0.5,
+            position = position_stack(vjust = 0.5)
+            ) +
+  labs(
+    title = "Degree of Agreement (Stimulus 2, Compliers)",
+    y = "",
+    x = ""
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
+  scale_y_continuous(labels=NULL) +
+  theme_minimal() +
+  custom_theme() +
+  theme(
+    legend.position = "bottom",
+    #legend.nrow = 1,
+    axis.text.y = element_text(hjust = 0), # Align statement labels to the left
+    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+  ) +
+  guides(
+    fill = guide_legend(
+      ncol = 2,
+      #order = 1,  # Controls the order of the legend
+      breaks = c("Strongly Disagree",  "Slightly Agree", 
+                 "Disagree", "Agree",
+                 "Slightly Disagree", "Strongly Agree"),
+      title = "",  # Title for the legend
+      #title.position = "top",  # Position of the title
+      title.hjust = 0.5  # Center the title
+    ))
+
+print(p_cb04_sub_nar2)
+
+ggsave(filename = file.path(fig, "paper_cb04_sub_stim2.png"),
+       plot = p_cb04_sub_nar2,
+       width = 10,
+       height = 5.5,
+       dpi = 100)
+
+```
+
+
+
+## 2.3 - NARRATIVE 3
+
+### 2.3.1 Which resonated the most (CB03)
+``` {r prep_cb03c_correct}
+
+sum_cb03_correct_nar3 <- cb_data %>%
+  filter(lfCB == 3) %>%
+  group_by(d_correct, CB03C) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(d_correct) %>%
+  mutate(total_correct = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_correct)*100) 
+
+sum_cb03_all_nar3 <- cb_data %>%
+  filter(lfCB == 3) %>%
+  group_by(CB03C) %>%
+  summarise(freq = n(), .groups = 'drop') %>%
+  ungroup() %>%
+  mutate(total_correct = sum(freq)) %>%
+  mutate(percent = (freq/total_correct)*100) %>%
+  mutate(d_correct = "All Treatment 3")
+
+sum_cb03_nar3 <- bind_rows(sum_cb03_correct_nar3, sum_cb03_all_nar3) %>%
+  filter(d_correct != "Incorrect") %>%
+  mutate(d_correct = replace(d_correct, d_correct == "Correct", "Correct Interpretation"))%>%
+    mutate(sentence = factor(CB03C,
+                           levels = c(1,2,3,4),
+                           labels = c("What is the point of having flyovers and magnificent \nbuildings like the developed countries, if the quality \nof our human resources is still lagging behind?",
+                                      "The quality of human resources improves if the quality \nof our education improves. Consequently, school graduates \nare able to solve problems and make innovations, have \ndiscipline, and can work with others.", 
+                                      "Qualified human resources have wider job opportunities. \nThey can also open jobs in many places. Meanwhile, \nthe benefits of flyovers and magnificent buildings \nare only enjoyed by people in big cities.",
+                                      "The government should reduce waste in building \nphysical facilities to increase the budget \nfor education, research, and culture."
+                                      )))
+
+```
+
+``` {r plot_cb03c_correct, fig.width = 10, fig.height = 3.5}
+
+label_counts <- sum_cb03_nar3 %>%
+  filter(CB03C==1) %>%
+  select(d_correct, total_correct) %>%
+  mutate(label = paste0(d_correct, " (n = ", total_correct, ")")) %>%
+  select(d_correct, label) %>%
+  deframe()  # Convert to named vector
+
+
+# Bar plot
+p_cb03_nar3 <- ggplot(sum_cb03_nar3) +
+    aes(x = fct_relevel(sentence, rev(levels(sentence))), 
+        y = percent) +
+    facet_wrap(~d_correct, nrow=1, strip.position="top",
+               labeller = labeller(d_correct = label_counts)) +
+    geom_bar(stat = "identity", fill=plotplainblind[1]) +
+    geom_text(aes(label = paste(round(percent, 0),"%")),
+      vjust = 0.5,
+      hjust = -0.1,
+      size = 4
+    ) +
+    coord_flip() +
+  scale_y_continuous(limit = c(0,45), labels=NULL) +
+    labs(
+      #title = paste("Sentence resonance of narrative 1"),
+      #subtitle = subtitle,
+      x = "",
+      y = ""
+    ) +
+  custom_theme() +
+  theme(
+    legend.position = "none",
+    plot.caption = element_text(hjust=0),
+    strip.text = element_text(size = 11),
+    axis.text.y = element_text(hjust = 0), 
+  ) 
+print(p_cb03_nar3)
+
+ggsave(filename = file.path(fig, "paper_cb03_stim3.png"),
+       plot = p_cb03_nar3,
+       width = 10,
+       height = 3.5,
+       dpi = 100)
+
+```
+
+
+### 2.3.2a Do they agree with the sentence? (CB04) -- All Sample
+``` {r prep_cb04_nar3}
+
+sum_cb04_nar3 <- cb_data %>%
+  filter(lfCB == 3) %>%
+  group_by(CB03C, CB04) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(CB03C) %>%
+  mutate(total_sent = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_sent)*100) %>%
+  mutate(percent_div = case_when(
+    CB04 %in% c(4,5,6) ~ percent,
+    CB04 %in% c(1,2,3) ~ -percent
+  )) %>%
+  mutate(agree_level = factor(CB04,
+                              levels =c(1,2,3,6,5,4))) 
+
+
+sum_cb04_nar3 <- sum_cb04_nar3 %>%
+    mutate(sentence = factor(CB03C,
+                           levels = c(1,2,3,4),
+                           labels = c("What is the point of having flyovers and magnificent \nbuildings like the developed countries, if the quality \nof our human resources is still lagging behind?",
+                                      "The quality of human resources improves if the quality \nof our education improves. Consequently, school graduates \nare able to solve problems and make innovations, have \ndiscipline, and can work with others.", 
+                                      "Qualified human resources have wider job opportunities. \nThey can also open jobs in many places. Meanwhile, \nthe benefits of flyovers and magnificent buildings \nare only enjoyed by people in big cities.",
+                                      "The government should reduce waste in building \nphysical facilities to increase the budget \nfor education, research, and culture."
+                                      )))
+
+
+
+```
+
+``` {r plot_cb04_nar3, fig.height = 4.5, fig.width=10}
+diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+names(diverging_colors) <- 1:6
+
+p_cb04_nar3 <- ggplot(sum_cb04_nar3, aes(x = fct_relevel(sentence, rev(levels(sentence))),
+                          y = percent_div, 
+                          fill = agree_level)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  scale_fill_manual(values = rev(diverging_colors), name = "",
+                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                                    "Strongly Agree", "Agree", "Slightly Agree")) +
+  coord_flip() +
+  geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
+            size = 3,
+            hjust= 0.5,
+            position = position_stack(vjust = 0.5)
+            ) +
+  labs(
+    title = "Degree of Agreement (Stimulus 3, All Treatment)",
+    y = "",
+    x = ""
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
+  scale_y_continuous(labels=NULL) +
+  theme_minimal() +
+  custom_theme() +
+  theme(
+    legend.position = "bottom",
+    #legend.nrow = 1,
+    axis.text.y = element_text(hjust = 0), # Align statement labels to the left
+    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+  ) +
+  guides(
+    fill = guide_legend(
+      ncol = 2,
+      #order = 1,  # Controls the order of the legend
+      breaks = c("Strongly Disagree",  "Slightly Agree", 
+                 "Disagree", "Agree",
+                 "Slightly Disagree", "Strongly Agree"),
+      title = "",  # Title for the legend
+      #title.position = "top",  # Position of the title
+      title.hjust = 0.5  # Center the title
+    ))
+
+print(p_cb04_nar3)
+
+ggsave(filename = file.path(fig, "paper_cb04_stim3.png"),
+       plot = p_cb04_nar3,
+       width = 10,
+       height = 4.5,
+       dpi = 100)
+
+```
+
+### 2.3.2b Do they agree with the sentence? (CB04) -- Compliers
+``` {r prep_cb04_nar3_sub}
+
+sum_cb04_nar3_sub <- cb_data %>%
+  filter(lfCB == 3 & d_correct == "Correct") %>%
+  group_by(CB03C, CB04) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(CB03C) %>%
+  mutate(total_sent = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_sent)*100) %>%
+  mutate(percent_div = case_when(
+    CB04 %in% c(4,5,6) ~ percent,
+    CB04 %in% c(1,2,3) ~ -percent
+  )) %>%
+  mutate(agree_level = factor(CB04,
+                              levels =c(1,2,3,6,5,4))) 
+
+
+sum_cb04_nar3_sub <- sum_cb04_nar3_sub %>%
+    mutate(sentence = factor(CB03C,
+                           levels = c(1,2,3,4),
+                           labels = c("What is the point of having flyovers and magnificent \nbuildings like the developed countries, if the quality \nof our human resources is still lagging behind?",
+                                      "The quality of human resources improves if the quality \nof our education improves. Consequently, school graduates \nare able to solve problems and make innovations, have \ndiscipline, and can work with others.", 
+                                      "Qualified human resources have wider job opportunities. \nThey can also open jobs in many places. Meanwhile, \nthe benefits of flyovers and magnificent buildings \nare only enjoyed by people in big cities.",
+                                      "The government should reduce waste in building \nphysical facilities to increase the budget \nfor education, research, and culture."
+                                      )))
+
+
+
+```
+
+``` {r plot_cb04_nar3_sub, fig.height = 4.5, fig.width=10}
+diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+names(diverging_colors) <- 1:6
+
+p_cb04_sub_nar3 <- ggplot(sum_cb04_nar3_sub, aes(x = fct_relevel(sentence, rev(levels(sentence))),
+                          y = percent_div, 
+                          fill = agree_level)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  scale_fill_manual(values = rev(diverging_colors), name = "",
+                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                                    "Strongly Agree", "Agree", "Slightly Agree")) +
+  coord_flip() +
+  geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
+            size = 3,
+            hjust= 0.5,
+            position = position_stack(vjust = 0.5)
+            ) +
+  labs(
+    title = "Degree of Agreement (Stimulus 3, Compliers)",
+    y = "",
+    x = ""
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
+  scale_y_continuous(labels=NULL) +
+  theme_minimal() +
+  custom_theme() +
+  theme(
+    legend.position = "bottom",
+    #legend.nrow = 1,
+    axis.text.y = element_text(hjust = 0), # Align statement labels to the left
+    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+  ) +
+  guides(
+    fill = guide_legend(
+      ncol = 2,
+      #order = 1,  # Controls the order of the legend
+      breaks = c("Strongly Disagree",  "Slightly Agree", 
+                 "Disagree", "Agree",
+                 "Slightly Disagree", "Strongly Agree"),
+      title = "",  # Title for the legend
+      #title.position = "top",  # Position of the title
+      title.hjust = 0.5  # Center the title
+    ))
+
+print(p_cb04_sub_nar3)
+
+ggsave(filename = file.path(fig, "paper_cb04_sub_stim3.png"),
+       plot = p_cb04_sub_nar3,
+       width = 10,
+       height = 4.5,
+       dpi = 100)
+
+```
+
+
+## 2.4 - NARRATIVE 4 (ADJ)
+
+### 2.4.1 Which resonated the most (CB03)
+``` {r prep_cb03e_correct}
+
+sum_cb03_correct_nar5 <- cb_data %>%
+  filter(lfCB == 5) %>%
+  group_by(d_correct, CB03E) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(d_correct) %>%
+  mutate(total_correct = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_correct)*100) 
+
+sum_cb03_all_nar5 <- cb_data %>%
+  filter(lfCB == 5) %>%
+  group_by(CB03E) %>%
+  summarise(freq = n(), .groups = 'drop') %>%
+  ungroup() %>%
+  mutate(total_correct = sum(freq)) %>%
+  mutate(percent = (freq/total_correct)*100) %>%
+  mutate(d_correct = "All Treatment 4")
+
+sum_cb03_nar5 <- bind_rows(sum_cb03_correct_nar5, sum_cb03_all_nar5) %>%
+  filter(d_correct != "Incorrect") %>%
+  mutate(d_correct = replace(d_correct, d_correct == "Correct", "Correct Interpretation")) %>%
+    mutate(sentence = factor(CB03E,
+                           levels = c(1,2,3,4),
+                           labels = c("They say Indonesia guarantees the welfare of all its \ncitizens, but why is the fate of the rich and poor so different?",
+                                      "From the womb, children from poor families are left behind. \nDuring pregnancy, mothers do not receive good health \nand nutrition services. When the children grow up, the family \ncannot afford to send them to a good school. They also \ntend to drop out of school. As adults, they cannot get \na decent job, so they and their descendants remain poor.",
+                                      "In contrast, children from a wealthy family are guaranteed \na good life from the womb. Their mothers are healthy, \ntheir neighborhoods are clean and safe, and they can go \nto school until they graduate. As adults, they can get good jobs \nso that their economic conditions can continue to improve.",
+                                      "The government should improve the coverage and \nquality of health, education, and social services. So that \nchildren from rich and poor families can have \nequal opportunities to live prosperous lives."
+                           )))
+
+```
+
+``` {r plot_cb03e_correct, fig.width = 10, fig.height = 4.5}
+
+label_counts <- sum_cb03_nar5 %>%
+  filter(CB03E==1) %>%
+  select(d_correct, total_correct) %>%
+  mutate(label = paste0(d_correct, " (n = ", total_correct, ")")) %>%
+  select(d_correct, label) %>%
+  deframe()  # Convert to named vector
+
+
+# Bar plot
+p_cb03_nar4 <- ggplot(sum_cb03_nar5) +
+    aes(x = fct_relevel(sentence, rev(levels(sentence))),
+        y = percent) +
+    facet_wrap(~d_correct, nrow=1, strip.position="top",
+               labeller = labeller(d_correct = label_counts)) +
+    geom_bar(stat = "identity", fill=plotplainblind[1]) +
+    geom_text(aes(label = paste(round(percent, 0),"%")),
+      vjust = 0.5,
+      hjust = -0.1,
+      size = 4
+    ) +
+    coord_flip() +
+  scale_y_continuous(limit = c(0,60), labels=NULL) +
+    labs(
+      #title = paste("Sentence resonance of narrative 1"),
+      #subtitle = subtitle,
+      x = "",
+      y = ""
+    ) +
+  custom_theme() +
+  theme(
+    legend.position = "none",
+    plot.caption = element_text(hjust=0),
+    strip.text = element_text(size = 11),
+    axis.text.y = element_text(hjust = 0), 
+  ) 
+print(p_cb03_nar4)
+
+ggsave(filename = file.path(fig, "paper_cb03_stim4.png"),
+       plot = p_cb03_nar4,
+       width = 10,
+       height = 4.5,
+       dpi = 100)
+
+```
+
+
+### 2.4.2a Do they agree with the sentence? (CB04) -- All sample
+``` {r prep_cb04_nar4adj}
+
+sum_cb04_nar5 <- cb_data %>%
+  filter(lfCB == 5) %>%
+  group_by(CB03E, CB04) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(CB03E) %>%
+  mutate(total_sent = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_sent)*100) %>%
+  mutate(percent_div = case_when(
+    CB04 %in% c(4,5,6) ~ percent,
+    CB04 %in% c(1,2,3) ~ -percent
+  )) %>%
+  mutate(agree_level = factor(CB04,
+                              levels =c(1,2,3,6,5,4))) 
+
+
+sum_cb04_nar5 <- sum_cb04_nar5 %>%
+    mutate(sentence = factor(CB03E,
+                           levels = c(1,2,3,4),
+                           labels = c("They say Indonesia guarantees the welfare of all its \ncitizens, but why is the fate of the rich and poor so different?",
+                                      "From the womb, children from poor families are left behind. \nDuring pregnancy, mothers do not receive good health \nand nutrition services. When the children grow up, the family \ncannot afford to send them to a good school. They also \ntend to drop out of school. As adults, they cannot get \na decent job, so they and their descendants remain poor.",
+                                      "In contrast, children from a wealthy family are guaranteed \na good life from the womb. Their mothers are healthy, \ntheir neighborhoods are clean and safe, and they can go \nto school until they graduate. As adults, they can get good jobs \nso that their economic conditions can continue to improve.",
+                                      "The government should improve the coverage and \nquality of health, education, and social services. So that \nchildren from rich and poor families can have \nequal opportunities to live prosperous lives."
+                           )))
+
+
+
+
+```
+
+``` {r plot_cb04_nar4adj, fig.height = 5.5, fig.width=10}
+diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+names(diverging_colors) <- 1:6
+
+p_cb04_nar4 <- ggplot(sum_cb04_nar5, aes(x = fct_relevel(sentence, rev(levels(sentence))), 
+                          y = percent_div, 
+                          fill = agree_level)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  scale_fill_manual(values = rev(diverging_colors), name = "",
+                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                                    "Strongly Agree", "Agree", "Slightly Agree")) +
+  coord_flip() +
+  geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
+            size = 3,
+            hjust= 0.5,
+            position = position_stack(vjust = 0.5)
+            ) +
+  labs(
+    title = "Degree of Agreement (Stimulus 4, All Treatment)",
+    y = "",
+    x = ""
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
+  scale_y_continuous(labels=NULL) +
+  theme_minimal() +
+  custom_theme() +
+  theme(
+    legend.position = "bottom",
+    #legend.nrow = 1,
+    axis.text.y = element_text(hjust = 0), # Align statement labels to the left
+    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+  ) +
+  guides(
+    fill = guide_legend(
+      ncol = 2,
+      #order = 1,  # Controls the order of the legend
+      breaks = c("Strongly Disagree",  "Slightly Agree", 
+                 "Disagree", "Agree",
+                 "Slightly Disagree", "Strongly Agree"),
+      title = "",  # Title for the legend
+      #title.position = "top",  # Position of the title
+      title.hjust = 0.5  # Center the title
+    ))
+
+print(p_cb04_nar4)
+
+ggsave(filename = file.path(fig, "paper_cb04_stim4.png"),
+       plot = p_cb04_nar4,
+       width = 10,
+       height = 5.5,
+       dpi = 100)
+
+```
+
+
+### 2.4.2b Do they agree with the sentence? (CB04) -- Compliers
+``` {r prep_cb04_nar4adj_sub}
+
+sum_cb04_sub_nar5 <- cb_data %>%
+  filter(lfCB == 5 & d_correct == "Correct") %>%
+  group_by(CB03E, CB04) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(CB03E) %>%
+  mutate(total_sent = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_sent)*100) %>%
+  mutate(percent_div = case_when(
+    CB04 %in% c(4,5,6) ~ percent,
+    CB04 %in% c(1,2,3) ~ -percent
+  )) %>%
+  mutate(agree_level = factor(CB04,
+                              levels =c(1,2,3,6,5,4))) 
+
+
+sum_cb04_sub_nar5 <- sum_cb04_sub_nar5 %>%
+    mutate(sentence = factor(CB03E,
+                           levels = c(1,2,3,4),
+                           labels = c("They say Indonesia guarantees the welfare of all its \ncitizens, but why is the fate of the rich and poor so different?",
+                                      "From the womb, children from poor families are left behind. \nDuring pregnancy, mothers do not receive good health \nand nutrition services. When the children grow up, the family \ncannot afford to send them to a good school. They also \ntend to drop out of school. As adults, they cannot get \na decent job, so they and their descendants remain poor.",
+                                      "In contrast, children from a wealthy family are guaranteed \na good life from the womb. Their mothers are healthy, \ntheir neighborhoods are clean and safe, and they can go \nto school until they graduate. As adults, they can get good jobs \nso that their economic conditions can continue to improve.",
+                                      "The government should improve the coverage and \nquality of health, education, and social services. So that \nchildren from rich and poor families can have \nequal opportunities to live prosperous lives."
+                           )))
+
+
+
+
+```
+
+``` {r plot_cb04_nar4adj_sub, fig.height = 5.5, fig.width=10}
+diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+names(diverging_colors) <- 1:6
+
+p_cb04_sub_nar4 <- ggplot(sum_cb04_sub_nar5, aes(x = fct_relevel(sentence, rev(levels(sentence))), 
+                          y = percent_div, 
+                          fill = agree_level)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  scale_fill_manual(values = rev(diverging_colors), name = "",
+                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                                    "Strongly Agree", "Agree", "Slightly Agree")) +
+  coord_flip() +
+  geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
+            size = 3,
+            hjust= 0.5,
+            position = position_stack(vjust = 0.5)
+            ) +
+  labs(
+    title = "Degree of Agreement (Stimulus 4, Compliers)",
+    y = "",
+    x = ""
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
+  scale_y_continuous(labels=NULL) +
+  theme_minimal() +
+  custom_theme() +
+  theme(
+    legend.position = "bottom",
+    #legend.nrow = 1,
+    axis.text.y = element_text(hjust = 0), # Align statement labels to the left
+    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+  ) +
+  guides(
+    fill = guide_legend(
+      ncol = 2,
+      #order = 1,  # Controls the order of the legend
+      breaks = c("Strongly Disagree",  "Slightly Agree", 
+                 "Disagree", "Agree",
+                 "Slightly Disagree", "Strongly Agree"),
+      title = "",  # Title for the legend
+      #title.position = "top",  # Position of the title
+      title.hjust = 0.5  # Center the title
+    ))
+
+print(p_cb04_sub_nar4)
+ggsave(filename = file.path(fig, "paper_cb04_sub_stim4.png"),
+       plot = p_cb04_sub_nar4,
+       width = 10,
+       height = 5.5,
+       dpi = 100)
+
+```
+
+
+## 2.4 - NARRATIVE 5 (ADJ)
+
+### 2.5.1 Which resonated the most (CB03)
+``` {r prep_cb03d_correct}
+
+sum_cb03_correct_nar4 <- cb_data %>%
+  filter(lfCB == 4) %>%
+  group_by(d_correct, CB03D) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(d_correct) %>%
+  mutate(total_correct = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_correct)*100) 
+
+sum_cb03_all_nar4 <- cb_data %>%
+  filter(lfCB == 4) %>%
+  group_by(CB03D) %>%
+  summarise(freq = n(), .groups = 'drop') %>%
+  ungroup() %>%
+  mutate(total_correct = sum(freq)) %>%
+  mutate(percent = (freq/total_correct)*100) %>%
+  mutate(d_correct = "All Treatment 5")
+
+sum_cb03_nar4 <- bind_rows(sum_cb03_correct_nar4, sum_cb03_all_nar4) %>%
+  filter(d_correct != "Incorrect") %>%
+  mutate(d_correct = replace(d_correct, d_correct == "Correct", "Correct Interpretation"))%>%
+    mutate(sentence = factor(CB03D,
+                           levels = c(1,2,3,4),
+                           labels = c("Why do we still doubt the government that \nhas held the people's mandate?",
+                                      "The government is the only entity in power \nbecause it has been elected by the people. This \nmeans that the government has the full authority \nto lead and make decisions for all the people.",
+                                      "The government has the right to set rules, \nenforce laws, and take actions that it deems \nnecessary in the interest of the country, even if \nit is sometimes against the wishes of some people.",
+                                      "People can submit ideas or complaints. \nHowever, the final decision remains \nin the hands of the government"
+                           )))
+
+```
+
+``` {r plot_cb03d_correct, fig.width = 10, fig.height = 3.5}
+
+label_counts <- sum_cb03_nar4 %>%
+  filter(CB03D==1) %>%
+  select(d_correct, total_correct) %>%
+  mutate(label = paste0(d_correct, " (n = ", total_correct, ")")) %>%
+  select(d_correct, label) %>%
+  deframe()  # Convert to named vector
+
+
+# Bar plot
+p_cb03_nar5 <- ggplot(sum_cb03_nar4) +
+    aes(x = fct_relevel(sentence, rev(levels(sentence))),
+        y = percent) +
+    facet_wrap(~d_correct, nrow=1, strip.position="top",
+               labeller = labeller(d_correct = label_counts)) +
+    geom_bar(stat = "identity", fill=plotplainblind[1]) +
+    geom_text(aes(label = paste(round(percent, 0),"%")),
+      vjust = 0.5,
+      hjust = -0.1,
+      size = 4
+    ) +
+    coord_flip() +
+  scale_y_continuous(limit = c(0,40), labels=NULL) +
+    labs(
+      #title = paste("Sentence resonance of narrative 1"),
+      #subtitle = subtitle,
+      x = "",
+      y = ""
+    ) +
+  custom_theme() +
+  theme(
+    legend.position = "none",
+    plot.caption = element_text(hjust=0),
+    strip.text = element_text(size = 11),
+    axis.text.y = element_text(hjust = 0), 
+  ) 
+print(p_cb03_nar5)
+
+ggsave(filename = file.path(fig, "paper_cb03_stim5.png"),
+       plot = p_cb03_nar5,
+       width = 10,
+       height = 3.5,
+       dpi = 100)
+
+```
+
+
+``` {r archive_prep_cb04_nar5adj}
+### 2.5.2a Do they agree with the sentence? (CB04) -- All sample (FLIP AGREE)
+
+sum_cb04_nar4 <- cb_data %>%
+  filter(lfCB == 4) %>%
+  group_by(CB03D, CB04) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(CB03D) %>%
+  mutate(total_sent = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_sent)*100) %>%
+  mutate(percent_div = case_when(
+    CB04 %in% c(4,5,6) ~ -percent,
+    CB04 %in% c(1,2,3) ~ percent
+  )) %>%
+  mutate(agree_level = factor(CB04,
+                              levels =c(6,5,4,1,2,3))) 
+
+
+sum_cb04_nar4 <- sum_cb04_nar4 %>%
+    mutate(sentence = factor(CB03D,
+                           levels = c(1,2,3,4),
+                           labels = c("Why do we still doubt the government that \nhas held the people's mandate?",
+                                      "The government is the only entity in power \nbecause it has been elected by the people. This \nmeans that the government has the full authority \nto lead and make decisions for all the people.",
+                                      "The government has the right to set rules, \nenforce laws, and take actions that it deems \nnecessary in the interest of the country, even if \nit is sometimes against the wishes of some people.",
+                                      "People can submit ideas or complaints. \nHowever, the final decision remains \nin the hands of the government"
+                           )))
+
+
+
+```
+
+``` {r archive_plot_cb04_nar5adj, fig.height = 4.5, fig.width=10}
+diverging_colors <- c("#6baed6", "#9ecae1", "#c6dbef", "#f0f0f0", "#fee6ce", "#fdae6b")
+names(diverging_colors) <- 1:6
+
+p_cb04_nar5 <- ggplot(sum_cb04_nar4, aes(x = fct_relevel(sentence, rev(levels(sentence))),
+                          y = percent_div, 
+                          fill = agree_level)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  scale_fill_manual(values = rev(diverging_colors), name = "",
+                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                                "Strongly Agree", "Agree", "Slightly Agree"
+                                    )) +
+  coord_flip() +
+  geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
+            size = 3,
+            hjust= 0.5,
+            position = position_stack(vjust = 0.5)
+            ) +
+  labs(
+    title = "Degree of Agreement (Stimulus 5, All Treatment)",
+    y = "",
+    x = ""
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
+  scale_y_continuous(labels=NULL) +
+  theme_minimal() +
+  custom_theme() +
+  theme(
+    legend.position = "bottom",
+    #legend.nrow = 1,
+    axis.text.y = element_text(hjust = 0), # Align statement labels to the left
+    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+  ) +
+  guides(
+    fill = guide_legend(
+      ncol = 2,
+      #order = 1,  # Controls the order of the legend
+      breaks = c("Strongly Disagree",  "Slightly Agree", 
+                 "Disagree", "Agree",
+                 "Slightly Disagree", "Strongly Agree"),
+      title = "",  # Title for the legend
+      #title.position = "top",  # Position of the title
+      title.hjust = 0.5  # Center the title
+    ))
+
+#print(p_cb04_nar5)
+
+ggsave(filename = file.path(fig, "paper_cb04_stim5.png"),
+       plot = p_cb04_nar5,
+       width = 10,
+       height = 4.5,
+       dpi = 100)
+
+```
+
+``` {r archive_prep_cb04_nar5adj_sub}
+### 2.5.2b Do they agree with the sentence? (CB04) -- Compliers [FLIP AGREE]
+
+sum_cb04_nar4_sub <- cb_data %>%
+  filter(lfCB == 4 & d_correct == "Correct") %>%
+  group_by(CB03D, CB04) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(CB03D) %>%
+  mutate(total_sent = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_sent)*100) %>%
+  mutate(percent_div = case_when(
+    CB04 %in% c(4,5,6) ~ -percent,
+    CB04 %in% c(1,2,3) ~ percent
+  )) %>%
+  mutate(agree_level = factor(CB04,
+                              levels =c(6,5,4,1,2,3))) 
+
+
+sum_cb04_nar4_sub <- sum_cb04_nar4_sub %>%
+    mutate(sentence = factor(CB03D,
+                           levels = c(1,2,3,4),
+                           labels = c("Why do we still doubt the government that \nhas held the people's mandate?",
+                                      "The government is the only entity in power \nbecause it has been elected by the people. This \nmeans that the government has the full authority \nto lead and make decisions for all the people.",
+                                      "The government has the right to set rules, \nenforce laws, and take actions that it deems \nnecessary in the interest of the country, even if \nit is sometimes against the wishes of some people.",
+                                      "People can submit ideas or complaints. \nHowever, the final decision remains \nin the hands of the government"
+                           )))
+
+
+
+```
+
+``` {r archive_plot_cb04_nar5adj_sub, fig.height = 4.5, fig.width=10}
+diverging_colors <- c("#6baed6", "#9ecae1", "#c6dbef", "#f0f0f0", "#fee6ce", "#fdae6b")
+names(diverging_colors) <- 1:6
+
+p_cb04_sub_nar5 <- ggplot(sum_cb04_nar4_sub, aes(x = fct_relevel(sentence, rev(levels(sentence))),
+                          y = percent_div, 
+                          fill = agree_level)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  scale_fill_manual(values = rev(diverging_colors), name = "",
+                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                                "Strongly Agree", "Agree", "Slightly Agree"
+                                    )) +
+  coord_flip() +
+  geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
+            size = 3,
+            hjust= 0.5,
+            position = position_stack(vjust = 0.5)
+            ) +
+  labs(
+    title = "Degree of Agreement (Stimulus 5, Compliers)",
+    y = "",
+    x = ""
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
+  scale_y_continuous(labels=NULL) +
+  theme_minimal() +
+  custom_theme() +
+  theme(
+    legend.position = "bottom",
+    #legend.nrow = 1,
+    axis.text.y = element_text(hjust = 0), # Align statement labels to the left
+    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+  ) +
+  guides(
+    fill = guide_legend(
+      ncol = 2,
+      #order = 1,  # Controls the order of the legend
+      breaks = c("Strongly Disagree",  "Slightly Agree", 
+                 "Disagree", "Agree",
+                 "Slightly Disagree", "Strongly Agree"),
+      title = "",  # Title for the legend
+      #title.position = "top",  # Position of the title
+      title.hjust = 0.5  # Center the title
+    ))
+
+#print(p_cb04_sub_nar5)
+
+ggsave(filename = file.path(fig, "paper_cb04_sub_stim5.png"),
+       plot = p_cb04_sub_nar5,
+       width = 10,
+       height = 4.5,
+       dpi = 100)
+
+```
+
+
+### 2.5.2a (Raw) Do they agree with the sentence? (CB04) -- All sample
+``` {r prep_cb04_nar5adj_raw}
+
+sum_cb04_nar4_raw <- cb_data %>%
+  filter(lfCB == 4) %>%
+  group_by(CB03D, CB04) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(CB03D) %>%
+  mutate(total_sent = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_sent)*100) %>%
+  mutate(percent_div = case_when(
+    CB04 %in% c(1,2,3) ~ -percent,
+    CB04 %in% c(4,5,6) ~ percent
+  )) %>%
+  mutate(agree_level = factor(CB04,
+                              levels =c(1,2,3,6,5,4))) 
+
+
+sum_cb04_nar4_raw <- sum_cb04_nar4_raw %>%
+    mutate(sentence = factor(CB03D,
+                           levels = c(1,2,3,4),
+                           labels = c("Why do we still doubt the government that \nhas held the people's mandate?",
+                                      "The government is the only entity in power \nbecause it has been elected by the people. This \nmeans that the government has the full authority \nto lead and make decisions for all the people.",
+                                      "The government has the right to set rules, \nenforce laws, and take actions that it deems \nnecessary in the interest of the country, even if \nit is sometimes against the wishes of some people.",
+                                      "People can submit ideas or complaints. \nHowever, the final decision remains \nin the hands of the government"
+                           )))
+
+
+
+```
+
+``` {r plot_cb04_nar5adj_raw, fig.height = 4.5, fig.width=10}
+diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+names(diverging_colors) <- 1:6
+
+p_cb04_nar5_raw <- ggplot(sum_cb04_nar4_raw, aes(x = fct_relevel(sentence, rev(levels(sentence))),
+                          y = percent_div, 
+                          fill = agree_level)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  scale_fill_manual(values = rev(diverging_colors), name = "",
+                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                                "Strongly Agree", "Agree", "Slightly Agree"
+                                    )) +
+  coord_flip() +
+  geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
+            size = 3,
+            hjust= 0.5,
+            position = position_stack(vjust = 0.5)
+            ) +
+  labs(
+    title = "Degree of Agreement (Stimulus 5, All Treatment)",
+    y = "",
+    x = ""
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
+  scale_y_continuous(labels=NULL) +
+  theme_minimal() +
+  custom_theme() +
+  theme(
+    legend.position = "bottom",
+    #legend.nrow = 1,
+    axis.text.y = element_text(hjust = 0), # Align statement labels to the left
+    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+  ) +
+  guides(
+    fill = guide_legend(
+      ncol = 2,
+      #order = 1,  # Controls the order of the legend
+      breaks = c("Strongly Disagree",  "Slightly Agree", 
+                 "Disagree", "Agree",
+                 "Slightly Disagree", "Strongly Agree"),
+      title = "",  # Title for the legend
+      #title.position = "top",  # Position of the title
+      title.hjust = 0.5  # Center the title
+    ))
+
+print(p_cb04_nar5_raw)
+
+ggsave(filename = file.path(fig, "paper_cb04_stim5_raw.png"),
+       plot = p_cb04_nar5_raw,
+       width = 10,
+       height = 4.5,
+       dpi = 100)
+
+```
+
+### 2.5.2b (Raw) Do they agree with the sentence? (CB04) -- Compliers
+``` {r prep_cb04_nar5adj_sub_raw}
+
+sum_cb04_nar4_sub_raw <- cb_data %>%
+  filter(lfCB == 4 & d_correct == "Correct") %>%
+  group_by(CB03D, CB04) %>%
+  summarise(freq = n(), .groups='drop') %>%
+  group_by(CB03D) %>%
+  mutate(total_sent = sum(freq), .groups = 'drop') %>%
+  mutate(percent = (freq/total_sent)*100) %>%
+  mutate(percent_div = case_when(
+    CB04 %in% c(1,2,3) ~ -percent,
+    CB04 %in% c(4,5,6) ~ percent
+  )) %>%
+  mutate(agree_level = factor(CB04,
+                              levels =c(1,2,3,6,5,4))) 
+
+
+sum_cb04_nar4_sub_raw <- sum_cb04_nar4_sub_raw %>%
+    mutate(sentence = factor(CB03D,
+                           levels = c(1,2,3,4),
+                           labels = c("Why do we still doubt the government that \nhas held the people's mandate?",
+                                      "The government is the only entity in power \nbecause it has been elected by the people. This \nmeans that the government has the full authority \nto lead and make decisions for all the people.",
+                                      "The government has the right to set rules, \nenforce laws, and take actions that it deems \nnecessary in the interest of the country, even if \nit is sometimes against the wishes of some people.",
+                                      "People can submit ideas or complaints. \nHowever, the final decision remains \nin the hands of the government"
+                           )))
+
+
+
+```
+
+``` {r plot_cb04_nar5adj_sub_raw, fig.height = 4.5, fig.width=10}
+diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+names(diverging_colors) <- 1:6
+
+p_cb04_sub_nar5_raw <- ggplot(sum_cb04_nar4_sub_raw, aes(x = fct_relevel(sentence, rev(levels(sentence))),
+                          y = percent_div, 
+                          fill = agree_level)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  scale_fill_manual(values = rev(diverging_colors), name = "",
+                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                                "Strongly Agree", "Agree", "Slightly Agree"
+                                    )) +
+  coord_flip() +
+  geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
+            size = 3,
+            hjust= 0.5,
+            position = position_stack(vjust = 0.5)
+            ) +
+  labs(
+    title = "Degree of Agreement (Stimulus 5, Compliers)",
+    y = "",
+    x = ""
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
+  scale_y_continuous(labels=NULL) +
+  theme_minimal() +
+  custom_theme() +
+  theme(
+    legend.position = "bottom",
+    #legend.nrow = 1,
+    axis.text.y = element_text(hjust = 0), # Align statement labels to the left
+    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+  ) +
+  guides(
+    fill = guide_legend(
+      ncol = 2,
+      #order = 1,  # Controls the order of the legend
+      breaks = c("Strongly Disagree",  "Slightly Agree", 
+                 "Disagree", "Agree",
+                 "Slightly Disagree", "Strongly Agree"),
+      title = "",  # Title for the legend
+      #title.position = "top",  # Position of the title
+      title.hjust = 0.5  # Center the title
+    ))
+
+print(p_cb04_sub_nar5_raw)
+
+ggsave(filename = file.path(fig, "paper_cb04_sub_stim5_raw.png"),
+       plot = p_cb04_sub_nar5_raw,
+       width = 10,
+       height = 4.5,
+       dpi = 100)
+
+```
+
+
+
+
+## 2.6 Heatmap of emotions evoked 
 ``` {r emo_prep_all_sample}
+### 2.1.3 What emotions were evoked by the narrative (CB02)
+#Show a comparison between the entire sample and the compliers
 
 # Select relevant columns
 cb02_data <- cb_data %>%
@@ -771,7 +2197,106 @@ prefixes <- c("CB02Ar", "CB02Br", "CB02Cr", "CB02Dr", "CB02Er")
 sum_emotion_subsample <- map2_dfr(1:5, prefixes, process_narrative_sub)
 ```
 
-``` {r binding_for_lollipop}
+
+
+``` {r heatmap_emotion_all_sample}
+
+breaks_val <- c(0, 20, 40, 60, 80)
+#colors_val <- c("white", "#D3D3D3", "#808080", "#595959", "#363636")
+colors_val <- c("#FFFFFF", "#E8E8EC", "#D1D1D6", "#A1A3AB", "#808080")
+
+obs_counts <- cb02_data %>%
+  group_by(narrative = factor(ifelse(lfCB == 1, 1,
+                                     ifelse(lfCB == 2, 2,
+                                            ifelse(lfCB == 3, 3,
+                                                   ifelse(lfCB == 4, 4, 
+                                                          ifelse(lfCB == 5,5,NA))))))) %>%
+  summarise(n_obs = n(), .groups = 'drop')
+
+label_nar <- paste0(levels(factor(sum_emotion_all$narrative)),
+                    "\n(n=", obs_counts$n_obs, ")")
+
+sum_emotion_all <- sum_emotion_all %>%
+  mutate(stimulus = factor(narrative,
+                           levels = c(1,2,3,5,4),
+                           labels = c(1,2,3,4,5)))
+
+heatmap_emo <- ggplot(sum_emotion_all, aes(x = factor(stimulus), y = reorder(emotion, (percent)), fill = percent)) +
+  geom_tile() +
+  scale_fill_gradientn(colors = colors_val, breaks = breaks_val, limits = c(0, 80)) +
+  geom_text(aes(label = round(percent, 2)), color = "black", size = 3) +
+  #facet_wrap(~ Foundation, scales = "free") +
+  labs(title = "Emotions evoked for all treatment group (%)",
+       #subtitle = subtitle,
+       x = "Stimulus",
+       y = "",
+       fill = "Percentage") +
+  theme_minimal() +
+  custom_theme() +
+  scale_x_discrete(position="top",
+                   labels = label_nar) +
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=0.5),
+        legend.position = "right")
+print(heatmap_emo)
+
+ggsave(filename = file.path(fig, "paper_heatmap_emo_all.png"),
+       plot = heatmap_emo,
+       #width = 8,
+       #height = 4,
+       dpi = 100)
+
+```
+
+``` {r heatmap_emotion_all_subsample}
+
+breaks_val <- c(0, 20, 40, 60, 80)
+#colors_val <- c("white", "#D3D3D3", "#808080", "#595959", "#363636")
+colors_val <- c("#FFFFFF", "#E8E8EC", "#D1D1D6", "#A1A3AB", "#808080")
+
+obs_counts_sub <- cb02_data_sub %>%
+  group_by(narrative = factor(ifelse(lfCB == 1, 1,
+                                     ifelse(lfCB == 2, 2,
+                                            ifelse(lfCB == 3, 3,
+                                                   ifelse(lfCB == 4, 4, 
+                                                          ifelse(lfCB == 5,5,NA))))))) %>%
+  summarise(n_obs = n(), .groups = 'drop')
+
+label_nar_sub <- paste0(levels(factor(sum_emotion_subsample$narrative)),
+                    "\n(n=", obs_counts_sub$n_obs, ")")
+
+sum_emotion_subsample <- sum_emotion_subsample %>%
+  mutate(stimulus = factor(narrative,
+                           levels = c(1,2,3,5,4),
+                           labels = c(1,2,3,4,5)))
+
+
+heatmap_emo_sub <- ggplot(sum_emotion_subsample, aes(x = factor(stimulus), y = reorder(emotion, (percent)), fill = percent)) +
+  geom_tile() +
+  scale_fill_gradientn(colors = colors_val, breaks = breaks_val, limits = c(0, 80)) +
+  geom_text(aes(label = round(percent, 2)), color = "black", size = 3) +
+  #facet_wrap(~ Foundation, scales = "free") +
+  labs(title = "Emotions evoked for treatment with correct interpretation (%)",
+       #subtitle = subtitle,
+       x = "Stimulus",
+       y = "",
+       fill = "Percentage") +
+  theme_minimal() +
+  custom_theme() +
+  scale_x_discrete(position="top",
+                   labels = label_nar_sub) +
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=0.5),
+        legend.position = "right")
+print(heatmap_emo_sub)
+
+ggsave(filename = file.path(fig, "paper_heatmap_emo_sub.png"),
+       plot = heatmap_emo_sub,
+       #width = 8,
+       #height = 4,
+       dpi = 100)
+```
+
+
+``` {r archive_binding_for_lollipop}
 
 sum_emotion_all <- sum_emotion_all %>%
   mutate(sample_type = paste0("All Treatment ",narrative))
@@ -783,7 +2308,8 @@ sum_emotion_combined <- bind_rows(sum_emotion_all, sum_emotion_subsample)
 
 ```
 
-``` {r lollipop_nar1, fig.height=3, fig.width = 8}
+
+``` {r archive_lollipop_nar1, fig.height=3, fig.width = 8}
 lollipop_facet <- ggplot(subset(sum_emotion_combined, narrative==1), 
                          aes(x = percent, 
                              y = reorder(emotion, percent), 
@@ -811,170 +2337,15 @@ lollipop_facet <- ggplot(subset(sum_emotion_combined, narrative==1),
         axis.title.y = element_text(size = 11),
         legend.position = "none")
 
-print(lollipop_facet)
+#print(lollipop_facet)
 
 
 ```
 
 
-## 2.2 - NARRATIVE 2
-
-### 2.2.1 Which resonated the most (CB03)
-``` {r prep_cb03b_correct}
-
-sum_cb03_correct_nar2 <- cb_data %>%
-  filter(lfCB == 2) %>%
-  group_by(d_correct, CB03B) %>%
-  summarise(freq = n(), .groups='drop') %>%
-  group_by(d_correct) %>%
-  mutate(total_correct = sum(freq), .groups = 'drop') %>%
-  mutate(percent = (freq/total_correct)*100) 
-
-sum_cb03_all_nar2 <- cb_data %>%
-  filter(lfCB == 2) %>%
-  group_by(CB03B) %>%
-  summarise(freq = n(), .groups = 'drop') %>%
-  ungroup() %>%
-  mutate(total_correct = sum(freq)) %>%
-  mutate(percent = (freq/total_correct)*100) %>%
-  mutate(d_correct = "All Treatment 2")
-
-sum_cb03_nar2 <- bind_rows(sum_cb03_correct_nar2, sum_cb03_all_nar2) %>%
-  filter(d_correct != "Incorrect") %>%
-  mutate(d_correct = replace(d_correct, d_correct == "Correct", "Correct Interpretation"))%>%
-    mutate(sentence = factor(CB03B,
-                           levels = c(1,2,3,4),
-                           labels = c("What is the point of Indonesia developing \nbut there are so many people victimized?", 
-                                      "For the sake of development, forests are deforested. \nFor the sake of development, many people \nlose their homes or livelihoods. This is \nnot progress, but regression.",
-                                      "We might be able to get good jobs if many \nfactories and mines are built by destroying forests. \nBut what good is it if we get sick from pollution? \nHow will our children fare in the future \nif there are frequent floods or landslides? \nAnd if someone else is evicted today, what \nguarantee that we won't be evicted too?",
-                                      "The government should ensure that no one's life \nor the environment is sacrificed \nfor the sake of development."
-                                      )))
-
-
-
-```
-
-``` {r plot_cb03b_correct, fig.width = 10, fig.height = 4.5}
-
-label_counts <- sum_cb03_nar2 %>%
-  filter(CB03B==1) %>%
-  select(d_correct, total_correct) %>%
-  mutate(label = paste0(d_correct, " (n = ", total_correct, ")")) %>%
-  select(d_correct, label) %>%
-  deframe()  # Convert to named vector
-
-
-# Bar plot
-p_cb03_nar2 <- ggplot(sum_cb03_nar2) +
-    aes(x = fct_relevel(sentence, rev(levels(sentence))), 
-        y = percent) +
-    facet_wrap(~d_correct, nrow=1, strip.position="top",
-               labeller = labeller(d_correct = label_counts)) +
-    geom_bar(stat = "identity", fill=plotplainblind[1]) +
-    geom_text(aes(label = paste(round(percent, 0),"%")),
-      vjust = 0.5,
-      hjust = -0.1,
-      size = 4
-    ) +
-    coord_flip() +
-  scale_y_continuous(limit = c(0,50), labels=NULL) +
-    labs(
-      #title = paste("Sentence resonance of narrative 1"),
-      #subtitle = subtitle,
-      x = "",
-      y = ""
-    ) +
-  custom_theme() +
-  theme(
-    legend.position = "none",
-    plot.caption = element_text(hjust=0),
-    strip.text = element_text(size = 11),
-    axis.text.y = element_text(hjust = 0), 
-  ) 
-print(p_cb03_nar2)
-
-```
-
-
-### 2.2.2 Do they agree with the sentence? (CB04)
-``` {r prep_cb04_nar2}
-
-sum_cb04_nar2 <- cb_data %>%
-  filter(lfCB == 2) %>%
-  group_by(CB03B, CB04) %>%
-  summarise(freq = n(), .groups='drop') %>%
-  group_by(CB03B) %>%
-  mutate(total_sent = sum(freq), .groups = 'drop') %>%
-  mutate(percent = (freq/total_sent)*100) %>%
-  mutate(percent_div = case_when(
-    CB04 %in% c(4,5,6) ~ percent,
-    CB04 %in% c(1,2,3) ~ -percent
-  )) %>%
-  mutate(agree_level = factor(CB04,
-                              levels =c(1,2,3,6,5,4))) 
-
-
-sum_cb04_nar2 <- sum_cb04_nar2 %>%
-    mutate(sentence = factor(CB03B,
-                           levels = c(1,2,3,4),
-                           labels =  c("What is the point of Indonesia developing \nbut there are so many people victimized?", 
-                                      "For the sake of development, forests are deforested. \nFor the sake of development, many people \nlose their homes or livelihoods. This is \nnot progress, but regression.",
-                                      "We might be able to get good jobs if many \nfactories and mines are built by destroying forests. \nBut what good is it if we get sick from pollution? \nHow will our children fare in the future \nif there are frequent floods or landslides? \nAnd if someone else is evicted today, what \nguarantee that we won't be evicted too?",
-                                      "The government should ensure that no one's life \nor the environment is sacrificed \nfor the sake of development."
-                                      )))
-
-
-
-```
-
-``` {r plot_cb04_nar2, fig.height = 5.5, fig.width=10}
-diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
-names(diverging_colors) <- 1:6
-
-ggplot(sum_cb04_nar2, aes(x = fct_relevel(sentence, rev(levels(sentence))), 
-                          y = percent_div, 
-                          fill = agree_level)) +
-  geom_bar(stat = "identity", width = 0.7) +
-  scale_fill_manual(values = rev(diverging_colors), name = "",
-                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
-                                    "Strongly Agree", "Agree", "Slightly Agree")) +
-  coord_flip() +
-  geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
-            size = 3,
-            hjust= 0.5,
-            position = position_stack(vjust = 0.5)
-            ) +
-  labs(
-    title = "Degree of Agreement (Stimulus 2)",
-    y = "",
-    x = ""
-  ) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
-  scale_y_continuous(labels=NULL) +
-  theme_minimal() +
-  custom_theme() +
-  theme(
-    legend.position = "bottom",
-    #legend.nrow = 1,
-    axis.text.y = element_text(hjust = 0), # Align statement labels to the left
-    panel.grid.major.y = element_blank() # Remove horizontal grid lines
-  ) +
-  guides(
-    fill = guide_legend(
-      ncol = 2,
-      #order = 1,  # Controls the order of the legend
-      breaks = c("Strongly Disagree",  "Slightly Agree", 
-                 "Disagree", "Agree",
-                 "Slightly Disagree", "Strongly Agree"),
-      title = "",  # Title for the legend
-      #title.position = "top",  # Position of the title
-      title.hjust = 0.5  # Center the title
-    ))
-
-```
-
+``` {r archive_lollipop_nar2, fig.height=3, fig.width = 8}
 ### 2.2.3 What emotions were evoked by the narrative (CB02)
-``` {r lollipop_nar2, fig.height=3, fig.width = 8}
+
 lollipop_facet <- ggplot(subset(sum_emotion_combined, narrative==2), 
                          aes(x = percent, 
                              y = reorder(emotion, percent), 
@@ -1002,168 +2373,14 @@ lollipop_facet <- ggplot(subset(sum_emotion_combined, narrative==2),
         axis.title.y = element_text(size = 11),
         legend.position = "none")
 
-print(lollipop_facet)
+#print(lollipop_facet)
 
 
 ```
 
-
-## 2.3 - NARRATIVE 3
-
-### 2.3.1 Which resonated the most (CB03)
-``` {r prep_cb03c_correct}
-
-sum_cb03_correct_nar3 <- cb_data %>%
-  filter(lfCB == 3) %>%
-  group_by(d_correct, CB03C) %>%
-  summarise(freq = n(), .groups='drop') %>%
-  group_by(d_correct) %>%
-  mutate(total_correct = sum(freq), .groups = 'drop') %>%
-  mutate(percent = (freq/total_correct)*100) 
-
-sum_cb03_all_nar3 <- cb_data %>%
-  filter(lfCB == 3) %>%
-  group_by(CB03C) %>%
-  summarise(freq = n(), .groups = 'drop') %>%
-  ungroup() %>%
-  mutate(total_correct = sum(freq)) %>%
-  mutate(percent = (freq/total_correct)*100) %>%
-  mutate(d_correct = "All Treatment 3")
-
-sum_cb03_nar3 <- bind_rows(sum_cb03_correct_nar3, sum_cb03_all_nar3) %>%
-  filter(d_correct != "Incorrect") %>%
-  mutate(d_correct = replace(d_correct, d_correct == "Correct", "Correct Interpretation"))%>%
-    mutate(sentence = factor(CB03C,
-                           levels = c(1,2,3,4),
-                           labels = c("What is the point of having flyovers and magnificent \nbuildings like the developed countries, if the quality \nof our human resources is still lagging behind?",
-                                      "The quality of human resources improves if the quality \nof our education improves. Consequently, school graduates \nare able to solve problems and make innovations, have \ndiscipline, and can work with others.", 
-                                      "Qualified human resources have wider job opportunities. \nThey can also open jobs in many places. Meanwhile, \nthe benefits of flyovers and magnificent buildings \nare only enjoyed by people in big cities.",
-                                      "The government should reduce waste in building \nphysical facilities to increase the budget \nfor education, research, and culture."
-                                      )))
-
-```
-
-``` {r plot_cb03c_correct, fig.width = 10, fig.height = 3.5}
-
-label_counts <- sum_cb03_nar3 %>%
-  filter(CB03C==1) %>%
-  select(d_correct, total_correct) %>%
-  mutate(label = paste0(d_correct, " (n = ", total_correct, ")")) %>%
-  select(d_correct, label) %>%
-  deframe()  # Convert to named vector
-
-
-# Bar plot
-p_cb03_nar3 <- ggplot(sum_cb03_nar3) +
-    aes(x = fct_relevel(sentence, rev(levels(sentence))), 
-        y = percent) +
-    facet_wrap(~d_correct, nrow=1, strip.position="top",
-               labeller = labeller(d_correct = label_counts)) +
-    geom_bar(stat = "identity", fill=plotplainblind[1]) +
-    geom_text(aes(label = paste(round(percent, 0),"%")),
-      vjust = 0.5,
-      hjust = -0.1,
-      size = 4
-    ) +
-    coord_flip() +
-  scale_y_continuous(limit = c(0,45), labels=NULL) +
-    labs(
-      #title = paste("Sentence resonance of narrative 1"),
-      #subtitle = subtitle,
-      x = "",
-      y = ""
-    ) +
-  custom_theme() +
-  theme(
-    legend.position = "none",
-    plot.caption = element_text(hjust=0),
-    strip.text = element_text(size = 11),
-    axis.text.y = element_text(hjust = 0), 
-  ) 
-print(p_cb03_nar3)
-
-```
-
-
-### 2.3.2 Do they agree with the sentence? (CB04)
-``` {r prep_cb04_nar3}
-
-sum_cb04_nar3 <- cb_data %>%
-  filter(lfCB == 3) %>%
-  group_by(CB03C, CB04) %>%
-  summarise(freq = n(), .groups='drop') %>%
-  group_by(CB03C) %>%
-  mutate(total_sent = sum(freq), .groups = 'drop') %>%
-  mutate(percent = (freq/total_sent)*100) %>%
-  mutate(percent_div = case_when(
-    CB04 %in% c(4,5,6) ~ percent,
-    CB04 %in% c(1,2,3) ~ -percent
-  )) %>%
-  mutate(agree_level = factor(CB04,
-                              levels =c(1,2,3,6,5,4))) 
-
-
-sum_cb04_nar3 <- sum_cb04_nar3 %>%
-    mutate(sentence = factor(CB03C,
-                           levels = c(1,2,3,4),
-                           labels = c("What is the point of having flyovers and magnificent \nbuildings like the developed countries, if the quality \nof our human resources is still lagging behind?",
-                                      "The quality of human resources improves if the quality \nof our education improves. Consequently, school graduates \nare able to solve problems and make innovations, have \ndiscipline, and can work with others.", 
-                                      "Qualified human resources have wider job opportunities. \nThey can also open jobs in many places. Meanwhile, \nthe benefits of flyovers and magnificent buildings \nare only enjoyed by people in big cities.",
-                                      "The government should reduce waste in building \nphysical facilities to increase the budget \nfor education, research, and culture."
-                                      )))
-
-
-
-```
-
-``` {r plot_cb04_nar3, fig.height = 4.5, fig.width=10}
-diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
-names(diverging_colors) <- 1:6
-
-ggplot(sum_cb04_nar3, aes(x = fct_relevel(sentence, rev(levels(sentence))),
-                          y = percent_div, 
-                          fill = agree_level)) +
-  geom_bar(stat = "identity", width = 0.7) +
-  scale_fill_manual(values = rev(diverging_colors), name = "",
-                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
-                                    "Strongly Agree", "Agree", "Slightly Agree")) +
-  coord_flip() +
-  geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
-            size = 3,
-            hjust= 0.5,
-            position = position_stack(vjust = 0.5)
-            ) +
-  labs(
-    title = "Degree of Agreement (Stimulus 3)",
-    y = "",
-    x = ""
-  ) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
-  scale_y_continuous(labels=NULL) +
-  theme_minimal() +
-  custom_theme() +
-  theme(
-    legend.position = "bottom",
-    #legend.nrow = 1,
-    axis.text.y = element_text(hjust = 0), # Align statement labels to the left
-    panel.grid.major.y = element_blank() # Remove horizontal grid lines
-  ) +
-  guides(
-    fill = guide_legend(
-      ncol = 2,
-      #order = 1,  # Controls the order of the legend
-      breaks = c("Strongly Disagree",  "Slightly Agree", 
-                 "Disagree", "Agree",
-                 "Slightly Disagree", "Strongly Agree"),
-      title = "",  # Title for the legend
-      #title.position = "top",  # Position of the title
-      title.hjust = 0.5  # Center the title
-    ))
-
-```
-
+``` {r archive_lollipop_nar3, fig.height=3, fig.width = 8}
 ### 2.3.3 What emotions were evoked by the narrative (CB02)
-``` {r lollipop_nar3, fig.height=3, fig.width = 8}
+
 lollipop_facet <- ggplot(subset(sum_emotion_combined, narrative==3), 
                          aes(x = percent, 
                              y = reorder(emotion, percent), 
@@ -1191,359 +2408,14 @@ lollipop_facet <- ggplot(subset(sum_emotion_combined, narrative==3),
         axis.title.y = element_text(size = 11),
         legend.position = "none")
 
-print(lollipop_facet)
+#print(lollipop_facet)
 
 
 ```
 
-
-## 2.4 - NARRATIVE 4
-
-### 2.4.1 Which resonated the most (CB03)
-``` {r prep_cb03d_correct}
-
-sum_cb03_correct_nar4 <- cb_data %>%
-  filter(lfCB == 4) %>%
-  group_by(d_correct, CB03D) %>%
-  summarise(freq = n(), .groups='drop') %>%
-  group_by(d_correct) %>%
-  mutate(total_correct = sum(freq), .groups = 'drop') %>%
-  mutate(percent = (freq/total_correct)*100) 
-
-sum_cb03_all_nar4 <- cb_data %>%
-  filter(lfCB == 4) %>%
-  group_by(CB03D) %>%
-  summarise(freq = n(), .groups = 'drop') %>%
-  ungroup() %>%
-  mutate(total_correct = sum(freq)) %>%
-  mutate(percent = (freq/total_correct)*100) %>%
-  mutate(d_correct = "All Treatment 4")
-
-sum_cb03_nar4 <- bind_rows(sum_cb03_correct_nar4, sum_cb03_all_nar4) %>%
-  filter(d_correct != "Incorrect") %>%
-  mutate(d_correct = replace(d_correct, d_correct == "Correct", "Correct Interpretation"))%>%
-    mutate(sentence = factor(CB03D,
-                           levels = c(1,2,3,4),
-                           labels = c("Why do we still doubt the government that \nhas held the people's mandate?",
-                                      "The government is the only entity in power \nbecause it has been elected by the people. This \nmeans that the government has the full authority \nto lead and make decisions for all the people.",
-                                      "The government has the right to set rules, \nenforce laws, and take actions that it deems \nnecessary in the interest of the country, even if \nit is sometimes against the wishes of some people.",
-                                      "People can submit ideas or complaints. \nHowever, the final decision remains \nin the hands of the government"
-                           )))
-
-```
-
-``` {r plot_cb03d_correct, fig.width = 10, fig.height = 3.5}
-
-label_counts <- sum_cb03_nar4 %>%
-  filter(CB03D==1) %>%
-  select(d_correct, total_correct) %>%
-  mutate(label = paste0(d_correct, " (n = ", total_correct, ")")) %>%
-  select(d_correct, label) %>%
-  deframe()  # Convert to named vector
-
-
-# Bar plot
-p_cb03_nar4 <- ggplot(sum_cb03_nar4) +
-    aes(x = fct_relevel(sentence, rev(levels(sentence))),
-        y = percent) +
-    facet_wrap(~d_correct, nrow=1, strip.position="top",
-               labeller = labeller(d_correct = label_counts)) +
-    geom_bar(stat = "identity", fill=plotplainblind[1]) +
-    geom_text(aes(label = paste(round(percent, 0),"%")),
-      vjust = 0.5,
-      hjust = -0.1,
-      size = 4
-    ) +
-    coord_flip() +
-  scale_y_continuous(limit = c(0,40), labels=NULL) +
-    labs(
-      #title = paste("Sentence resonance of narrative 1"),
-      #subtitle = subtitle,
-      x = "",
-      y = ""
-    ) +
-  custom_theme() +
-  theme(
-    legend.position = "none",
-    plot.caption = element_text(hjust=0),
-    strip.text = element_text(size = 11),
-    axis.text.y = element_text(hjust = 0), 
-  ) 
-print(p_cb03_nar4)
-
-```
-
-
-### 2.4.2 Do they agree with the sentence? (CB04)
-``` {r prep_cb04_nar4}
-
-sum_cb04_nar4 <- cb_data %>%
-  filter(lfCB == 4) %>%
-  group_by(CB03D, CB04) %>%
-  summarise(freq = n(), .groups='drop') %>%
-  group_by(CB03D) %>%
-  mutate(total_sent = sum(freq), .groups = 'drop') %>%
-  mutate(percent = (freq/total_sent)*100) %>%
-  mutate(percent_div = case_when(
-    CB04 %in% c(4,5,6) ~ -percent,
-    CB04 %in% c(1,2,3) ~ percent
-  )) %>%
-  mutate(agree_level = factor(CB04,
-                              levels =c(6,5,4,1,2,3))) 
-
-
-sum_cb04_nar4 <- sum_cb04_nar4 %>%
-    mutate(sentence = factor(CB03D,
-                           levels = c(1,2,3,4),
-                           labels = c("Why do we still doubt the government that \nhas held the people's mandate?",
-                                      "The government is the only entity in power \nbecause it has been elected by the people. This \nmeans that the government has the full authority \nto lead and make decisions for all the people.",
-                                      "The government has the right to set rules, \nenforce laws, and take actions that it deems \nnecessary in the interest of the country, even if \nit is sometimes against the wishes of some people.",
-                                      "People can submit ideas or complaints. \nHowever, the final decision remains \nin the hands of the government"
-                           )))
-
-
-
-```
-
-``` {r plot_cb04_nar4, fig.height = 4.5, fig.width=10}
-diverging_colors <- c("#6baed6", "#9ecae1", "#c6dbef", "#f0f0f0", "#fee6ce", "#fdae6b")
-names(diverging_colors) <- 1:6
-
-ggplot(sum_cb04_nar4, aes(x = fct_relevel(sentence, rev(levels(sentence))),
-                          y = percent_div, 
-                          fill = agree_level)) +
-  geom_bar(stat = "identity", width = 0.7) +
-  scale_fill_manual(values = rev(diverging_colors), name = "",
-                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
-                                "Strongly Agree", "Agree", "Slightly Agree"
-                                    )) +
-  coord_flip() +
-  geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
-            size = 3,
-            hjust= 0.5,
-            position = position_stack(vjust = 0.5)
-            ) +
-  labs(
-    title = "Degree of Agreement (Stimulus 4)",
-    y = "",
-    x = ""
-  ) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
-  scale_y_continuous(labels=NULL) +
-  theme_minimal() +
-  custom_theme() +
-  theme(
-    legend.position = "bottom",
-    #legend.nrow = 1,
-    axis.text.y = element_text(hjust = 0), # Align statement labels to the left
-    panel.grid.major.y = element_blank() # Remove horizontal grid lines
-  ) +
-  guides(
-    fill = guide_legend(
-      ncol = 2,
-      #order = 1,  # Controls the order of the legend
-      breaks = c("Strongly Disagree",  "Slightly Agree", 
-                 "Disagree", "Agree",
-                 "Slightly Disagree", "Strongly Agree"),
-      title = "",  # Title for the legend
-      #title.position = "top",  # Position of the title
-      title.hjust = 0.5  # Center the title
-    ))
-
-```
-
-### 2.4.3 What emotions were evoked by the narrative (CB02)
-``` {r lollipop_nar4, fig.height=3, fig.width = 8}
-lollipop_facet <- ggplot(subset(sum_emotion_combined, narrative==4), 
-                         aes(x = percent, 
-                             y = reorder(emotion, percent), 
-                             color = factor(sample_type))) +
-  geom_segment(aes(x = 0, 
-                   xend = percent, 
-                   yend = reorder(emotion, percent)), 
-               size = 2, show.legend = FALSE) +
-    scale_color_manual(values = plotplainblind) +
-  geom_point(size = 4) +
-  geom_text(aes(label = paste0(round(percent),"%")), 
-            color = "black", size = 3,
-            hjust = -0.5) +
-  scale_x_continuous(limits = c(0,60), labels=NULL) +
-  facet_wrap(~ sample_type,
-             labeller = labeller(sample_type = label_counts)) +
-  labs(title = "Emotions evoked by Narrative 3",
-       #subtitle = "Comparison between full sample and those with correct interpretation",
-       x = "",
-       y = "") +
-  custom_theme() +
-  theme(strip.text = element_text(size = 11),
-        axis.text.y = element_text(size = 10),
-        axis.title.x = element_text(size = 11),
-        axis.title.y = element_text(size = 11),
-        legend.position = "none")
-
-print(lollipop_facet)
-
-
-```
-
-
-## 2.5 - NARRATIVE 5
-
-### 2.5.1 Which resonated the most (CB03)
-``` {r prep_cb03e_correct}
-
-sum_cb03_correct_nar5 <- cb_data %>%
-  filter(lfCB == 5) %>%
-  group_by(d_correct, CB03E) %>%
-  summarise(freq = n(), .groups='drop') %>%
-  group_by(d_correct) %>%
-  mutate(total_correct = sum(freq), .groups = 'drop') %>%
-  mutate(percent = (freq/total_correct)*100) 
-
-sum_cb03_all_nar5 <- cb_data %>%
-  filter(lfCB == 5) %>%
-  group_by(CB03E) %>%
-  summarise(freq = n(), .groups = 'drop') %>%
-  ungroup() %>%
-  mutate(total_correct = sum(freq)) %>%
-  mutate(percent = (freq/total_correct)*100) %>%
-  mutate(d_correct = "All Treatment 5")
-
-sum_cb03_nar5 <- bind_rows(sum_cb03_correct_nar5, sum_cb03_all_nar5) %>%
-  filter(d_correct != "Incorrect") %>%
-  mutate(d_correct = replace(d_correct, d_correct == "Correct", "Correct Interpretation"))%>%
-    mutate(sentence = factor(CB03E,
-                           levels = c(1,2,3,4),
-                           labels = c("They say Indonesia guarantees the welfare of all its \ncitizens, but why is the fate of the rich and poor so different?",
-                                      "From the womb, children from poor families are left behind. \nDuring pregnancy, mothers do not receive good health \nand nutrition services. When the children grow up, the family \ncannot afford to send them to a good school. They also \ntend to drop out of school. As adults, they cannot get \na decent job, so they and their descendants remain poor.",
-                                      "In contrast, children from a wealthy family are guaranteed \na good life from the womb. Their mothers are healthy, \ntheir neighborhoods are clean and safe, and they can go \nto school until they graduate. As adults, they can get good jobs \nso that their economic conditions can continue to improve.",
-                                      "The government should improve the coverage and \nquality of health, education, and social services. So that \nchildren from rich and poor families can have \nequal opportunities to live prosperous lives."
-                           )))
-
-```
-
-``` {r plot_cb03e_correct, fig.width = 10, fig.height = 4.5}
-
-label_counts <- sum_cb03_nar5 %>%
-  filter(CB03E==1) %>%
-  select(d_correct, total_correct) %>%
-  mutate(label = paste0(d_correct, " (n = ", total_correct, ")")) %>%
-  select(d_correct, label) %>%
-  deframe()  # Convert to named vector
-
-
-# Bar plot
-p_cb03_nar5 <- ggplot(sum_cb03_nar5) +
-    aes(x = fct_relevel(sentence, rev(levels(sentence))),
-        y = percent) +
-    facet_wrap(~d_correct, nrow=1, strip.position="top",
-               labeller = labeller(d_correct = label_counts)) +
-    geom_bar(stat = "identity", fill=plotplainblind[1]) +
-    geom_text(aes(label = paste(round(percent, 0),"%")),
-      vjust = 0.5,
-      hjust = -0.1,
-      size = 4
-    ) +
-    coord_flip() +
-  scale_y_continuous(limit = c(0,60), labels=NULL) +
-    labs(
-      #title = paste("Sentence resonance of narrative 1"),
-      #subtitle = subtitle,
-      x = "",
-      y = ""
-    ) +
-  custom_theme() +
-  theme(
-    legend.position = "none",
-    plot.caption = element_text(hjust=0),
-    strip.text = element_text(size = 11),
-    axis.text.y = element_text(hjust = 0), 
-  ) 
-print(p_cb03_nar5)
-
-```
-
-
-### 2.5.2 Do they agree with the sentence? (CB04)
-``` {r prep_cb04_nar5}
-
-sum_cb04_nar5 <- cb_data %>%
-  filter(lfCB == 5) %>%
-  group_by(CB03E, CB04) %>%
-  summarise(freq = n(), .groups='drop') %>%
-  group_by(CB03E) %>%
-  mutate(total_sent = sum(freq), .groups = 'drop') %>%
-  mutate(percent = (freq/total_sent)*100) %>%
-  mutate(percent_div = case_when(
-    CB04 %in% c(4,5,6) ~ percent,
-    CB04 %in% c(1,2,3) ~ -percent
-  )) %>%
-  mutate(agree_level = factor(CB04,
-                              levels =c(1,2,3,6,5,4))) 
-
-
-sum_cb04_nar5 <- sum_cb04_nar5 %>%
-    mutate(sentence = factor(CB03E,
-                           levels = c(1,2,3,4),
-                           labels = c("They say Indonesia guarantees the welfare of all its \ncitizens, but why is the fate of the rich and poor so different?",
-                                      "From the womb, children from poor families are left behind. \nDuring pregnancy, mothers do not receive good health \nand nutrition services. When the children grow up, the family \ncannot afford to send them to a good school. They also \ntend to drop out of school. As adults, they cannot get \na decent job, so they and their descendants remain poor.",
-                                      "In contrast, children from a wealthy family are guaranteed \na good life from the womb. Their mothers are healthy, \ntheir neighborhoods are clean and safe, and they can go \nto school until they graduate. As adults, they can get good jobs \nso that their economic conditions can continue to improve.",
-                                      "The government should improve the coverage and \nquality of health, education, and social services. So that \nchildren from rich and poor families can have \nequal opportunities to live prosperous lives."
-                           )))
-
-
-
-
-```
-
-``` {r plot_cb04_nar5, fig.height = 5.5, fig.width=10}
-diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
-names(diverging_colors) <- 1:6
-
-ggplot(sum_cb04_nar5, aes(x = fct_relevel(sentence, rev(levels(sentence))), 
-                          y = percent_div, 
-                          fill = agree_level)) +
-  geom_bar(stat = "identity", width = 0.7) +
-  scale_fill_manual(values = rev(diverging_colors), name = "",
-                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
-                                    "Strongly Agree", "Agree", "Slightly Agree")) +
-  coord_flip() +
-  geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
-            size = 3,
-            hjust= 0.5,
-            position = position_stack(vjust = 0.5)
-            ) +
-  labs(
-    title = "Degree of Agreement (Stimulus 5)",
-    y = "",
-    x = ""
-  ) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
-  scale_y_continuous(labels=NULL) +
-  theme_minimal() +
-  custom_theme() +
-  theme(
-    legend.position = "bottom",
-    #legend.nrow = 1,
-    axis.text.y = element_text(hjust = 0), # Align statement labels to the left
-    panel.grid.major.y = element_blank() # Remove horizontal grid lines
-  ) +
-  guides(
-    fill = guide_legend(
-      ncol = 2,
-      #order = 1,  # Controls the order of the legend
-      breaks = c("Strongly Disagree",  "Slightly Agree", 
-                 "Disagree", "Agree",
-                 "Slightly Disagree", "Strongly Agree"),
-      title = "",  # Title for the legend
-      #title.position = "top",  # Position of the title
-      title.hjust = 0.5  # Center the title
-    ))
-
-```
-
+``` {r archive_lollipop_nar4adj, fig.height=3, fig.width = 8}
 ### 2.5.3 What emotions were evoked by the narrative (CB02)
-``` {r lollipop_nar5, fig.height=3, fig.width = 8}
+
 lollipop_facet <- ggplot(subset(sum_emotion_combined, narrative==5), 
                          aes(x = percent, 
                              y = reorder(emotion, percent), 
@@ -1571,103 +2443,382 @@ lollipop_facet <- ggplot(subset(sum_emotion_combined, narrative==5),
         axis.title.y = element_text(size = 11),
         legend.position = "none")
 
-print(lollipop_facet)
+#print(lollipop_facet)
 
 ```
 
+``` {r archive_lollipop_nar5adj, fig.height=3, fig.width = 8}
+### 2.4.3 What emotions were evoked by the narrative (CB02)
 
-
-
-## 2.6 Heatmap of emotions evoked (alternative visualization)
-
-``` {r heatmap_emotion_all_sample}
-
-breaks_val <- c(0, 20, 40, 60, 80)
-colors_val <- c("white", "#D3D3D3", "#808080", "#595959", "#363636")
-
-obs_counts <- cb02_data %>%
-  group_by(narrative = factor(ifelse(lfCB == 1, 1,
-                                     ifelse(lfCB == 2, 2,
-                                            ifelse(lfCB == 3, 3,
-                                                   ifelse(lfCB == 4, 4, 
-                                                          ifelse(lfCB == 5,5,NA))))))) %>%
-  summarise(n_obs = n(), .groups = 'drop')
-
-label_nar <- paste0(levels(factor(sum_emotion_all$narrative)),
-                    "\n(n=", obs_counts$n_obs, ")")
-
-heatmap_emo <- ggplot(sum_emotion_all, aes(x = factor(narrative), y = reorder(emotion, (percent)), fill = percent)) +
-  geom_tile() +
-  scale_fill_gradientn(colors = colors_val, breaks = breaks_val, limits = c(0, 80)) +
-  geom_text(aes(label = round(percent, 2)), color = "black", size = 3) +
-  #facet_wrap(~ Foundation, scales = "free") +
-  labs(title = "Emotions evoked for all treatment group (%)",
-       #subtitle = subtitle,
-       x = "Narrative",
-       y = "Emotion",
-       fill = "Percentage") +
-  theme_minimal() +
+lollipop_facet <- ggplot(subset(sum_emotion_combined, narrative==4), 
+                         aes(x = percent, 
+                             y = reorder(emotion, percent), 
+                             color = factor(sample_type))) +
+  geom_segment(aes(x = 0, 
+                   xend = percent, 
+                   yend = reorder(emotion, percent)), 
+               size = 2, show.legend = FALSE) +
+    scale_color_manual(values = plotplainblind) +
+  geom_point(size = 4) +
+  geom_text(aes(label = paste0(round(percent),"%")), 
+            color = "black", size = 3,
+            hjust = -0.5) +
+  scale_x_continuous(limits = c(0,60), labels=NULL) +
+  facet_wrap(~ sample_type,
+             labeller = labeller(sample_type = label_counts)) +
+  labs(title = "Emotions evoked by Narrative 3",
+       #subtitle = "Comparison between full sample and those with correct interpretation",
+       x = "",
+       y = "") +
   custom_theme() +
-  scale_x_discrete(position="top",
-                   labels = label_nar) +
-  theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=0.5),
-        legend.position = "right")
-print(heatmap_emo)
-```
+  theme(strip.text = element_text(size = 11),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 11),
+        axis.title.y = element_text(size = 11),
+        legend.position = "none")
 
-``` {r heatmap_emotion_all_subsample}
+#print(lollipop_facet)
 
-breaks_val <- c(0, 20, 40, 60, 80)
-colors_val <- c("white", "#D3D3D3", "#808080", "#595959", "#363636")
 
-obs_counts_sub <- cb02_data_sub %>%
-  group_by(narrative = factor(ifelse(lfCB == 1, 1,
-                                     ifelse(lfCB == 2, 2,
-                                            ifelse(lfCB == 3, 3,
-                                                   ifelse(lfCB == 4, 4, 
-                                                          ifelse(lfCB == 5,5,NA))))))) %>%
-  summarise(n_obs = n(), .groups = 'drop')
-
-label_nar_sub <- paste0(levels(factor(sum_emotion_subsample$narrative)),
-                    "\n(n=", obs_counts_sub$n_obs, ")")
-
-heatmap_emo_sub <- ggplot(sum_emotion_subsample, aes(x = factor(narrative), y = reorder(emotion, (percent)), fill = percent)) +
-  geom_tile() +
-  scale_fill_gradientn(colors = colors_val, breaks = breaks_val, limits = c(0, 80)) +
-  geom_text(aes(label = round(percent, 2)), color = "black", size = 3) +
-  #facet_wrap(~ Foundation, scales = "free") +
-  labs(title = "Emotions evoked for treatment with correct interpretation (%)",
-       #subtitle = subtitle,
-       x = "Narrative",
-       y = "Emotion",
-       fill = "Percentage") +
-  theme_minimal() +
-  custom_theme() +
-  scale_x_discrete(position="top",
-                   labels = label_nar_sub) +
-  theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=0.5),
-        legend.position = "right")
-print(heatmap_emo_sub)
 ```
 
 
-## SUPPLEMENTAL MATERIALS (non-priority, upcoming)
-## 3.1 Demographics on likelihood of agreeing 
 
 
 \newpage
-## Appendix) Demographics figure (Statistical difference of key characteristics between the sample and the population) -- see paper draft [upcoming] 
-https://cran.r-project.org/web/packages/forestplot/vignettes/forestplot.html
-https://bookdown.org/MathiasHarrer/Doing_Meta_Analysis_in_R/forest.html
+## Appendix) Demographics figure (Statistical difference of key characteristics between the sample and the population) 
 
-``` {r trial_forest_plot}
+``` {r prepare_data_flourish}
+
+flo_urban <- data.frame(
+  category = c("Urban", "Rural"),
+  susenas = c(41.55, 58.45),
+  sample = c(77.68, 22.32)
+  ) 
+
+flo_region <- data.frame(
+  category = c("West",	"Central",	"East"),
+  susenas	= c(81.29, 15.94, 2.77),
+  sample = c(84.29, 13.49, 2.22)
+)
+
+flo_educ <- data.frame(
+  category = c("No education",	"Primary School",	"Junior High School",	"High School",	"Higher Education"),
+  susenas	= c(9.34, 23.15, 21.08, 34.95,	11.48),
+  sample	= c(0, 0.67,	1.85,	37.01, 60.46)
+)
+
+flo_age <- data.frame(
+  category = c("18-24",	"25-34",	"35-44",	"45-54",	"55+"),
+  susenas = c(15.19,	21.30,	20.96,	18.57,	24.00),
+  sample	= c(15.39,	25.38,	30.61,	22.55,	6.07)
+)
+
+sam_gender <- demog_raw %>%
+  group_by(male) %>%
+  summarise(freq = n(),
+            sam_percent = (freq/total)*100) %>%
+  filter(male == 1) %>%
+  mutate(category = "gender")
+
+sam_hhhead_female <- demog_raw %>%
+  group_by(hhhead_gender) %>%
+  summarise(freq = n(),
+            sam_percent = (freq/total)*100) %>%
+  filter(hhhead_gender == 2) %>%
+  mutate(category = "hhhead_female")
+
+sam_nosocast <- demog_raw %>%
+  group_by(nosocast) %>%
+  summarise(freq = n(),
+            sam_percent = (freq/total)*100) %>%
+  filter(nosocast == 1) %>%
+  mutate(category = "nosocast")
+
+
+sam_hhsize <- demog_raw %>%
+  mutate(hhsize_grp = case_when(
+    hhsize <= 5 ~ 1,
+    hhsize >= 6 & hhsize <= 10 ~ 2,
+    hhsize > 10  ~ 3
+  )) %>%
+  mutate(hhsize_grp = factor(hhsize_grp,
+                             levels = c(1,2,3),
+                             labels = c("1-5", "6-10", ">10"))) %>%
+  group_by(hhsize_grp) %>%
+  summarise(freq = n(), na.rm=TRUE) %>%
+  ungroup() %>%
+  filter(!is.na(hhsize_grp)) %>%
+  mutate(sam_percent = (freq/sum(freq))*100, na.rm=TRUE) %>%
+  rename(category = hhsize_grp)
+
 
 
 ```
+
+
+``` {r prep_susenas}
+## Prepare national statistics
+susenas_raw <- read_csv("G:\\/Shared drives/Projects/2025/Orwell/Breadcrumbs/10 Quantitative Narrative Testing/3 Sampling frame/sus23-kor-ind.csv")
+
+susenas_design <- susenas_raw %>%
+  as_survey_design(
+    weights = FWT
+  )
+
+# Gender (Male)
+sus_gender <- susenas_design %>%
+  mutate(gender = case_when(
+    R405 == 2 ~ 0,
+    R405 == 1 ~ 1
+  )) %>%
+  #group_by(R405) %>%
+  summarize(
+    sus_percent = survey_mean(gender, na.rm = TRUE) *100
+  ) %>%
+  mutate(category = "gender")
+
+# HH Head Female 
+sus_hhhead_female <- susenas_design %>%
+  mutate(hhhead_female = case_when(
+    R403 == 1 & R405 == 1 ~ 0,
+    R403 == 1 & R405 == 2 ~ 1,
+  )) %>%
+  #group_by(R405) %>%
+  summarize(
+    sus_percent = survey_mean(hhhead_female, na.rm = TRUE) *100
+  ) %>%
+  mutate(category = "hhhead_female")
+
+## Data Susenas Kor23 RT
+susenas_rt <- read_dta(paste0(ipt, "/kor23rt.dta"))
+
+susenas_rt_des <- susenas_rt %>%
+  as_survey_design(
+    weights = FWT
+  )
+
+
+# No Social Assistance (butuh data KOR - RT)
+#nosocast (2202=5, 2203 = 5, 2205 = 5, 2206 = 5, 2207 =5, 2209 =5, 2211 = 5)
+#https://silastik.bps.go.id/v3/index.php/mikrodata/detail/ZnZSZms4aStzN2JUSVY1QklqZ08rdz09
+sus_nosocast <- susenas_rt_des %>%
+  mutate(nosocast = case_when(
+    R2202 == 5 & R2203 == 5 & R2205A == 5  & R2206A == 5 & R2207 == 5 & R2209A == 5 & R2211A == 5 ~ 1,
+    TRUE ~ 0
+  )) %>%
+  #group_by(R405) %>%
+  summarize(
+    sus_percent = survey_mean(nosocast, na.rm = TRUE) *100
+  ) %>%
+  mutate(category = "nosocast")
+
+
+
+# HH Size (butuh data KOR - RT)
+sus_hhsize <- susenas_rt_des %>%
+  mutate(hhsize_grp = case_when(
+    R301 <= 5 ~ 1,
+    R301 >= 6 & R301 <= 10 ~ 2,
+    R301 > 10  ~ 3
+  )) %>%
+  mutate(hhsize_grp = factor(hhsize_grp,
+                             levels = c(1,2,3),
+                             labels = c("1-5", "6-10", ">10"))) %>%
+  group_by(hhsize_grp) %>%
+  summarise(freq = survey_total(), na.rm=TRUE) %>%
+  ungroup() %>%
+  filter(!is.na(hhsize_grp)) %>%
+  mutate(sus_percent = (freq/sum(freq))*100, na.rm=TRUE)  %>%
+  rename(category = hhsize_grp)
+
+```
+
+``` {r combine_data_pop}
+
+flo_gender <- sam_gender %>%
+  full_join(sus_gender, by = c("category")) %>%
+  rename(susenas = sus_percent,
+         sample = sam_percent)
+
+
+flo_hhhead_female <- sam_hhhead_female %>%
+  full_join(sus_hhhead_female, by = c("category")) %>%
+  rename(susenas = sus_percent,
+         sample = sam_percent)
+
+flo_nosocast <- sam_nosocast %>%
+  full_join(sus_nosocast, by = c("category")) %>%
+  rename(susenas = sus_percent,
+         sample = sam_percent)
+
+flo_hhsize <- sam_hhsize %>%
+  full_join(sus_hhsize, by = c("category")) %>%
+  rename(susenas = sus_percent,
+         sample = sam_percent)
+
+
+```
+
+``` {r prep_stat_sample}
+flo_urban <- flo_urban %>%
+  mutate(
+    difference = sample - susenas,
+    sample_proportion = sample / 100,
+    se = sqrt((sample_proportion * (1 - sample_proportion)) / total),
+    margin_of_error = 1.96 * se * 100, # Multiply by 100 to get percentage points
+    ci_lower = difference - margin_of_error,
+    ci_upper = difference + margin_of_error
+  ) %>%
+  filter(category=="Urban")
+
+flo_region <- flo_region %>%
+  mutate(
+    difference = sample - susenas,
+    sample_proportion = sample / 100,
+    se = sqrt((sample_proportion * (1 - sample_proportion)) / total),
+    margin_of_error = 1.96 * se * 100, # Multiply by 100 to get percentage points
+    ci_lower = difference - margin_of_error,
+    ci_upper = difference + margin_of_error
+  )
+
+flo_gender <- flo_gender %>%
+  mutate(
+    difference = sample - susenas,
+    sample_proportion = sample / 100,
+    se = sqrt((sample_proportion * (1 - sample_proportion)) / total),
+    margin_of_error = 1.96 * se * 100, # Multiply by 100 to get percentage points
+    ci_lower = difference - margin_of_error,
+    ci_upper = difference + margin_of_error
+  ) 
+
+flo_educ <- flo_educ %>%
+  mutate(
+    difference = sample - susenas,
+    sample_proportion = sample / 100,
+    se = sqrt((sample_proportion * (1 - sample_proportion)) / total),
+    margin_of_error = 1.96 * se * 100, # Multiply by 100 to get percentage points
+    ci_lower = difference - margin_of_error,
+    ci_upper = difference + margin_of_error
+  )
+
+flo_age <- flo_age %>%
+  mutate(
+    difference = sample - susenas,
+    sample_proportion = sample / 100,
+    se = sqrt((sample_proportion * (1 - sample_proportion)) / total),
+    margin_of_error = 1.96 * se * 100, # Multiply by 100 to get percentage points
+    ci_lower = difference - margin_of_error,
+    ci_upper = difference + margin_of_error
+  )
+
+flo_hhhead_female <- flo_hhhead_female %>%
+  mutate(
+    difference = sample - susenas,
+    sample_proportion = sample / 100,
+    se = sqrt((sample_proportion * (1 - sample_proportion)) / total),
+    margin_of_error = 1.96 * se * 100, # Multiply by 100 to get percentage points
+    ci_lower = difference - margin_of_error,
+    ci_upper = difference + margin_of_error
+  )
+
+flo_hhsize <- flo_hhsize %>%
+  mutate(
+    difference = sample - susenas,
+    sample_proportion = sample / 100,
+    se = sqrt((sample_proportion * (1 - sample_proportion)) / total),
+    margin_of_error = 1.96 * se * 100, # Multiply by 100 to get percentage points
+    ci_lower = difference - margin_of_error,
+    ci_upper = difference + margin_of_error
+  )
+
+flo_nosocast <- flo_nosocast %>%
+  mutate(
+    difference = sample - susenas,
+    sample_proportion = sample / 100,
+    se = sqrt((sample_proportion * (1 - sample_proportion)) / total),
+    margin_of_error = 1.96 * se * 100, # Multiply by 100 to get percentage points
+    ci_lower = difference - margin_of_error,
+    ci_upper = difference + margin_of_error
+  )
+
+```
+
+
+``` {r combine_all_stats}
+## combie all statxs
+flo_combined <- bind_rows(flo_gender, flo_age, flo_educ, flo_region, flo_urban, flo_hhhead_female, flo_hhsize, flo_nosocast) %>%
+  ungroup() %>%
+  select(category, susenas, sample, difference, se, margin_of_error, ci_lower, ci_upper) %>%
+  mutate(
+    category = case_when(
+      category == "gender" ~ "Male",
+      category == "hhhead_female" ~ "Female",
+      category == "nosocast" ~ "No",
+      TRUE ~ category # Keep other category values as they are
+    )) %>%
+  mutate(order = row_number())
+
+```
+
+
+``` {r plot_facet}
+flo_combined$group <- case_when(
+  flo_combined$category %in% c("No education", "Primary School", "Junior High School", "High School", "Higher Education") ~ "Education",
+  flo_combined$category %in% c("Male") ~ "Gender",
+  flo_combined$category %in% c("Female") ~ "HH Head Gender",
+  flo_combined$category %in% c("No") ~ "Receive Social Assistance",
+  flo_combined$category %in% c("1-5", "6-10", ">10") ~ "HH Size",
+  flo_combined$category %in% c("West", "Central", "East") ~ "Region",
+  flo_combined$category %in% c("Urban") ~ "Location Type",
+  flo_combined$category %in% c("18-24", "25-34", "35-44", "45-54", "55+") ~ "Age Group"
+)
+
+p_demog_diff <- ggplot(flo_combined, aes(x = difference, 
+                         y = reorder(category, rev(flo_combined$order)))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = ci_lower, xmax = ci_upper), height = 0.2) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+  facet_grid(group ~ ., scales = "free", space = "free",  switch = "y") +
+   labs(
+    title = "",
+    caption = "Notes: population data is measured using Susenas (March 2023)",
+    x = "Percentage points difference with population",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+        strip.text.y.left = element_text(angle = 0, hjust = 0, face = "bold"),
+        strip.placement = "outside",
+    strip.background = element_blank(),
+    axis.title.y = element_blank(),
+    plot.caption = element_text(hjust=0.5),
+    axis.text.x = element_text(hjust=0.5),
+    axis.text.y = element_text(hjust = 1), # Align statement labels to the left
+    #panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    #panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank()
+    )
+
+print(p_demog_diff)
+
+ggsave(filename = file.path(fig, "paper_diff_demographics.png"),
+       plot = p_demog_diff,
+       #width = 8,
+       #height = 4,
+       dpi = 100)
+```
+
+
 
 
 
 ``` {r archive_prep}
+## SUPPLEMENTAL MATERIALS (non-priority, upcoming)
+## 3.1 Demographics on likelihood of agreeing 
+
+
 ## ARCHIVE
 ###################################################################################
 
@@ -1779,7 +2930,7 @@ kable_correct_agree <- kable(sum_kable,
 #Depedent variable is binary variable of accuracy (1: correct interpretaion of stimulus, 0: incorrect interpretation). Base group for age_group is "18-24", base group for education is "Primary school"
 
 reg_data <- cb_data %>%
-  inner_join(demographics, by = "record")
+  inner_join(demog_raw, by = "record")
 ```
 
 ``` {r arc_loop_logit_correct}
