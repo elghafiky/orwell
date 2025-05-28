@@ -304,6 +304,39 @@ ggsave(filename = file.path(fig, "paper_meandiff_readtime.png"),
 ```
 
 
+``` {r meandiff_readtime_excstim5}
+sum_diff_readtime_exc5 <- sum_diff_readtime %>%
+  filter(lfCB != 5)
+
+## Plot
+plot_diff_readtime_exc5 <- ggplot(sum_diff_readtime_exc5, aes(x = mean_diff, 
+                              y = fct_relevel(treat, rev(levels(treat))))
+       ) +
+  geom_point(size = 4, color = "#abdaf4") +
+  geom_errorbarh(aes(xmin = ci_lower, xmax = ci_upper), height = 0.25, color = "#808080") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "#d0d0d0") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "#d0d0d0") +
+  labs(
+    title = "Difference stimulus reading time from control group (in seconds)",
+    x = "",
+    caption = paste0("Notes: control group mean of reading time is ", round(control_mean, 2), " seconds"),
+    y = ""
+  ) +
+  custom_theme() +
+  theme(plot.caption = element_text(hjust=0))
+
+print(plot_diff_readtime_exc5)
+
+ggsave(filename = file.path(fig, "paper_meandiff_readtime_exc5.png"),
+       plot = plot_diff_readtime_exc5,
+       width = 8,
+       height = 3,
+       dpi = 100)
+
+
+```
+
+
 ``` {r archive_ttest_readtime_diff}
 ### Mean difference from control (with result from t-test)
 
@@ -422,10 +455,10 @@ kable(sum_accurate_kable[c("stim", "word_count","percent_correct")],
 Visualize statistical difference of stimulus reading time between units who accurately interpreted their stimulus and those who don't
 
 
-``` {r prep_stimtime_correct_treatment}
+``` {r prep_stimtime_correct_treatment_exc5adj}
 
 sum_time_correct <- read_stim_time %>%
-  filter(lfCB != 6) %>%
+  filter(lfCB != c(4,6)) %>%
   group_by(crt_intrpt_msg) %>%
   summarise(mean = mean(read_stim_time, na.rm=TRUE),
             sd = sd(read_stim_time, na.rm=TRUE),
@@ -499,7 +532,7 @@ plot_means_time_acc <- ggplot(combined_summary, aes(x = d_correct, y = mean, fil
 
 ```
 
-``` {r ttest_readtime}
+``` {r archive_ttest_readtime}
 ### With significant result from t-test
 all_sample_test <- t.test(pagetimeIntroSectionCB ~ crt_intrpt_msg,
                           data = pagetime_data,
@@ -632,7 +665,7 @@ plot_meandiff_read_correct <- ggplot(sum_diff_corr_combined, aes(x = mean_diff,
 
 print(plot_meandiff_read_correct)
 
-ggsave(filename = file.path(fig, "paper_meandiff_readtime_correct.png"),
+ggsave(filename = file.path(fig, "paper_meandiff_readtime_correct_exc5.png"),
        plot = plot_meandiff_read_correct,
        width = 8,
        height = 3,
@@ -2199,7 +2232,7 @@ sum_emotion_subsample <- map2_dfr(1:5, prefixes, process_narrative_sub)
 
 
 
-``` {r heatmap_emotion_all_sample}
+``` {r heatmap_emotion_all_sample_exc5}
 
 breaks_val <- c(0, 20, 40, 60, 80)
 #colors_val <- c("white", "#D3D3D3", "#808080", "#595959", "#363636")
@@ -2219,7 +2252,8 @@ label_nar <- paste0(levels(factor(sum_emotion_all$narrative)),
 sum_emotion_all <- sum_emotion_all %>%
   mutate(stimulus = factor(narrative,
                            levels = c(1,2,3,5,4),
-                           labels = c(1,2,3,4,5)))
+                           labels = c(1,2,3,4,5))) %>%
+  filter(stimulus != 5)
 
 heatmap_emo <- ggplot(sum_emotion_all, aes(x = factor(stimulus), y = reorder(emotion, (percent)), fill = percent)) +
   geom_tile() +
@@ -2239,7 +2273,7 @@ heatmap_emo <- ggplot(sum_emotion_all, aes(x = factor(stimulus), y = reorder(emo
         legend.position = "right")
 print(heatmap_emo)
 
-ggsave(filename = file.path(fig, "paper_heatmap_emo_all.png"),
+ggsave(filename = file.path(fig, "paper_heatmap_emo_all_exc5.png"),
        plot = heatmap_emo,
        #width = 8,
        #height = 4,
@@ -2247,7 +2281,7 @@ ggsave(filename = file.path(fig, "paper_heatmap_emo_all.png"),
 
 ```
 
-``` {r heatmap_emotion_all_subsample}
+``` {r heatmap_emotion_all_subsample_exc5}
 
 breaks_val <- c(0, 20, 40, 60, 80)
 #colors_val <- c("white", "#D3D3D3", "#808080", "#595959", "#363636")
@@ -2267,7 +2301,9 @@ label_nar_sub <- paste0(levels(factor(sum_emotion_subsample$narrative)),
 sum_emotion_subsample <- sum_emotion_subsample %>%
   mutate(stimulus = factor(narrative,
                            levels = c(1,2,3,5,4),
-                           labels = c(1,2,3,4,5)))
+                           labels = c(1,2,3,4,5))) %>%
+    filter(stimulus != 5)
+
 
 
 heatmap_emo_sub <- ggplot(sum_emotion_subsample, aes(x = factor(stimulus), y = reorder(emotion, (percent)), fill = percent)) +
@@ -2288,7 +2324,7 @@ heatmap_emo_sub <- ggplot(sum_emotion_subsample, aes(x = factor(stimulus), y = r
         legend.position = "right")
 print(heatmap_emo_sub)
 
-ggsave(filename = file.path(fig, "paper_heatmap_emo_sub.png"),
+ggsave(filename = file.path(fig, "paper_heatmap_emo_sub_exc5.png"),
        plot = heatmap_emo_sub,
        #width = 8,
        #height = 4,
