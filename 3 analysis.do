@@ -350,9 +350,9 @@ pro plotprep
 	replace outnum=substr(outcome,-2,.) if strlen(outcome)==`strlen'
 	destring outnum, replace ignore("`c(alpha)' `c(ALPHA)'")
 	g sig = "Null"
-	replace sig = "***" if pwyoung < 0.01
-	replace sig = "**"  if pwyoung >= 0.01 & pwyoung < 0.05
-	replace sig = "*"   if pwyoung >= 0.05 & pwyoung < 0.1
+	replace sig = "p < .01" if pwyoung < 0.01
+	replace sig = "p < .05"  if pwyoung >= 0.01 & pwyoung < 0.05
+	replace sig = "p < .1"   if pwyoung >= 0.05 & pwyoung < 0.1
 	g treat=subinstr(familyp,"treat","Treatment ",.)
 	replace treat=subinstr(treat,"comply","",.)
 	replace treat="Treatment 4" if inlist(familyp,"treat5","complytreat5")
@@ -2422,7 +2422,74 @@ export delimited "$temp\\`filenm'.csv", replace nolab
 * ==== BALANCE TEST ==== *
 ** prep variables 
 setupdatagen
+drop if lfCB==4
 
-* balance test
-loc basechar i.region urban male age unmarried edu* hhhead_female nosocast hhsize
-ritest lfCB e(F),  reps(500)  : reg lfCB `basechar'
+** combined omnibus tests of joint orthogonality across all study arms with manova
+capture log close 
+log using "$lg\balancetest.smcl", replace
+loc basechar region urban male c.age unmarried ID06 hhhead_female nosocast c.hhsize
+qui manova lfCB = `basechar' 
+set seed 250834328 // seed taken from https://www.random.org/
+ritest lfCB `e(F)',  reps(10000)  : manova lfCB = `basechar' 
+log close 
+
+* ==== MOST RESONATING STATEMENTS AND COUNTERPRODUCTIVE EFFECTS ==== *
+* stim1
+setupdataDK
+keep if lfCB==1
+
+est clear
+reg support5 i.CB03A, ro
+est store all
+reg support5 i.CB03A if crt_intrpt_msg==1, ro
+est store compliers
+
+coefplot all compliers, drop(_cons) xline(0) legend(pos(12) row(1) label(2 "All treatment units") label(4 "Compliers only") size(vsmall)) ///
+xtitle("Probability of supporting subsidy for energy-efficient homes and buildings relative to the first statement", size(vsmall)) ///
+coeflabels(	2.CB03A="All this time, the benefits of development have not reached all citizens. Those who enjoy it are the rich and powerful. Those at the bottom are still not prosperous." ///
+			3.CB03A="The government should improve the distribution of development benefits. The government must ensure that the benefits can be enjoyed by all Indonesians." ///
+			4.CB03A="If the government can improve the distribution of development benefits, then all levels of society can thrive and improve their standard of living wherever they are.", ///
+			wrap(40) labsize(vsmall))
+gr export "$fig\M1.png", replace 
+
+
+* stim3
+setupdataDK
+keep if lfCB==3
+
+keep record CB03C support* QDKr* crt_intrpt_msg
+drop QDKr_*
+reshape long support QDKr, i(record) j(polnum) 
+keep if inlist(polnum,2,3,5)
+
+est clear
+reg support i.CB03C, cluster(record)
+est store all
+reg support i.CB03C if crt_intrpt_msg==1, cluster(record)
+est store compliers
+
+coefplot all compliers, drop(_cons) xline(0) legend(pos(12) row(1) label(2 "All treatment units") label(4 "Compliers only") size(vsmall)) ///
+xtitle("Probability of supporting selected policies related to energy transition relative to the first statement", size(vsmall)) ///
+coeflabels(	2.CB03C="The quality of human resources improves if the quality of our education improves. Consequently, school graduates are able to solve problems and make innovations, have discipline, and can work with others." ///
+			3.CB03C="Qualified human resources have wider job opportunities. They can also open jobs in many places. Meanwhile, the benefits of flyovers and magnificent buildings are only enjoyed by people in big cities." ///
+			4.CB03C="The government should reduce waste in building physical facilities to increase the budget for education, research, and culture.", ///
+			wrap(40) labsize(vsmall))
+gr export "$fig\M2.png", replace 
+
+* stim4
+setupdataCB05
+keep if lfCB==5
+
+est clear
+reg CB05r9 i.CB03E, ro
+est store all
+reg CB05r9 i.CB03E if crt_intrpt_msg==1, ro
+est store compliers
+
+coefplot all compliers, drop(_cons) xline(0) legend(pos(12) row(1) label(2 "All treatment units") label(4 "Compliers only") size(vsmall)) ///
+xtitle("Probability of prioritizing advancing underdeveloped region relative to the first statement", size(vsmall)) ///
+coeflabels(	2.CB03E="From the womb, children from poor families are left behind. During pregnancy, mothers do not receive good health and nutrition services. When the children grow up, the family cannot afford to send them to a good school. They also tend to drop out of school. As adults, they cannot get a decent job, so they and their descendants remain poor." ///
+			3.CB03E="In contrast, children from a wealthy family are guaranteed a good life from the womb. Their mothers are healthy, their neighborhoods are clean and safe, and they can go to school until they graduate. As adults, they can get good jobs so that their economic conditions can continue to improve." ///
+			4.CB03E="The government should improve the coverage and quality of health, education, and social services. So that children from rich and poor families can have equal opportunities to live prosperous lives.", ///
+			wrap(40) labsize(vsmall))
+gr export "$fig\M3.png", replace 

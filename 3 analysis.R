@@ -41,9 +41,9 @@ height = 6.98
 res = 300
 
 # Define the Okabe-Ito color-blind-friendly palette
-cb_palette <- c("***" = "#E69F00",  # orange
-                "**"  = "#56B4E9",  # sky blue
-                "*"   = "#009E73",  # bluish green
+cb_palette <- c("p < .01" = "#E69F00",  # orange
+                "p < .05" = "#56B4E9",  # sky blue
+                "p < .1"  = "#009E73",  # bluish green
                 "Null"= "#999999")  # grey
 
 ##### WESTFALL-YOUNG VISUALIZATIONS #####
@@ -57,7 +57,7 @@ generate_plot <- function(data, outnums, model_labels, xlab, ncol) {
     geom_errorbarh(aes(xmin = lci, xmax = uci, color = sig), height = 0.2) +
     geom_point(aes(color = sig, shape = sig), size = 3) +
     scale_color_manual(values = cb_palette) +
-    scale_shape_manual(values = c("***" = 8, "**" = 17, "*" = 16, "Null" = 1)) +
+    scale_shape_manual(values = c("p < .01" = 8, "p < .05" = 17, "p < .1" = 16, "Null" = 1)) +
     scale_y_discrete(limits = rev) +
     geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
     labs(
@@ -171,7 +171,7 @@ CB06_labels_set2 <- c(
 # Set 1 labels
 CB07_labels_set1 <- c(
   "1" = "We can reduce reliance on env. destructive econ. act. once society's econ. condition is good",
-  "2" = "Gov. can relocate locals to dev. infra.",
+  "2" = "Gov. can relocate locals to dev. infra. provided that replacement housing are available",
   "3" = "Citizens must not accept gov. decisions without questions"
 )
 
@@ -252,23 +252,6 @@ plot_configs_DK <- list(
        model_labels = DK_labels_set3, 
        filename = "DK_wyoung_linear_set3_uncond.png", 
        ncol = 5,
-       xlabs = xlabel),
-  list(data = cond_data, 
-       outnums = 1:4, 
-       model_labels = DK_labels_set1, 
-       filename = "DK_wyoung_linear_set1_cond.png", 
-       ncol = 4,
-       xlabs = xlabel),
-  list(data = cond_data, 
-       outnums = 5:8, 
-       model_labels = DK_labels_set2, 
-       filename = "DK_wyoung_linear_set2_cond.png", 
-       ncol = 4),
-  list(data = cond_data, 
-       outnums = 9:13, 
-       model_labels = DK_labels_set3, 
-       filename = "DK_wyoung_linear_set3_cond.png", 
-       ncol = 5,
        xlabs = xlabel)
 )
 
@@ -293,18 +276,6 @@ plot_configs_CB05 <- list(
        outnums = 9:12, 
        model_labels = CB05_labels_set2, 
        filename = "CB05_wyoung_linear_set2_uncond.png", 
-       ncol = 4,
-       xlabs = xlabel),
-  list(data = cond_data, 
-       outnums = 3:8, 
-       model_labels = CB05_labels_set1, 
-       filename = "CB05_wyoung_linear_set1_cond.png", 
-       ncol = 5,
-       xlabs = xlabel),
-  list(data = cond_data, 
-       outnums = 9:12, 
-       model_labels = CB05_labels_set2, 
-       filename = "CB05_wyoung_linear_set2_cond.png", 
        ncol = 4,
        xlabs = xlabel)
 )
@@ -331,18 +302,6 @@ plot_configs_CB06 <- list(
        model_labels = CB06_labels_set2, 
        filename = "CB06_wyoung_linear_set2_uncond.png", 
        ncol = 4,
-       xlabs = xlabel),
-  list(data = cond_data, 
-       outnums = 1:4, 
-       model_labels = CB06_labels_set1, 
-       filename = "CB06_wyoung_linear_set1_cond.png", 
-       ncol = 4,
-       xlabs = xlabel),
-  list(data = cond_data, 
-       outnums = 5:8, 
-       model_labels = CB06_labels_set2, 
-       filename = "CB06_wyoung_linear_set2_cond.png", 
-       ncol = 4,
        xlabs = xlabel)
 )
 
@@ -368,18 +327,6 @@ plot_configs_CB07 <- list(
        model_labels = CB07_labels_set2, 
        filename = "CB07_wyoung_linear_set2_uncond.png", 
        ncol = 3,
-       xlabs = xlabel),
-  list(data = cond_data, 
-       outnums = 1:3, 
-       model_labels = CB07_labels_set1, 
-       filename = "CB07_wyoung_linear_set1_cond.png", 
-       ncol = 3,
-       xlabs = xlabel),
-  list(data = cond_data, 
-       outnums = 4:6, 
-       model_labels = CB07_labels_set2, 
-       filename = "CB07_wyoung_linear_set2_cond.png", 
-       ncol = 3,
        xlabs = xlabel)
 )
 
@@ -398,12 +345,6 @@ plot_configs_CB08 <- list(
        outnums = 1:5, 
        model_labels = CB08_labels, 
        filename = "CB08_wyoung_linear_set1_uncond.png", 
-       ncol = 5,
-       xlabs = xlabel),
-  list(data = cond_data, 
-       outnums = 1:5, 
-       model_labels = CB08_labels, 
-       filename = "CB08_wyoung_linear_set1_cond.png", 
        ncol = 5,
        xlabs = xlabel)
 )
@@ -424,12 +365,6 @@ plot_configs_CB11 <- list(
        model_labels = CB11_labels, 
        filename = "CB11_wyoung_linear_set1_uncond.png", 
        ncol = 4,
-       xlabs = xlabel),
-  list(data = cond_data, 
-       outnums = 1:4, 
-       model_labels = CB11_labels, 
-       filename = "CB11_wyoung_linear_set1_cond.png", 
-       ncol = 4,
        xlabs = xlabel)
 )
 
@@ -449,12 +384,6 @@ plot_configs_TD <- list(
        model_labels = TD_labels, 
        filename = "TD_wyoung_linear_set1_uncond.png", 
        ncol = 5,
-       xlabs = xlabel),
-  list(data = cond_data, 
-       outnums = 1:5, 
-       model_labels = TD_labels, 
-       filename = "TD_wyoung_linear_set1_cond.png", 
-       ncol = 5,
        xlabs = xlabel)
 )
 
@@ -473,6 +402,156 @@ names(plot_configs) <- outcomes
 allplots_ITT <- lapply(plot_configs,process_plot_configs)
 
 ##### Probability model #####
+#### DK ####
+## Create plots
+# Set data
+uncond_data <- data_list$`DK ologit uncond`
+cond_data <- data_list$`DK ologit cond`
+
+# Set x-axis label
+xlabel <- "Odds ratio of higher policy support relative to control"
+
+# List plot configs
+plot_configs_DK <- list(
+  list(data = uncond_data, 
+       outnums = 1:4, 
+       model_labels = DK_labels_set1, 
+       filename = "DK_wyoung_ologit_set1_uncond.png", 
+       ncol = 4,
+       xlabs = xlabel),
+  list(data = uncond_data, 
+       outnums = 5:8, 
+       model_labels = DK_labels_set2, 
+       filename = "DK_wyoung_ologit_set2_uncond.png", 
+       ncol = 4,
+       xlabs = xlabel),
+  list(data = uncond_data, 
+       outnums = 9:13, 
+       model_labels = DK_labels_set3, 
+       filename = "DK_wyoung_ologit_set3_uncond.png", 
+       ncol = 5,
+       xlabs = xlabel)
+)
+
+#### CB06 #### 
+## Create plots
+# Set data
+uncond_data <- data_list$`CB06 ologit uncond`
+cond_data <- data_list$`CB06 ologit cond`
+
+# Set x-axis label
+xlabel <- "Odds ratio of higher priority relative to control"
+
+# List plot configs
+plot_configs_CB06 <- list(
+  list(data = uncond_data, 
+       outnums = 1:4, 
+       model_labels = CB06_labels_set1, 
+       filename = "CB06_wyoung_ologit_set1_uncond.png", 
+       ncol = 4,
+       xlabs = xlabel),
+  list(data = uncond_data, 
+       outnums = 5:8, 
+       model_labels = CB06_labels_set2, 
+       filename = "CB06_wyoung_ologit_set2_uncond.png", 
+       ncol = 4,
+       xlabs = xlabel)
+)
+
+#### CB07 #### 
+## Create plots
+# Set data
+uncond_data <- data_list$`CB07 ologit uncond`
+cond_data <- data_list$`CB07 ologit cond`
+
+# Set x-axis label
+xlabel <- "Odds ratio of higher level of agreement relative to control"
+
+# List plot configs
+plot_configs_CB07 <- list(
+  list(data = uncond_data, 
+       outnums = 1:3, 
+       model_labels = CB07_labels_set1, 
+       filename = "CB07_wyoung_ologit_set1_uncond.png", 
+       ncol = 3,
+       xlabs = xlabel),
+  list(data = uncond_data, 
+       outnums = 4:6, 
+       model_labels = CB07_labels_set2, 
+       filename = "CB07_wyoung_ologit_set2_uncond.png", 
+       ncol = 3,
+       xlabs = xlabel)
+)
+
+#### CB08 #### 
+## Create plots
+# Set data
+uncond_data <- data_list$`CB08 ologit uncond`
+cond_data <- data_list$`CB08 ologit cond`
+
+# Set x-axis label
+xlabel <- "Odds ratio of higher level of agreement relative to control"
+
+# List plot configs
+plot_configs_CB08 <- list(
+  list(data = uncond_data, 
+       outnums = 1:5, 
+       model_labels = CB08_labels, 
+       filename = "CB08_wyoung_ologit_set1_uncond.png", 
+       ncol = 5,
+       xlabs = xlabel)
+)
+
+#### CB11 #### 
+## Create plots
+# Set data
+uncond_data <- data_list$`CB11 ologit uncond`
+cond_data <- data_list$`CB11 ologit cond`
+
+# Set x-axis label
+xlabel <- "Odds ratio of believing a larger role relative to control"
+
+# List plot configs
+plot_configs_CB11 <- list(
+  list(data = uncond_data, 
+       outnums = 1:4, 
+       model_labels = CB11_labels, 
+       filename = "CB11_wyoung_ologit_set1_uncond.png", 
+       ncol = 4,
+       xlabs = xlabel)
+)
+
+#### TD #### 
+## Create plots
+# Set data
+uncond_data <- data_list$`TD ologit uncond`
+cond_data <- data_list$`TD ologit cond`
+
+# Set x-axis label
+xlabel <- "Odds ratio of a higher personal efficacy relative to control"
+
+# List plot configs
+plot_configs_TD <- list(
+  list(data = uncond_data, 
+       outnums = 1:5, 
+       model_labels = TD_labels, 
+       filename = "TD_wyoung_ologit_set1_uncond.png", 
+       ncol = 5,
+       xlabs = xlabel)
+)
+
+#### All plots  #### 
+# Combine all plot configs
+plot_configs <- list(plot_configs_DK,
+                     plot_configs_CB06,
+                     plot_configs_CB07,
+                     plot_configs_CB08,
+                     plot_configs_CB11,
+                     plot_configs_TD)
+names(plot_configs) <- c(outcomes[1],outcomes[3:length(outcomes)])
+
+# Process and save plots
+allplots_ITT <- lapply(plot_configs,process_plot_configs)
 
 ##### TOT #####
 # Load data
@@ -769,7 +848,8 @@ cjdff <- cjdfm %>%
                           contains("treat"),
                           lfCB),
             by="record",relationship="many-to-one") %>% # Obtain treatment status and covariates
-  rename(treat5=treat4,treat4=treat5) # Reverse treat4 and treat5
+  rename(treat5=treat4,treat4=treat5,complytreat5=complytreat4,complytreat4=complytreat5) %>% # Reverse treat4 and treat5
+  filter(lfCB!=4) # Remove original treatment 4 units from data 
 
 # Setup the interaction variables
 attrb <- c("econ","rights","env","participation")
@@ -780,15 +860,15 @@ names(attrblvl) <- attrb
 attr_levels <- paste(unlist(attrblvl))
 for (treatvar in c("treat","complytreat")) {
   assign(paste0(treatvar,"ments"),
-         paste0(treatvar,1:5))
+         paste0(treatvar,1:4))
   
   assign(paste0("intrterms_",treatvar),
-         c(paste0("econ_2:", treatvar, c(1,5)),
-           paste0("econ_3:", treatvar, c(1,5)),
+         c(paste0("econ_2:", treatvar, c(1,4)),
+           paste0("econ_3:", treatvar, c(1,4)),
            paste0("rights_1:", treatvar, c(2,3)),
            paste0("rights_2:", treatvar, c(2,3)),
            paste0("env_2:", treatvar, c(2,3)),
-           paste0("participation_1:", treatvar, 4))
+           paste0("participation_1:", treatvar, 2))
   )
 }
 
@@ -823,9 +903,9 @@ plotprep <- function(model) {
            conf.high = estimate + 1.96 * std.error,
            term = factor(term, levels=term)) %>%
     mutate(sig   = case_when(
-      p.adj < 0.01 ~ "***",
-      p.adj < 0.05  ~ "**",
-      p.adj < 0.1  ~ "*",
+      p.adj < 0.01 ~ "p < .01",
+      p.adj < 0.05 ~ "p < .05",
+      p.adj < 0.1  ~ "p < .1",
       TRUE          ~ "Null"
     )) 
 }
@@ -842,14 +922,13 @@ obtain_selecvar <- function(modres) {
   selected[!selected %in% "sum"]
 }
 
-
 # Write reusable function for plotting and saving the graph
 plotnsave <- function(modres, filepath) {
   plot <- ggplot(data = modres, aes(x = estimate, y = term)) +
     geom_errorbarh(aes(xmin = conf.low, xmax = conf.high, color = sig), height = 0.2) +
     geom_point(aes(color = sig, shape = sig), size = 3) +
     scale_color_manual(values = cb_palette) +
-    scale_shape_manual(values = c("***" = 8, "**" = 17, "*" = 16, "Null" = 1)) +
+    scale_shape_manual(values = c("p < .01" = 8, "p < .05" = 17, "p < .1" = 16, "Null" = 1)) +
     scale_y_discrete(limits = rev) +
     geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
     facet_wrap(~ model, ncol = 3, labeller = labeller(model = model_labels)) +
@@ -978,11 +1057,8 @@ model_labels <- c(
 )
 
 # Plot
-plotlist_cjITT <- lapply(names(allmodres), function(model) {
-  fignm <- file.path(fig,paste0("conjoint_allmodel_",model,".png"))
-  plotnsave(allmodres[[model]], filepath = fignm)
-})  
-names(plotlist_cjITT) <- names(allmodres)
+fignm <- file.path(fig,"conjoint_itt.png")
+plotcjitt <- plotnsave(allmodres$unconditional, filepath = fignm)
 
 ##### TOT #####
 # Write reusable function to estimate IV with cluster SE
@@ -1013,9 +1089,9 @@ plotprep <- function(model, keyterm) {
            conf.high = estimate + 1.96 * std.error,
            term = factor(term, levels=term)) %>%
     mutate(sig   = case_when(
-      p.adj < 0.01 ~ "***",
-      p.adj < 0.05  ~ "**",
-      p.adj < 0.1  ~ "*",
+      p.adj < 0.01 ~ "p < .01",
+      p.adj < 0.05 ~ "p < .05",
+      p.adj < 0.1  ~ "p < .1",
       TRUE          ~ "Null"
     )) 
 }
@@ -1145,8 +1221,8 @@ model_labels <- c(
 )
 
 # Plot
-fignm <- file.path(fig,paste0("conjoint_allmodel_TOT.png"))
-plotcjTOT <- plotnsave(allmodres, filepath = fignm)
+fignm <- file.path(fig,paste0("conjoint_tot.png"))
+plotcjtot <- plotnsave(allmodres, filepath = fignm)
 
 ##### EXPORT DATA TO JAMOVI #####
 # Export analysis data to be imported to omv
