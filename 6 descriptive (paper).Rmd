@@ -19,7 +19,7 @@ graphics.off(); rm(list=ls());cat("\14");
 # Load packages
 #install.packages("pacman") # install the package if you haven't 
 pacman::p_load(tidyverse,data.table,dplyr,knitr,tinytex,corrplot,stringr,summarytable,makecell,haven,
-               Hmisc,showtext,stats,pollster,sjPlot,psych,lavaan, viridis, texreg, kableExtra,
+               Hmisc,showtext,stats,pollster,sjPlot,psych,lavaan, viridis, texreg, kableExtra,writexl,
                rempsyc, effectsize, flextable, broom, report, stargazer, modelsummary, margins, srvyr, ggtext)
 
 # Retrieve the current system username
@@ -306,7 +306,7 @@ ggsave(filename = file.path(fig, "paper_meandiff_readtime.png"),
 
 ``` {r meandiff_readtime_excstim5}
 sum_diff_readtime_exc5 <- sum_diff_readtime %>%
-  filter(lfCB != 5)
+  filter(lfCB != 4)
 
 ## Plot
 plot_diff_readtime_exc5 <- ggplot(sum_diff_readtime_exc5, aes(x = mean_diff, 
@@ -616,7 +616,7 @@ plot_med_time_acc <- ggplot(combined_summary, aes(x = d_correct, y = mean, fill 
 
 
 ### Mean difference of reading time (correct - incorrect)
-``` {r plot_diff_incorrect, fig.height=3, fig.width = 8}
+``` {r plot_diff_incorrect, fig.height=2, fig.width = 8}
 ## Statistics of incorrect group
 incorr_mean <- sum_time_correct %>% 
   filter(d_correct == "Incorrect") %>% pull(mean)
@@ -647,9 +647,10 @@ sum_diff_corr_all <- sum_time_correct_all %>%
 ## Binding row
 sum_diff_corr_combined <- bind_rows(sum_diff_corr_all, sum_diff_corr_treat)
 
+
 ## Plot
-plot_meandiff_read_correct <- ggplot(sum_diff_corr_combined, aes(x = mean_diff, 
-                              y = group)) +
+plot_meandiff_read_correct <- ggplot(sum_diff_corr_treat, aes(x = mean_diff, 
+                              y = d_correct)) +
   geom_point(size = 4, color = "#abdaf4") +
   geom_errorbarh(aes(xmin = ci_lower, xmax = ci_upper), height = 0.2, color = "#808080") +
   geom_vline(xintercept = 0, linetype = "dashed", color = "#d0d0d0") +
@@ -657,7 +658,8 @@ plot_meandiff_read_correct <- ggplot(sum_diff_corr_combined, aes(x = mean_diff,
   labs(
     title = "Difference stimulus reading time from incorrect group (in seconds)",
     x = "",
-    caption = paste0("Notes: Incorrect group mean of reading time is ", round(incorr_mean, 2), " seconds\n", "All control observations are assumed to have correct interpretation"),
+    caption = paste0("Notes: Incorrect group mean of reading time is ", round(incorr_mean, 2), " seconds"), 
+    #\n", "All control observations are assumed to have correct interpretation"),
     y = ""
   ) +
   custom_theme() +
@@ -668,7 +670,7 @@ print(plot_meandiff_read_correct)
 ggsave(filename = file.path(fig, "paper_meandiff_readtime_correct_exc5.png"),
        plot = plot_meandiff_read_correct,
        width = 8,
-       height = 3,
+       height = 2,
        dpi = 100)
 
 ```
@@ -815,7 +817,7 @@ p_cb04_nar1 <- ggplot(sum_cb04_nar1, aes(x = fct_relevel(sentence, rev(levels(se
             position = position_stack(vjust = 0.5)
             ) +
   labs(
-    title = "Degree of Agreement (Stimulus 1, All Treatment)",
+    title = "Degree of Agreement (Stimulus 1, All Treatment Units)",
     y = "",
     x = ""
   ) +
@@ -1072,7 +1074,7 @@ p_cb04_nar2 <- ggplot(sum_cb04_nar2, aes(x = fct_relevel(sentence, rev(levels(se
             position = position_stack(vjust = 0.5)
             ) +
   labs(
-    title = "Degree of Agreement (Stimulus 2, All Treatment)",
+    title = "Degree of Agreement (Stimulus 2, All Treatment Units)",
     y = "",
     x = ""
   ) +
@@ -1327,7 +1329,7 @@ p_cb04_nar3 <- ggplot(sum_cb04_nar3, aes(x = fct_relevel(sentence, rev(levels(se
             position = position_stack(vjust = 0.5)
             ) +
   labs(
-    title = "Degree of Agreement (Stimulus 3, All Treatment)",
+    title = "Degree of Agreement (Stimulus 3, All Treatment Units)",
     y = "",
     x = ""
   ) +
@@ -1582,7 +1584,7 @@ p_cb04_nar4 <- ggplot(sum_cb04_nar5, aes(x = fct_relevel(sentence, rev(levels(se
             position = position_stack(vjust = 0.5)
             ) +
   labs(
-    title = "Degree of Agreement (Stimulus 4, All Treatment)",
+    title = "Degree of Agreement (Stimulus 4, All Treatment Units)",
     y = "",
     x = ""
   ) +
@@ -2255,18 +2257,22 @@ sum_emotion_all <- sum_emotion_all %>%
                            labels = c(1,2,3,4,5))) %>%
   filter(stimulus != 5)
 
-heatmap_emo <- ggplot(sum_emotion_all, aes(x = factor(stimulus), y = reorder(emotion, (percent)), fill = percent)) +
+heatmap_emo <- ggplot(sum_emotion_all, aes(x = factor(stimulus), 
+                                           y = emotion, 
+                                           fill = percent)) +
   geom_tile() +
   scale_fill_gradientn(colors = colors_val, breaks = breaks_val, limits = c(0, 80)) +
   geom_text(aes(label = round(percent, 2)), color = "black", size = 3) +
   #facet_wrap(~ Foundation, scales = "free") +
-  labs(title = "Emotions evoked for all treatment group (%)",
+  labs(title = "Emotions evoked for all treatment units (%)",
        #subtitle = subtitle,
        x = "Stimulus",
        y = "",
        fill = "Percentage") +
   theme_minimal() +
   custom_theme() +
+    scale_y_discrete(limits = c("Hopeless", "Longing", "Calm", "Happy","Sad",
+                                     "Fear","Disgust","Anxiety", "Anger")) +
   scale_x_discrete(position="top",
                    labels = label_nar) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=0.5),
@@ -2275,8 +2281,8 @@ print(heatmap_emo)
 
 ggsave(filename = file.path(fig, "paper_heatmap_emo_all_exc5.png"),
        plot = heatmap_emo,
-       #width = 8,
-       #height = 4,
+       width = 7.5,
+       height = 4.25,
        dpi = 100)
 
 ```
@@ -2306,7 +2312,8 @@ sum_emotion_subsample <- sum_emotion_subsample %>%
 
 
 
-heatmap_emo_sub <- ggplot(sum_emotion_subsample, aes(x = factor(stimulus), y = reorder(emotion, (percent)), fill = percent)) +
+heatmap_emo_sub <- ggplot(sum_emotion_subsample, aes(x = factor(stimulus), 
+                                                     y = emotion, fill = percent)) +
   geom_tile() +
   scale_fill_gradientn(colors = colors_val, breaks = breaks_val, limits = c(0, 80)) +
   geom_text(aes(label = round(percent, 2)), color = "black", size = 3) +
@@ -2318,6 +2325,8 @@ heatmap_emo_sub <- ggplot(sum_emotion_subsample, aes(x = factor(stimulus), y = r
        fill = "Percentage") +
   theme_minimal() +
   custom_theme() +
+    scale_y_discrete(limits = c("Hopeless", "Longing", "Calm", "Happy","Sad",
+                                     "Fear","Disgust","Anxiety", "Anger")) +
   scale_x_discrete(position="top",
                    labels = label_nar_sub) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=0.5),
@@ -2326,8 +2335,8 @@ print(heatmap_emo_sub)
 
 ggsave(filename = file.path(fig, "paper_heatmap_emo_sub_exc5.png"),
        plot = heatmap_emo_sub,
-       #width = 8,
-       #height = 4,
+       width = 7.5,
+       height = 4.25,
        dpi = 100)
 ```
 
@@ -2522,7 +2531,7 @@ lollipop_facet <- ggplot(subset(sum_emotion_combined, narrative==4),
 
 
 \newpage
-## Appendix) Demographics figure (Statistical difference of key characteristics between the sample and the population) 
+## Appendix A) Demographics figure (Statistical difference of key characteristics between the sample and the population) 
 
 ``` {r prepare_data_flourish}
 
@@ -2846,11 +2855,840 @@ ggsave(filename = file.path(fig, "paper_diff_demographics.png"),
        dpi = 100)
 ```
 
+\newpage
+## Appendix G1) Unadjusted differences of outcomes in binary & likert indicator format (simple mean difference)
+
+``` {r rdf_exclude_stim4}
+rdf_paper <- rdf %>% filter(lfCB != 4)
+```
+
+### DK
+``` {r prep_dk}
+
+policy_support_labels <- c("1" = "Against", "2" = "Undecided", "3" = "Support")
+varnm <- "QDK"
+varprefix <- paste0(varnm, "r")
+
+qdkr_cols <- names(rdf_paper)[startsWith(names(rdf_paper), varprefix)]
+numvar <- length(qdkr_cols)
 
 
+for (i in 1:numvar) {
+  current_var <- qdkr_cols[i]
+
+  # generate binary policy support/oppose/undecided indicator
+  support_var_name <- paste0("support", i)
+  resist_var_name <- paste0("resist", i)
+  undecided_var_name <- paste0("undecided", i)
+  
+  rdf_paper <- rdf_paper %>%
+    mutate(!!support_var_name := ifelse(rdf_paper[[current_var]] %in% c(4,5), 1, 0)) %>%
+    mutate(!!resist_var_name := ifelse(rdf_paper[[current_var]] %in% c(1,2), 1, 0)) %>%
+    mutate(!!undecided_var_name := ifelse(rdf_paper[[current_var]] == 3, 1, 0))
+
+  # recode policy support likert
+  cloned_var_name <- paste0(varprefix, "_cloned", i)
+  recoded_var_name <- paste0(varprefix, "_recoded", i)
+
+  rdf_paper <- rdf_paper %>%
+    mutate(!!cloned_var_name := .[[current_var]]) %>%
+    mutate(!!recoded_var_name := .[[current_var]]) %>%
+    mutate(!!recoded_var_name := case_when(
+      .[[recoded_var_name]] == 2 ~ 1,
+      .[[recoded_var_name]] == 3 ~ 2,
+      .[[recoded_var_name]] %in% c(4,5) ~ 3,
+      TRUE ~ .[[recoded_var_name]] 
+    )) %>%
+    mutate(!!recoded_var_name := factor(.[[recoded_var_name]],
+                                     levels = c(1, 2, 3),
+                                     labels = policy_support_labels[as.character(c(1, 2, 3))]
+                                     ))
+}
+
+# match outcome with treatment
+prefixes_to_replace <- c(paste0(varprefix, "_recoded"), paste0(varprefix, "_cloned"), "support", "resist", "undecided")
+
+for (i in 1:13) {
+  for (prefix in prefixes_to_replace) {
+    var_name <- paste0(prefix, i)
+    if (var_name %in% names(rdf_paper)) {
+      rdf_paper <- rdf_paper %>%
+        mutate(!!var_name := case_when(
+          i == 1 & lfCB %in% c(3, 4) ~ NA,
+          i == 2 & lfCB %in% c(1, 4, 5) ~ NA,
+          i == 3 & lfCB %in% c(1, 4, 5) ~ NA,
+          i == 4 & lfCB %in% c(4, 5) ~ NA,
+          i == 5 & lfCB %in% c(4, 5) ~ NA,
+          i == 6 & lfCB %in% c(2, 3, 4) ~ NA,
+          i == 7 & lfCB %in% c(2, 3, 4) ~ NA,
+          i == 8 & lfCB %in% c(3, 4, 5) ~ NA,
+          i == 9 & lfCB %in% c(1, 4, 5) ~ NA,
+          i == 10 & lfCB %in% c(2, 3, 4) ~ NA,
+          i == 11 & lfCB %in% c(3, 4, 5) ~ NA,
+          i == 12 & lfCB %in% c(1, 4, 5) ~ NA,
+          i == 13 & lfCB %in% c(1, 4, 5) ~ NA,
+          TRUE ~ .[[var_name]]
+        ))
+    }
+  }
+}
+
+```
+
+``` {r ttest_dk}
+
+# Function to perform t-tests and format results
+perform_dk_ttests <- function(outcome_prefix, output_filename) {
+  outcome_variables <- paste0(outcome_prefix, 1:13)
+  comparison_groups <- list(c(1, 6), c(2, 6), c(3, 6), c(5, 6))
+
+  results_df <- tibble(
+    outcome = character(),
+    group1_t = character(),
+    group2_c = character(),
+    mean_treatment = numeric(),
+    mean_control = numeric(),
+    mean_difference = numeric(),
+    p_value = numeric()
+  )
+
+  for (outcome in outcome_variables) {
+    for (groups in comparison_groups) {
+      group1 <- groups[1]
+      group2 <- groups[2]
+
+      treatment_data <- rdf_paper[[outcome]][rdf_paper$lfCB == group1]
+      control_data <- rdf_paper[[outcome]][rdf_paper$lfCB == group2]
+
+      if (all(is.na(treatment_data)) || all(is.na(control_data))) {
+        results_df <- results_df %>%
+          add_row(
+            outcome = outcome,
+            group1_t = paste0("T", group1),
+            group2_c = paste0("C", group2),
+            mean_treatment = NA,
+            mean_control = NA,
+            mean_difference = NA,
+            p_value = NA
+          )
+      } else {
+        ttest_result <- t.test(treatment_data, control_data, var.equal = FALSE)
+        results_df <- results_df %>%
+          add_row(
+            outcome = outcome,
+            group1_t = paste0("T", group1),
+            group2_c = paste0("C", group2),
+            mean_treatment = ttest_result$estimate[1],
+            mean_control = ttest_result$estimate[2],
+            mean_difference = ttest_result$estimate[1] - ttest_result$estimate[2],
+            p_value = ttest_result$p.value
+          )
+      }
+    }
+  }
+
+  result_df_wide <- results_df %>%
+    mutate(
+      significance = case_when(
+        p_value < 0.001 ~ "***",
+        p_value < 0.01 ~ "**",
+        p_value < 0.05 ~ "*",
+        p_value >= 0.05 ~ "ns",
+        TRUE ~ NA_character_
+      )
+    ) %>%
+    pivot_wider(
+      id_cols = outcome,
+      names_from = group1_t,
+      values_from = c(mean_treatment, mean_control, mean_difference, p_value, significance),
+      names_glue = "{group1_t}_{.value}"
+    ) %>%
+    mutate(var = "DK") %>%
+    rowwise() %>%
+    mutate(
+      mean_control = unique(na.omit(c(T1_mean_control, T2_mean_control, T3_mean_control, T5_mean_control)))
+    ) %>%
+    ungroup() %>%
+    select(var, outcome, mean_control, ends_with("_mean_treatment"),
+           ends_with("_mean_difference"), ends_with("_p_value"), ends_with("_significance"))
+
+  excel_filename <- file.path(temp, output_filename)
+  write_xlsx(result_df_wide, excel_filename)
+  cat(paste("Results saved to:", excel_filename, "\n"))
+}
+
+# Run the function for the 'support' outcomes
+perform_dk_ttests("support", "DK_unadjusted_meandiff_binary_support.xlsx")
+
+# Run the function for the 'QDKr_cloned' outcomes
+perform_dk_ttests("QDKr_cloned", "DK_unadjusted_meandiff_likert.xlsx")
+
+```
+
+### CB05
+``` {r prep_cb05}
+
+varnm <- "CB05"
+varprefix <- paste0(varnm, "r")
+cb05r_cols <- names(rdf_paper)[startsWith(names(rdf_paper), varprefix)]
+varnumlist <- c(3, 5, 6, 7, 8, 9, 10, 11, 12)
+
+pdata_cb05 <- rdf_paper %>% select(lfCB, all_of(cb05r_cols))
+
+for (i in varnumlist) {
+  # Stata: clonevar `varprefix'_cloned`i'=`varprefix'`i'
+  original_var_name <- paste0(varprefix, i)
+  cloned_var_name <- paste0(varprefix, "_cloned", i)
+
+  if (original_var_name %in% names(pdata_cb05)) {
+    pdata_cb05 <- pdata_cb05 %>%
+      mutate(!!cloned_var_name := .[[original_var_name]])
+  }
+}
+
+cloned_vars <- names(pdata_cb05)[startsWith(names(pdata_cb05), paste0(varprefix, "_cloned"))]
+
+for (x in cloned_vars) {
+  pdata_cb05 <- pdata_cb05 %>%
+    mutate(!!x := case_when(
+      endsWith(x, "3") & lfCB %in% c(2, 3, 4) ~ NA_real_,   
+      endsWith(x, "5") & lfCB %in% c(1, 2, 4) ~ NA_real_, 
+      endsWith(x, "6") & lfCB %in% c(1, 3, 4, 5) ~ NA_real_, 
+      endsWith(x, "7") & lfCB %in% c(2, 4) ~ NA_real_,   
+      endsWith(x, "8") & lfCB %in% c(2, 4) ~ NA_real_,   
+      endsWith(x, "9") & lfCB %in% c(2, 4) ~ NA_real_,  
+      endsWith(x, "10") & lfCB %in% c(1, 2, 4) ~ NA_real_,
+      endsWith(x, "11") & lfCB %in% c(1, 3, 4) ~ NA_real_,  
+      endsWith(x, "12") & lfCB %in% c(1, 4) ~ NA_real_,  
+      TRUE ~ .[[x]]
+    ))
+}
+
+```
+
+``` {r ttest_cb05}
+
+results_df <- tibble(
+    outcome = character(),
+    group1_t = character(),
+    group2_c = character(),
+    mean_treatment = numeric(),
+    mean_control = numeric(),
+    mean_difference = numeric(),
+    p_value = numeric()
+  )
+
+  outcome_variables <- paste0("CB05r_cloned", varnumlist)
+  comparison_groups <- list(c(1, 6), c(2, 6), c(3, 6), c(5, 6))
+
+  for (outcome in outcome_variables) {
+    for (groups in comparison_groups) {
+      group1 <- groups[1]
+      group2 <- groups[2]
+
+      treatment_data <- pdata_cb05[[outcome]][pdata_cb05$lfCB == group1]
+      control_data <- pdata_cb05[[outcome]][pdata_cb05$lfCB == group2]
+
+      if (all(is.na(treatment_data)) || all(is.na(control_data))) {
+        results_df <- results_df %>%
+          add_row(
+            outcome = outcome,
+            group1_t = paste0("T", group1),
+            group2_c = paste0("C", group2),
+            mean_treatment = NA,
+            mean_control = NA,
+            mean_difference = NA,
+            p_value = NA
+          )
+      } else {
+        ttest_result <- t.test(treatment_data, control_data, var.equal = FALSE)
+        results_df <- results_df %>%
+          add_row(
+            outcome = outcome,
+            group1_t = paste0("T", group1),
+            group2_c = paste0("C", group2),
+            mean_treatment = ttest_result$estimate[1],
+            mean_control = ttest_result$estimate[2],
+            mean_difference = ttest_result$estimate[1] - ttest_result$estimate[2],
+            p_value = ttest_result$p.value
+          )
+      }
+    }
+  }
 
 
-``` {r archive_prep}
+  result_df_wide <- results_df %>%
+    mutate(
+      significance = case_when(
+        p_value < 0.001 ~ "***",
+        p_value < 0.01 ~ "**",
+        p_value < 0.05 ~ "*",
+        p_value >= 0.05 ~ "ns",
+        TRUE ~ NA_character_      
+        )
+    ) %>%
+    pivot_wider(
+      id_cols = outcome,
+      names_from = group1_t,
+      values_from = c(mean_treatment, mean_control, mean_difference, p_value, significance),
+      names_glue = "{group1_t}_{.value}"
+    ) %>%
+    rowwise() %>%
+    mutate(
+      mean_control = unique(na.omit(c(T1_mean_control, T2_mean_control, T3_mean_control, T5_mean_control)))
+    ) %>%
+    ungroup() %>%
+    select(outcome, mean_control, ends_with("_mean_treatment"),
+           ends_with("_mean_difference"), ends_with("_p_value"), ends_with("_significance"))
+
+ 
+
+
+excel_filename <- file.path(temp,"CB05_unadjusted_meandiff_binary.xlsx")
+write_xlsx(result_df_wide, excel_filename)
+cat(paste("Results saved to:", excel_filename, "\n"))
+  
+
+```
+
+	
+### CB06
+``` {r prep_cb06}
+
+varnm <- "CB06"
+varprefix <- paste0(varnm, "_Orderr")
+cb06_orderr_cols <- names(rdf_paper)[startsWith(names(rdf_paper), varprefix)]
+numvar <- length(cb06_orderr_cols)
+
+pdata_cb06 <- rdf_paper %>%
+  select(lfCB, all_of(cb06_orderr_cols))
+
+for (i in 1:numvar) {
+  current_var <- cb06_orderr_cols[i]
+
+  topthree_var_name <- paste0("topthree", i)
+  cloned_var_name <- paste0(varprefix, "_cloned", i)
+
+  pdata_cb06 <- pdata_cb06 %>%
+    mutate(!!topthree_var_name := ifelse(.[[current_var]] %in% 1:3, 1, 0)) %>%
+    mutate(!!cloned_var_name := .[[current_var]])
+}
+
+pdata_cb06 <- pdata_cb06 %>%
+  filter(!lfCB %in% 2:4)
+```
+
+``` {r ttest_cb06}
+
+# Function to perform t-tests and format results
+perform_ttests <- function(outcome_prefix, output_filename) {
+  outcome_variables <- paste0(outcome_prefix, 1:8)
+  comparison_groups <- list(c(1, 6), c(2, 6), c(3, 6), c(5, 6))
+
+  results_df <- tibble(
+    outcome = character(),
+    group1_t = character(),
+    group2_c = character(),
+    mean_treatment = numeric(),
+    mean_control = numeric(),
+    mean_difference = numeric(),
+    p_value = numeric()
+  )
+
+  for (outcome in outcome_variables) {
+    for (groups in comparison_groups) {
+      group1 <- groups[1]
+      group2 <- groups[2]
+
+      treatment_data <- pdata_cb06[[outcome]][pdata_cb06$lfCB == group1]
+      control_data <- pdata_cb06[[outcome]][pdata_cb06$lfCB == group2]
+
+      if (all(is.na(treatment_data)) || all(is.na(control_data))) {
+        results_df <- results_df %>%
+          add_row(
+            outcome = outcome,
+            group1_t = paste0("T", group1),
+            group2_c = paste0("C", group2),
+            mean_treatment = NA,
+            mean_control = NA,
+            mean_difference = NA,
+            p_value = NA
+          )
+      } else {
+        ttest_result <- t.test(treatment_data, control_data, var.equal = FALSE)
+        results_df <- results_df %>%
+          add_row(
+            outcome = outcome,
+            group1_t = paste0("T", group1),
+            group2_c = paste0("C", group2),
+            mean_treatment = ttest_result$estimate[1],
+            mean_control = ttest_result$estimate[2],
+            mean_difference = ttest_result$estimate[1] - ttest_result$estimate[2],
+            p_value = ttest_result$p.value
+          )
+      }
+    }
+  }
+
+  result_df_wide <- results_df %>%
+    mutate(
+      significance = case_when(
+        p_value < 0.001 ~ "***",
+        p_value < 0.01 ~ "**",
+        p_value < 0.05 ~ "*",
+        p_value >= 0.05 ~ "ns",
+        TRUE ~ NA_character_
+      )
+    ) %>%
+    pivot_wider(
+      id_cols = outcome,
+      names_from = group1_t,
+      values_from = c(mean_treatment, mean_control, mean_difference, p_value, significance),
+      names_glue = "{group1_t}_{.value}"
+    ) %>%
+    mutate(var = "CB06") %>%
+    rowwise() %>%
+    mutate(
+      mean_control = unique(na.omit(c(T1_mean_control, T2_mean_control, T3_mean_control, T5_mean_control)))
+    ) %>%
+    ungroup() %>%
+    select(var, outcome, mean_control, ends_with("_mean_treatment"),
+           ends_with("_mean_difference"), ends_with("_p_value"), ends_with("_significance"))
+
+  excel_filename <- file.path(temp, output_filename)
+  write_xlsx(result_df_wide, excel_filename)
+  cat(paste("Results saved to:", excel_filename, "\n"))
+}
+
+# Run the function for the 'binary' outcomes
+perform_ttests("topthree", "CB06_unadjusted_meandiff_binary_topthree.xlsx")
+
+# Run the function for the 'likert' outcomes
+perform_ttests("CB06_Orderr_cloned", "CB06_unadjusted_meandiff_likert.xlsx")
+
+```
+
+
+### CB07
+``` {r prep_cb07}
+
+varnm <- "CB07"
+varprefix <- paste0(varnm, "r")
+cb07r_cols <- names(rdf_paper)[startsWith(names(rdf_paper), varprefix)]
+numvar <- length(cb07r_cols)
+
+pdata_cb07 <- rdf_paper %>%
+  select(lfCB, all_of(cb07r_cols))
+
+for (i in 1:numvar) {
+  current_var <- cb07r_cols[i]
+
+  agree_var_name <- paste0("agree", i)
+  disagree_var_name <- paste0("disagree", i)
+
+  pdata_cb07 <- pdata_cb07 %>%
+    mutate(!!agree_var_name := ifelse(.[[current_var]] %in% 4:6, 1, 0)) %>%
+    mutate(!!disagree_var_name := ifelse(.[[current_var]] %in% 1:3, 1, 0))
+
+  cloned_var_name <- paste0(varprefix, "_cloned", i)
+  pdata_cb07 <- pdata_cb07 %>%
+    mutate(!!cloned_var_name := .[[current_var]])
+}
+
+vars_to_replace <- names(pdata_cb07)[
+  str_detect(names(pdata_cb07), paste0("^", varprefix, "_cloned|^agree|^disagree"))
+]
+
+pdata_cb07 <- pdata_cb07 %>%
+  mutate(across(all_of(vars_to_replace), ~ {
+    suffix <- as.numeric(str_extract(cur_column(), "\\d+$"))
+    case_when(
+      suffix == 1 & lfCB %in% c(3, 4) ~ NA_real_,
+      suffix == 2 & lfCB %in% c(1, 4, 5) ~ NA_real_,
+      suffix == 3 & lfCB %in% c(1, 3, 4, 5) ~ NA_real_,
+      suffix == 4 & lfCB %in% c(2, 3, 4) ~ NA_real_,
+      suffix == 5 & lfCB %in% c(2, 3, 4) ~ NA_real_,
+      suffix == 6 & lfCB %in% c(2, 3, 4) ~ NA_real_,
+      TRUE ~ .
+    )
+  }))
+
+```
+
+``` {r ttest_cb07}
+
+# Function to perform t-tests and format results
+perform_dk_ttests <- function(outcome_prefix, output_filename) {
+  outcome_variables <- paste0(outcome_prefix, 1:6)
+  comparison_groups <- list(c(1, 6), c(2, 6), c(3, 6), c(5, 6))
+
+  results_df <- tibble(
+    outcome = character(),
+    group1_t = character(),
+    group2_c = character(),
+    mean_treatment = numeric(),
+    mean_control = numeric(),
+    mean_difference = numeric(),
+    p_value = numeric()
+  )
+
+  for (outcome in outcome_variables) {
+    for (groups in comparison_groups) {
+      group1 <- groups[1]
+      group2 <- groups[2]
+
+      treatment_data <- pdata_cb07[[outcome]][pdata_cb07$lfCB == group1]
+      control_data <- pdata_cb07[[outcome]][pdata_cb07$lfCB == group2]
+
+      if (all(is.na(treatment_data)) || all(is.na(control_data))) {
+        results_df <- results_df %>%
+          add_row(
+            outcome = outcome,
+            group1_t = paste0("T", group1),
+            group2_c = paste0("C", group2),
+            mean_treatment = NA,
+            mean_control = NA,
+            mean_difference = NA,
+            p_value = NA
+          )
+      } else {
+        ttest_result <- t.test(treatment_data, control_data, var.equal = FALSE)
+        results_df <- results_df %>%
+          add_row(
+            outcome = outcome,
+            group1_t = paste0("T", group1),
+            group2_c = paste0("C", group2),
+            mean_treatment = ttest_result$estimate[1],
+            mean_control = ttest_result$estimate[2],
+            mean_difference = ttest_result$estimate[1] - ttest_result$estimate[2],
+            p_value = ttest_result$p.value
+          )
+      }
+    }
+  }
+
+  result_df_wide <- results_df %>%
+    mutate(
+      significance = case_when(
+        p_value < 0.001 ~ "***",
+        p_value < 0.01 ~ "**",
+        p_value < 0.05 ~ "*",
+        p_value >= 0.05 ~ "ns",
+        TRUE ~ NA_character_
+      )
+    ) %>%
+    pivot_wider(
+      id_cols = outcome,
+      names_from = group1_t,
+      values_from = c(mean_treatment, mean_control, mean_difference, p_value, significance),
+      names_glue = "{group1_t}_{.value}"
+    ) %>%
+    mutate(var = "CB07") %>%
+    rowwise() %>%
+    mutate(
+      mean_control = unique(na.omit(c(T1_mean_control, T2_mean_control, T3_mean_control, T5_mean_control)))
+    ) %>%
+    ungroup() %>%
+    select(var, outcome, mean_control, ends_with("_mean_treatment"),
+           ends_with("_mean_difference"), ends_with("_p_value"), ends_with("_significance"))
+
+  excel_filename <- file.path(temp, output_filename)
+  write_xlsx(result_df_wide, excel_filename)
+  cat(paste("Results saved to:", excel_filename, "\n"))
+}
+
+# Run the function for the 'support' outcomes
+perform_dk_ttests("agree", "CB07_unadjusted_meandiff_binary_agree.xlsx")
+
+# Run the function for the 'QDKr_cloned' outcomes
+perform_dk_ttests("CB07r_cloned", "CB07_unadjusted_meandiff_likert.xlsx")
+
+```
+
+
+### CB08 (EXCLUDED FROM PAPER, SKIP)
+``` {r prep_cb08}
+varnm <- "CB08"
+varprefix <- paste0(varnm, "r")
+cb08r_cols <- names(rdf_paper)[startsWith(names(rdf_paper), varprefix)]
+numvar <- length(cb08r_cols)
+
+pdata_cb08 <- rdf_paper %>%
+  select(lfCB, all_of(cb08r_cols))
+
+for (i in 1:numvar) {
+  current_var <- cb08r_cols[i]
+
+  # generate binary agree/disagree indicator
+  agree_var_name <- paste0("agree", i)
+  disagree_var_name <- paste0("disagree", i)
+
+  pdata_cb08 <- pdata_cb08 %>%
+    mutate(!!agree_var_name := ifelse(.[[current_var]] %in% 4:6, 1, 0)) %>%
+    mutate(!!disagree_var_name := ifelse(.[[current_var]] %in% 1:3, 1, 0))
+
+  # recode and clone
+  cloned_var_name <- paste0(varprefix, "_cloned", i)
+  pdata_cb08 <- pdata_cb08 %>%
+    mutate(!!cloned_var_name := .[[current_var]])
+}
+
+# 3. Matching outcome with treatment (dropping rows)
+pdata_cb08 <- pdata_cb08 %>%
+  filter(!lfCB %in% c(1, 2, 3, 5))
+
+```
+
+### CB11
+``` {r prep_cb11}
+varnm <- "CB11"
+varprefix <- paste0(varnm, "r")
+cb11r_cols <- names(rdf_paper)[startsWith(names(rdf_paper), varprefix)]
+numvar <- length(cb11r_cols)
+
+pdata_cb11 <- rdf_paper %>%
+  select(lfCB, all_of(cb11r_cols))
+
+for (i in 1:numvar) {
+  current_var <- cb11r_cols[i]
+
+  # generate binary top three indicator
+  bigrole_var_name <- paste0("bigrole", i)
+
+  pdata_cb11 <- pdata_cb11 %>%
+    mutate(!!bigrole_var_name := ifelse(.[[current_var]] %in% 4:5, 1, 0))
+
+  # recode and clone
+  cloned_var_name <- paste0(varprefix, "_cloned", i)
+  pdata_cb11 <- pdata_cb11 %>%
+    mutate(!!cloned_var_name := .[[current_var]])
+}
+
+pdata_cb11 <- pdata_cb11 %>%
+  filter(!lfCB %in% 2:4)
+
+
+```
+
+``` {r ttest_cb11}
+
+# Function to perform t-tests and format results
+perform_ttests <- function(outcome_prefix, output_filename) {
+  outcome_variables <- paste0(outcome_prefix, 1:4)
+  comparison_groups <- list(c(1, 6), c(2, 6), c(3, 6), c(5, 6))
+
+  results_df <- tibble(
+    outcome = character(),
+    group1_t = character(),
+    group2_c = character(),
+    mean_treatment = numeric(),
+    mean_control = numeric(),
+    mean_difference = numeric(),
+    p_value = numeric()
+  )
+
+  for (outcome in outcome_variables) {
+    for (groups in comparison_groups) {
+      group1 <- groups[1]
+      group2 <- groups[2]
+
+      treatment_data <- pdata_cb11[[outcome]][pdata_cb11$lfCB == group1]
+      control_data <- pdata_cb11[[outcome]][pdata_cb11$lfCB == group2]
+
+      if (all(is.na(treatment_data)) || all(is.na(control_data))) {
+        results_df <- results_df %>%
+          add_row(
+            outcome = outcome,
+            group1_t = paste0("T", group1),
+            group2_c = paste0("C", group2),
+            mean_treatment = NA,
+            mean_control = NA,
+            mean_difference = NA,
+            p_value = NA
+          )
+      } else {
+        ttest_result <- t.test(treatment_data, control_data, var.equal = FALSE)
+        results_df <- results_df %>%
+          add_row(
+            outcome = outcome,
+            group1_t = paste0("T", group1),
+            group2_c = paste0("C", group2),
+            mean_treatment = ttest_result$estimate[1],
+            mean_control = ttest_result$estimate[2],
+            mean_difference = ttest_result$estimate[1] - ttest_result$estimate[2],
+            p_value = ttest_result$p.value
+          )
+      }
+    }
+  }
+
+  result_df_wide <- results_df %>%
+    mutate(
+      significance = case_when(
+        p_value < 0.001 ~ "***",
+        p_value < 0.01 ~ "**",
+        p_value < 0.05 ~ "*",
+        p_value >= 0.05 ~ "ns",
+        TRUE ~ NA_character_
+      )
+    ) %>%
+    pivot_wider(
+      id_cols = outcome,
+      names_from = group1_t,
+      values_from = c(mean_treatment, mean_control, mean_difference, p_value, significance),
+      names_glue = "{group1_t}_{.value}"
+    ) %>%
+    mutate(var = "CB11") %>%
+    rowwise() %>%
+    mutate(
+      mean_control = unique(na.omit(c(T1_mean_control, T2_mean_control, T3_mean_control, T5_mean_control)))
+    ) %>%
+    ungroup() %>%
+    select(var, outcome, mean_control, ends_with("_mean_treatment"),
+           ends_with("_mean_difference"), ends_with("_p_value"), ends_with("_significance"))
+
+  excel_filename <- file.path(temp, output_filename)
+  write_xlsx(result_df_wide, excel_filename)
+  cat(paste("Results saved to:", excel_filename, "\n"))
+}
+
+# Run the function for the 'binary' outcomes
+perform_ttests("bigrole", "CB11_unadjusted_meandiff_binary_bigrole.xlsx")
+
+# Run the function for the 'likert' outcomes
+perform_ttests("CB11r_cloned", "CB11_unadjusted_meandiff_likert.xlsx")
+
+```
+
+
+### TD
+``` {r prep_td}
+
+varnm <- "TD"
+varprefix <- paste0(varnm, "0")
+td0_cols <- names(rdf_paper)[startsWith(names(rdf_paper), varprefix)]
+numvar <- length(td0_cols)
+
+pdata_td <- rdf_paper %>%
+  select(lfCB, all_of(td0_cols))
+
+for (i in 1:numvar) {
+  current_var <- td0_cols[i]
+
+  # high personal efficacy
+  higheff_var_name <- paste0("higheff", i)
+  if (i == 3) {
+    pdata_td <- pdata_td %>%
+      mutate(!!higheff_var_name := ifelse(.[[current_var]] %in% 6:8, 1, 0))
+  } else {
+    pdata_td <- pdata_td %>%
+      mutate(!!higheff_var_name := ifelse(.[[current_var]] %in% 4:5, 1, 0))
+  }
+
+  # recode and clone
+  cloned_var_name <- paste0(varprefix, "_cloned", i)
+  pdata_td <- pdata_td %>%
+    mutate(!!cloned_var_name := .[[current_var]])
+}
+
+pdata_td <- pdata_td %>%
+  filter(!lfCB %in% 2:4)
+
+```
+
+``` {r ttest_td}
+
+# Function to perform t-tests and format results
+perform_ttests <- function(outcome_prefix, output_filename) {
+  outcome_variables <- paste0(outcome_prefix, 1:5)
+  comparison_groups <- list(c(1, 6), c(2, 6), c(3, 6), c(5, 6))
+
+  results_df <- tibble(
+    outcome = character(),
+    group1_t = character(),
+    group2_c = character(),
+    mean_treatment = numeric(),
+    mean_control = numeric(),
+    mean_difference = numeric(),
+    p_value = numeric()
+  )
+
+  for (outcome in outcome_variables) {
+    for (groups in comparison_groups) {
+      group1 <- groups[1]
+      group2 <- groups[2]
+
+      treatment_data <- pdata_td[[outcome]][pdata_td$lfCB == group1]
+      control_data <- pdata_td[[outcome]][pdata_td$lfCB == group2]
+
+      if (all(is.na(treatment_data)) || all(is.na(control_data))) {
+        results_df <- results_df %>%
+          add_row(
+            outcome = outcome,
+            group1_t = paste0("T", group1),
+            group2_c = paste0("C", group2),
+            mean_treatment = NA,
+            mean_control = NA,
+            mean_difference = NA,
+            p_value = NA
+          )
+      } else {
+        ttest_result <- t.test(treatment_data, control_data, var.equal = FALSE)
+        results_df <- results_df %>%
+          add_row(
+            outcome = outcome,
+            group1_t = paste0("T", group1),
+            group2_c = paste0("C", group2),
+            mean_treatment = ttest_result$estimate[1],
+            mean_control = ttest_result$estimate[2],
+            mean_difference = ttest_result$estimate[1] - ttest_result$estimate[2],
+            p_value = ttest_result$p.value
+          )
+      }
+    }
+  }
+
+  result_df_wide <- results_df %>%
+    mutate(
+      significance = case_when(
+        p_value < 0.001 ~ "***",
+        p_value < 0.01 ~ "**",
+        p_value < 0.05 ~ "*",
+        p_value >= 0.05 ~ "ns",
+        TRUE ~ NA_character_
+      )
+    ) %>%
+    pivot_wider(
+      id_cols = outcome,
+      names_from = group1_t,
+      values_from = c(mean_treatment, mean_control, mean_difference, p_value, significance),
+      names_glue = "{group1_t}_{.value}"
+    ) %>%
+    mutate(var = "TD") %>%
+    rowwise() %>%
+    mutate(
+      mean_control = unique(na.omit(c(T1_mean_control, T2_mean_control, T3_mean_control, T5_mean_control)))
+    ) %>%
+    ungroup() %>%
+    select(var, outcome, mean_control, ends_with("_mean_treatment"),
+           ends_with("_mean_difference"), ends_with("_p_value"), ends_with("_significance"))
+
+  excel_filename <- file.path(temp, output_filename)
+  write_xlsx(result_df_wide, excel_filename)
+  cat(paste("Results saved to:", excel_filename, "\n"))
+}
+
+# Run the function for the 'binary' outcomes
+perform_ttests("higheff", "TD_unadjusted_meandiff_binary_higheff.xlsx")
+
+# Run the function for the 'likert' outcomes
+perform_ttests("TD0_cloned", "TD_unadjusted_meandiff_likert.xlsx")
+
+```
+
+
+\newpage
+``` {r archive_pr_supplemental}
 ## SUPPLEMENTAL MATERIALS (non-priority, upcoming)
 ## 3.1 Demographics on likelihood of agreeing 
 
