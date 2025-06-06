@@ -1261,12 +1261,14 @@ cbresdfl <- map_dfr(covbalreshc, tidy, .id = "cov") %>%
     p.adj < 0.05 ~ "**",
     p.adj < 0.10 ~ "*",
     TRUE            ~ ""
-  )) %>%
-  # 1b) build label = "estimate★ (std.error)"
-  mutate(label = paste0(
+  ),
+  # ← this is the only line we changed
+  label = paste0(
     sprintf("%.3f", estimate),
     stars,
-    " (", sprintf("%.3f", std.error), ")"
+    "\n(",
+    sprintf("%.3f", std.error),
+    ")"
   )) %>%
   # pivot each region into its own column of formatted labels
   select(cov, term, label) 
