@@ -5,7 +5,8 @@ graphics.off(); rm(list=ls());cat("\14");
 # Clear and load packages 
 # install.packages("pacman") # install the package if you haven't 
 pacman::p_unload(p_loaded(), character.only = TRUE)
-pacman::p_load(tidyverse,data.table,readxl,fastDummies,hdm,jmvReadWrite,miceadds,broom,ivreg,sandwich,lmtest)
+pacman::p_load(tidyverse,data.table,readxl,fastDummies,hdm,kableExtra,
+               jmvReadWrite,miceadds,broom,ivreg,sandwich,lmtest,flextable,officer)
 
 # Retrieve the current system username
 current_user <- Sys.info()[["user"]]
@@ -45,6 +46,31 @@ cb_palette <- c("p < .01" = "#E69F00",  # orange
                 "p < .05" = "#56B4E9",  # sky blue
                 "p < .1"  = "#009E73",  # bluish green
                 "Null"= "#999999")  # grey
+
+## Data preparation for conjoint and covariate balance
+# Set data date
+date <- "20250304"
+
+# Load data
+datnm <- paste0("processed_",date,".csv") 
+data <- file.path(temp,datnm) 
+maindata <- fread(data)
+
+# Define potential controls variables
+basechar <- c('region1', 
+              'region2',
+              'region3',
+              'urban',
+              'male',
+              'age',
+              'edu1',
+              'edu2',
+              'edu3',
+              'edu4',
+              'edu5',
+              'hhhead_female',
+              'nosocast',
+              'hhsize')
 
 ##### WESTFALL-YOUNG VISUALIZATIONS #####
 ##### Write reusable function #####
@@ -731,38 +757,14 @@ names(plot_configs) <- outcomes
 allplots_TOT <- lapply(plot_configs,process_plot_configs)
 
 ##### CONJOINT #####
-## Data preparation for conjoint
-# Set data date
-date <- "20250304"
-
-# Load data
-datnm <- paste0("processed_",date,".csv") 
-data <- file.path(temp,datnm) 
-anldf <- fread(data)
-
-# Define potential controls variables
-basechar <- c('region1', 
-              'region2',
-              'region3',
-              'urban',
-              'male',
-              'age',
-              'edu1',
-              'edu2',
-              'edu3',
-              'edu4',
-              'edu5',
-              'hhhead_female',
-              'nosocast',
-              'hhsize')
-
+# Setup cognitive controls
 basecogctrl <- c('read_stim_time', 'sdbi', 'agreestim', 'crt_intrpt_msg')
 
 basecovlist <- c(basechar, basecogctrl)
 
 ## Prepare chosen profile data 
 # Subset profile and pairing data
-profpairw <- anldf %>% dplyr::select(record,
+profpairw <- maindata %>% dplyr::select(record,
                                    starts_with("Profile"),
                                    starts_with("PairingID"))
 
@@ -841,7 +843,7 @@ cjdff <- cjdfm %>%
          participation = fct_relevel(participation, "2", "1")) %>% 
   dummy_cols(select_columns=c("econ","rights","env","participation"),
              remove_selected_columns=TRUE, remove_first_dummy=TRUE) %>% # Dummify data
-  left_join(dplyr::select(anldf,
+  left_join(dplyr::select(maindata,
                           record,
                           all_of(basecovlist),
                           ConjointOverall_Time,
@@ -1224,10 +1226,77 @@ model_labels <- c(
 fignm <- file.path(fig,paste0("conjoint_tot.png"))
 plotcjtot <- plotnsave(allmodres, filepath = fignm)
 
+##### COVARIATE BALANCE #####
+# Setup data
+cbdata <- maindata %>% 
+  filter(lfCB!=4) %>%
+  rename(treat5=treat4,treat4=treat5)
+
+# Setup formula
+treatments <- paste0("treat",1:4) %>% paste(collapse=" + ")
+formulas <- lapply(basechar, function(i) {
+  paste(i,"~",treatments)
+})
+names(formulas) <- basechar 
+
+# Run OLS
+covbalres <- lapply(formulas,lm,data=cbdata)
+covbalvcov <- lapply(covbalres,vcovHC,type="HC1")
+covbalreshc <- lapply(names(covbalres), function(i) {
+  coeftest(covbalres[[i]],vcov=covbalvcov[[i]])
+})
+names(covbalreshc) <- basechar
+covbalreshc <- covbalreshc[names(covbalreshc) != "edu1"] ## Remove edu1
+names(covbalreshc) <- c("West","Central","East","Urban","Male","Age",
+                        "Primary","JHS","SHS","Tertiary","HH head female",
+                        "No soc. asst.", "Household size")
+
+# Convert regression results into data frame
+cbresdfl <- map_dfr(covbalreshc, tidy, .id = "cov") %>% 
+  filter(term!="(Intercept)") %>%
+  mutate(p.adj=p.adjust(p.value,method="holm")) %>%
+  # create a significance star column
+  mutate(stars = case_when(
+    p.adj < 0.01 ~ "***",
+    p.adj < 0.05 ~ "**",
+    p.adj < 0.10 ~ "*",
+    TRUE            ~ ""
+  )) %>%
+  # 1b) build label = "estimate★ (std.error)"
+  mutate(label = paste0(
+    sprintf("%.3f", estimate),
+    stars,
+    " (", sprintf("%.3f", std.error), ")"
+  )) %>%
+  # pivot each region into its own column of formatted labels
+  select(cov, term, label) 
+
+# Create wide data
+cbresdfw <- pivot_wider(cbresdfl,names_from = cov, values_from = label) %>%
+  rename(Group=term) 
+cbresdfw$Group <- paste("Treatment",1:4)
+
+# build a flextable directly from your wide tibble
+ft <- regulartable(cbresdfw)
+
+# styling
+ft <- theme_booktabs(ft)
+ft <- autofit(ft)
+ft <- add_footer_lines(
+  ft,
+  values = "*** p < 0.01; ** p < 0.05; * p < 0.10"
+)
+
+# write to a Word file
+filenm <- file.path(tbl,"covbal.docx")
+doc <- read_docx()
+doc <- body_add_flextable(doc, value = ft)
+print(doc, target = filenm)
+
 ##### EXPORT DATA TO JAMOVI #####
 # Export analysis data to be imported to omv
 dtcsvnm <- paste0("processed_",date,".csv")
-datacsv <- file.path(temp,dtcsvnm) 
+datacsv <- file.path(temp,dtcsvnm)
 dtomvnm <- paste0("procs_",date,".omv")
 dataomv <- file.path(temp,dtomvnm)
 
