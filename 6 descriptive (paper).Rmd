@@ -4065,4 +4065,287 @@ for (i in 1:5) {
 #print(kable_outputs[5])
 ```
 
+\newpage
+## Appendix: Prepare ITT recap
+``` {r prep_outcome}
+# Load data
+outcomes <- c("DK","CB05","CB06","CB07","CB08","CB11","TD")
+modelvariants <- c("linear","ologit")
+samplevariants <- c("uncond","cond")
+datavariants <- expand.grid(outcomes,modelvariants,samplevariants) %>% 
+  rename(outcome=Var1,estimator=Var2,sample=Var3) %>%
+  mutate(datfilenm = paste0(temp,"/",outcome,"_wyoung_",estimator,"_allmodel_",sample,".csv"),
+         datnm = paste(outcome,estimator,sample))
+data_list <- lapply(datavariants$datfilenm, fread)
+names(data_list) <- datavariants$datnm
+``` 
 
+``` {r recap_dk}
+DK_labels_set <- c(
+  "1" = "Utilities price hike",
+  "2" = "Larger gov. budget for public transport",
+  "3" = "Larger gov. budget for env. friendly tech and renewable energies",
+  "4" = "Displaced people receives benefit from infra. utilization",
+  "5" = "Subsidy for energy-efficient houses and buildings",
+  "6" = "Larger soc. asst. amount",
+  "7" = "Larger soc. asst. recipient coverage",
+  "8" = "Higher vehicle tax",
+  "9" = "Industry subsidy to switch to env. friendly tech and energy",
+  "10" = "Employment insurance",
+  "11" = "Forest clearance for agriculture",
+  "12" = "Forest clearance for settlement development",
+  "13" = "Forest clearance for infrastructure"
+)
+
+
+# Prepare uncond data DK
+uncond_data <- data_list$`DK linear uncond`
+
+recap_uncond_dk <- uncond_data %>%
+  arrange(treat, outnum, equation) %>%  
+  select(outnum, treateq, coef, sig) %>%
+  mutate(coef_100 = as.character(round(coef*100,2))) %>%
+  mutate(coef_prop = paste0(coef_100,"%")) %>%
+  mutate(coef_prop = case_when(
+    sig == "Null" ~ "ns",
+    TRUE ~ coef_prop
+  )) %>%
+  select(outnum, treateq, coef_prop) %>%
+  pivot_wider(
+    names_from = treateq,
+    values_from = coef_prop,
+    names_sep = "_"
+  ) %>%
+  arrange(outnum) %>%
+  mutate(outcome_label = DK_labels_set[as.character(outnum)],
+         outcome_family = "Policy supoprt (DK)") %>%
+  select(outcome_family, outcome_label, starts_with("Treatment"))
+
+```
+
+``` {r recap_cb05}
+
+CB05_labels_set <- c(
+  "3" = "Increase income of all citizens",
+  "5" = "Improve human resources quality",
+  "6" = "Encourage citizens to make democratic decisions about their life",
+  "7" = "Build public infrastructure",
+  "8" = "Provide basic services",
+  "9" = "Advance lagging-behind regions",
+  "10" = "Enable citizens achieve important goals according to their own choice",
+  "11" = "Ensure fairness for all",
+  "12" = "Ensure next generations have a better life"
+)
+
+# Prepare uncond data CB05
+uncond_data <- data_list$`CB05 linear uncond`
+
+recap_uncond_cb05 <- uncond_data %>%
+  arrange(treat, outnum, equation) %>%  
+  select(outnum, treateq, coef, sig) %>%
+  mutate(coef_100 = as.character(round(coef*100,2))) %>%
+  mutate(coef_prop = paste0(coef_100,"%")) %>%
+  mutate(coef_prop = case_when(
+    sig == "Null" ~ "ns",
+    TRUE ~ coef_prop
+  )) %>%
+  select(outnum, treateq, coef_prop) %>%
+  pivot_wider(
+    names_from = treateq,
+    values_from = coef_prop,
+    names_sep = "_"
+  ) %>%
+  arrange(outnum) %>%
+  mutate(outcome_label = CB05_labels_set[as.character(outnum)],
+         outcome_family = "Development priority (CB05)") %>%
+  select(outcome_family, outcome_label, starts_with("Treatment"))
+
+```
+
+``` {r recap_cb06}
+
+CB06_labels_set <- c(
+  "1" = "Capital owners",
+  "2" = "Powerful people",
+  "3" = "Well-connected people",
+  "4" = "People with grit in working",
+  "5" = "People who's clever at exploiting opportunity",
+  "6" = "People who don't give up to conditions",
+  "7" = "Poor people",
+  "8" = "People living in lagging-behind regions"
+)
+
+# Prepare uncond data CB06
+uncond_data <- data_list$`CB06 linear uncond`
+
+recap_uncond_cb06 <- uncond_data %>%
+  arrange(treat, outnum, equation) %>%  
+  select(outnum, treateq, coef, sig) %>%
+  mutate(coef_100 = as.character(round(coef*100,2))) %>%
+  mutate(coef_prop = paste0(coef_100,"%")) %>%
+  mutate(coef_prop = case_when(
+    sig == "Null" ~ "ns",
+    TRUE ~ coef_prop
+  )) %>%
+  select(outnum, treateq, coef_prop) %>%
+  pivot_wider(
+    names_from = treateq,
+    values_from = coef_prop,
+    names_sep = "_"
+  ) %>%
+  arrange(outnum) %>%
+  mutate(outcome_label = CB06_labels_set[as.character(outnum)],
+         outcome_family = "Who should the government prioritize (CB06)") %>%
+  select(outcome_family, outcome_label, starts_with("Treatment"))
+
+```
+
+``` {r recap_cb07}
+CB07_labels_set <- c(
+  "1" = "We can reduce reliance on env. destructive econ. act. once society's econ. condition is good",
+  "2" = "Gov. can relocate locals to dev. infra. provided that replacement housing are available",
+  "3" = "Citizens must not accept gov. decisions without questions",
+  "4" = "Wealth inequality is normal",
+  "5" = "Gov.-made laws and reg. determine people's opportunity for success",
+  "6" = "Gov. decisions determine who rules in the economy"
+)
+
+# Prepare uncond data CB07
+uncond_data <- data_list$`CB07 linear uncond`
+
+recap_uncond_cb07 <- uncond_data %>%
+  arrange(treat, outnum, equation) %>%  
+  select(outnum, treateq, coef, sig) %>%
+  mutate(coef_100 = as.character(round(coef*100,2))) %>%
+  mutate(coef_prop = paste0(coef_100,"%")) %>%
+  mutate(coef_prop = case_when(
+    sig == "Null" ~ "ns",
+    TRUE ~ coef_prop
+  )) %>%
+  select(outnum, treateq, coef_prop) %>%
+  pivot_wider(
+    names_from = treateq,
+    values_from = coef_prop,
+    names_sep = "_"
+  ) %>%
+  arrange(outnum) %>%
+  mutate(outcome_label = CB07_labels_set[as.character(outnum)],
+         outcome_family = "Opinions about the economy (CB07)") %>%
+  select(outcome_family, outcome_label, starts_with("Treatment"))
+
+```
+
+``` {r recap_cb08}
+CB08_labels_set <- c(
+  "1" = "Rulers",
+  "2" = "Regulator",
+  "3" = "Leaders",
+  "4" = "Caretaker",
+  "5" = "Referee"
+)
+
+# Prepare uncond data CB08
+uncond_data <- data_list$`CB08 linear uncond`
+
+recap_uncond_cb08 <- uncond_data %>%
+  arrange(treat, outnum, equation) %>%  
+  select(outnum, treateq, coef, sig) %>%
+  mutate(coef_100 = as.character(round(coef*100,2))) %>%
+  mutate(coef_prop = paste0(coef_100,"%")) %>%
+  mutate(coef_prop = case_when(
+    sig == "Null" ~ "ns",
+    TRUE ~ coef_prop
+  )) %>%
+  select(outnum, treateq, coef_prop) %>%
+  pivot_wider(
+    names_from = treateq,
+    values_from = coef_prop,
+    names_sep = "_"
+  ) %>%
+  arrange(outnum) %>%
+  mutate(outcome_label = CB08_labels_set[as.character(outnum)],
+         outcome_family = "Role of government (CB08)") %>%
+  select(outcome_family, outcome_label, starts_with("Treatment"))
+
+```
+
+``` {r recap_cb11}
+CB11_labels_set <- c(
+  "1" = "Laws and regulations",
+  "2" = "Human nature",
+  "3" = "World events",
+  "4" = "Fate"
+)
+
+# Prepare uncond data CB11
+uncond_data <- data_list$`CB11 linear uncond`
+
+recap_uncond_cb11 <- uncond_data %>%
+  arrange(treat, outnum, equation) %>%  
+  select(outnum, treateq, coef, sig) %>%
+  mutate(coef_100 = as.character(round(coef*100,2))) %>%
+  mutate(coef_prop = paste0(coef_100,"%")) %>%
+  mutate(coef_prop = case_when(
+    sig == "Null" ~ "ns",
+    TRUE ~ coef_prop
+  )) %>%
+  select(outnum, treateq, coef_prop) %>%
+  pivot_wider(
+    names_from = treateq,
+    values_from = coef_prop,
+    names_sep = "_"
+  ) %>%
+  arrange(outnum) %>%
+  mutate(outcome_label = CB11_labels_set[as.character(outnum)],
+         outcome_family = "Factors influencing Indonesian economy (CB10)") %>%
+  select(outcome_family, outcome_label, starts_with("Treatment"))
+
+```
+
+``` {r recap_td}
+TD_labels_set <- c(
+  "1" = "How much can we do to create an economy that meets everyone's needs?",
+  "2" = "How much can we do to force the government to create an economy that meets everyone's needs?",
+  "3" = "How optimistic do you feel that the public can make the government take major steps to improve the economy?",
+  "4" = "How much responsibility do we have to ensure that everyone has the opportunity to succeed?",
+  "5" = "How much responsibility do we have to ensure that everyone can live a good life?"
+)
+
+# Prepare uncond data TD
+uncond_data <- data_list$`TD linear uncond`
+
+recap_uncond_td <- uncond_data %>%
+  arrange(treat, outnum, equation) %>%  
+  select(outnum, treateq, coef, sig) %>%
+  mutate(coef_100 = as.character(round(coef*100,2))) %>%
+  mutate(coef_prop = paste0(coef_100,"%")) %>%
+  mutate(coef_prop = case_when(
+    sig == "Null" ~ "ns",
+    TRUE ~ coef_prop
+  )) %>%
+  select(outnum, treateq, coef_prop) %>%
+  pivot_wider(
+    names_from = treateq,
+    values_from = coef_prop,
+    names_sep = "_"
+  ) %>%
+  arrange(outnum) %>%
+  mutate(outcome_label = TD_labels_set[as.character(outnum)],
+         outcome_family = "Personal efficacy (TD)") %>%
+  select(outcome_family, outcome_label, starts_with("Treatment"))
+
+
+```
+
+``` {r recap_all}
+
+recap_outcome <- bind_rows(recap_uncond_cb05,
+                           recap_uncond_cb06,
+                           recap_uncond_cb07,
+                           recap_uncond_cb11,
+                           recap_uncond_dk,
+                           recap_uncond_td)
+
+write_xlsx(recap_outcome, path = file.path(tbl, "wyoung_uncond_results_recap.xlsx"))
+
+```
