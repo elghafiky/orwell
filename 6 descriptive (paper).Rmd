@@ -281,7 +281,7 @@ plot_diff_readtime <- ggplot(sum_diff_readtime, aes(x = mean_diff,
        ) +
   geom_point(size = 4, color = "#abdaf4") +
   geom_errorbarh(aes(xmin = ci_lower, xmax = ci_upper), height = 0.25, color = "#808080") +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "#d0d0d0") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
   geom_hline(yintercept = 0, linetype = "dashed", color = "#d0d0d0") +
   labs(
     title = "Difference stimulus reading time from control group (in seconds)",
@@ -314,7 +314,7 @@ plot_diff_readtime_exc5 <- ggplot(sum_diff_readtime_exc5, aes(x = mean_diff,
        ) +
   geom_point(size = 4, color = "#abdaf4") +
   geom_errorbarh(aes(xmin = ci_lower, xmax = ci_upper), height = 0.25, color = "#808080") +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "#d0d0d0") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
   geom_hline(yintercept = 0, linetype = "dashed", color = "#d0d0d0") +
   labs(
     title = "Difference stimulus reading time from control group (in seconds)",
@@ -322,8 +322,16 @@ plot_diff_readtime_exc5 <- ggplot(sum_diff_readtime_exc5, aes(x = mean_diff,
     caption = paste0("Notes: control group mean of reading time is ", round(control_mean, 2), " seconds"),
     y = ""
   ) +
-  custom_theme() +
-  theme(plot.caption = element_text(hjust=0))
+  #custom_theme() +
+  theme_minimal() +
+  theme(plot.caption = element_text(hjust=0),
+        plot.caption.position = "plot",
+        plot.title.position = "plot",
+        #panel.grid.major = element_blank(),
+        #panel.grid.minor = element_blank(),
+        text = element_text(family = "arial"),
+        axis.text.y = element_text(size=11)
+      )
 
 print(plot_diff_readtime_exc5)
 
@@ -331,7 +339,8 @@ ggsave(filename = file.path(fig, "paper_meandiff_readtime_exc5.png"),
        plot = plot_diff_readtime_exc5,
        width = 8,
        height = 3,
-       dpi = 100)
+       bg = "white",
+       dpi = 200)
 
 
 ```
@@ -653,7 +662,7 @@ plot_meandiff_read_correct <- ggplot(sum_diff_corr_treat, aes(x = mean_diff,
                               y = d_correct)) +
   geom_point(size = 4, color = "#abdaf4") +
   geom_errorbarh(aes(xmin = ci_lower, xmax = ci_upper), height = 0.2, color = "#808080") +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "#d0d0d0") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
   geom_hline(yintercept = 0, linetype = "dashed", color = "#d0d0d0") +
   labs(
     title = "Difference stimulus reading time from incorrect group (in seconds)",
@@ -662,8 +671,16 @@ plot_meandiff_read_correct <- ggplot(sum_diff_corr_treat, aes(x = mean_diff,
     #\n", "All control observations are assumed to have correct interpretation"),
     y = ""
   ) +
-  custom_theme() +
-  theme(plot.caption = element_text(hjust=0))
+  #custom_theme() +
+  theme_minimal() +
+  theme(plot.caption = element_text(hjust=0),
+        plot.caption.position = "plot",
+        plot.title.position = "plot",
+        #panel.grid.major = element_blank(),
+        #panel.grid.minor = element_blank(),
+        text = element_text(family = "arial"),
+        axis.text.y = element_text(size=11)
+      )
 
 print(plot_meandiff_read_correct)
 
@@ -671,7 +688,8 @@ ggsave(filename = file.path(fig, "paper_meandiff_readtime_correct_exc5.png"),
        plot = plot_meandiff_read_correct,
        width = 8,
        height = 2,
-       dpi = 100)
+       bg = "white",
+       dpi = 200)
 
 ```
 
