@@ -4123,7 +4123,7 @@ recap_uncond_dk <- uncond_data %>%
   arrange(treat, outnum, equation) %>%  
   select(outnum, treateq, coef, sig) %>%
   mutate(coef_100 = as.character(round(coef*100,2))) %>%
-  mutate(coef_prop = paste0(coef_100,"%")) %>%
+  mutate(coef_prop = paste0(coef_100,"% (",sig,")")) %>%
   mutate(coef_prop = case_when(
     sig == "Null" ~ "ns",
     TRUE ~ coef_prop
@@ -4162,7 +4162,7 @@ recap_uncond_cb05 <- uncond_data %>%
   arrange(treat, outnum, equation) %>%  
   select(outnum, treateq, coef, sig) %>%
   mutate(coef_100 = as.character(round(coef*100,2))) %>%
-  mutate(coef_prop = paste0(coef_100,"%")) %>%
+  mutate(coef_prop = paste0(coef_100,"% (",sig,")")) %>%
   mutate(coef_prop = case_when(
     sig == "Null" ~ "ns",
     TRUE ~ coef_prop
@@ -4200,7 +4200,7 @@ recap_uncond_cb06 <- uncond_data %>%
   arrange(treat, outnum, equation) %>%  
   select(outnum, treateq, coef, sig) %>%
   mutate(coef_100 = as.character(round(coef*100,2))) %>%
-  mutate(coef_prop = paste0(coef_100,"%")) %>%
+  mutate(coef_prop = paste0(coef_100,"% (",sig,")")) %>%
   mutate(coef_prop = case_when(
     sig == "Null" ~ "ns",
     TRUE ~ coef_prop
@@ -4235,7 +4235,7 @@ recap_uncond_cb07 <- uncond_data %>%
   arrange(treat, outnum, equation) %>%  
   select(outnum, treateq, coef, sig) %>%
   mutate(coef_100 = as.character(round(coef*100,2))) %>%
-  mutate(coef_prop = paste0(coef_100,"%")) %>%
+  mutate(coef_prop = paste0(coef_100,"% (",sig,")")) %>%
   mutate(coef_prop = case_when(
     sig == "Null" ~ "ns",
     TRUE ~ coef_prop
@@ -4269,7 +4269,7 @@ recap_uncond_cb08 <- uncond_data %>%
   arrange(treat, outnum, equation) %>%  
   select(outnum, treateq, coef, sig) %>%
   mutate(coef_100 = as.character(round(coef*100,2))) %>%
-  mutate(coef_prop = paste0(coef_100,"%")) %>%
+  mutate(coef_prop = paste0(coef_100,"% (",sig,")")) %>%
   mutate(coef_prop = case_when(
     sig == "Null" ~ "ns",
     TRUE ~ coef_prop
@@ -4302,7 +4302,7 @@ recap_uncond_cb11 <- uncond_data %>%
   arrange(treat, outnum, equation) %>%  
   select(outnum, treateq, coef, sig) %>%
   mutate(coef_100 = as.character(round(coef*100,2))) %>%
-  mutate(coef_prop = paste0(coef_100,"%")) %>%
+  mutate(coef_prop = paste0(coef_100,"% (",sig,")")) %>%
   mutate(coef_prop = case_when(
     sig == "Null" ~ "ns",
     TRUE ~ coef_prop
@@ -4336,7 +4336,7 @@ recap_uncond_td <- uncond_data %>%
   arrange(treat, outnum, equation) %>%  
   select(outnum, treateq, coef, sig) %>%
   mutate(coef_100 = as.character(round(coef*100,2))) %>%
-  mutate(coef_prop = paste0(coef_100,"%")) %>%
+  mutate(coef_prop = paste0(coef_100,"% (",sig,")")) %>%
   mutate(coef_prop = case_when(
     sig == "Null" ~ "ns",
     TRUE ~ coef_prop
@@ -4364,6 +4364,6 @@ recap_outcome <- bind_rows(recap_uncond_cb05,
                            recap_uncond_dk,
                            recap_uncond_td)
 
-write_xlsx(recap_outcome, path = file.path(tbl, "wyoung_uncond_results_recap.xlsx"))
+write_xlsx(recap_outcome, path = file.path(tbl, "wyoung_uncond_results_recap_withsig.xlsx"))
 
 ```
