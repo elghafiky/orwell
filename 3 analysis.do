@@ -2718,5 +2718,12 @@ forval i = 1/4 {
 	replace probtreat`i'=1 if probtreat`i'>1 & probtreat`i'<. // bounding treatment probability
 }
 
+* reshape back to long
+reshape long coef prob, i(model outcome) j(treatment) string
+
 * save
 save "$temp\alloutcomes_nlift_allmodel.dta", replace
+export excel "$temp\alloutcomes_nlift_allmodel.xlsx", replace first(var)
+
+
+
