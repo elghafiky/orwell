@@ -5,7 +5,7 @@ graphics.off(); rm(list=ls());cat("\14");
 # Clear and load packages 
 # install.packages("pacman") # install the package if you haven't 
 pacman::p_unload(p_loaded(), character.only = TRUE)
-pacman::p_load(tidyverse,data.table,readxl,fastDummies,hdm,kableExtra,
+pacman::p_load(tidyverse,data.table,writexl,fastDummies,hdm,kableExtra,
                jmvReadWrite,miceadds,broom,ivreg,sandwich,lmtest,flextable,officer)
 
 # Retrieve the current system username
@@ -1061,6 +1061,43 @@ model_labels <- c(
 # Plot
 fignm <- file.path(fig,"conjoint_itt.png")
 plotcjitt <- plotnsave(allmodres$unconditional, filepath = fignm)
+
+# Export results
+filenm <- file.path(temp,"conjoint_itt_acmes.xlsx")
+write_xlsx(allmodres$unconditional, path = filenm)
+
+##### Calculate attribute relative importance #####
+# Calculation
+relimp <- allmodres$unconditional %>%
+  filter(!grepl("treat",term)) %>%
+  
+  # 1. identify attribute from term name
+  mutate(attribute = case_when(
+    str_detect(term, "^econ_")         ~ "econ",
+    str_detect(term, "^rights_")       ~ "rights",
+    str_detect(term, "^env_")          ~ "env",
+    str_detect(term, "^participation_") ~ "participation",
+    TRUE                               ~ NA_character_
+  )) %>%
+  filter(!is.na(attribute)) %>%
+  
+  # 2. compute range per attribute per model (include 0 for the base level)
+  group_by(model, attribute) %>%
+  summarise(
+    range = max(estimate, 0) - min(estimate, 0),
+    .groups = "drop"
+  ) %>%
+  
+  # 3. convert to relative importance
+  group_by(model) %>%
+  mutate(
+    rel_imp = 100 * range / sum(range)
+  ) %>%
+  ungroup()
+
+# Export results
+filenm <- file.path(temp,"conjoint_itt_relimp.xlsx")
+write_xlsx(relimp, path = filenm)
 
 ##### TOT #####
 # Write reusable function to estimate IV with cluster SE
