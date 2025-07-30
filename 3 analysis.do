@@ -2721,6 +2721,11 @@ forval i = 1/4 {
 * reshape back to long
 reshape long coef prob, i(model outcome) j(treatment) string
 
+* final tidying up
+replace prob=coef if treatment=="_cons"
+replace coef=. if treatment=="_cons"
+drop if coef==. & prob==.
+
 * save
 save "$temp\alloutcomes_nlift_allmodel.dta", replace
 export excel "$temp\alloutcomes_nlift_allmodel.xlsx", replace first(var)
