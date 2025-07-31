@@ -57,10 +57,10 @@ pro setupdataDK
 	* matching outcome with treatment
 	foreach x in `varprefix'_recoded `varprefix'_cloned support resist undecided {
 		replace `x'1=. if inrange(lfCB,3,4)
-		replace `x'2=. if inlist(lfCB,1,4,5)
+		replace `x'2=. if inlist(lfCB,2,4)
 		replace `x'3=. if inlist(lfCB,1,4,5)
 		replace `x'4=. if inlist(lfCB,5)
-		replace `x'5=. if inrange(lfCB,4,5)
+		replace `x'5=. if inlist(lfCB,2,4,5)
 		replace `x'6=. if inrange(lfCB,2,4)
 		replace `x'7=. if inrange(lfCB,2,4)
 		replace `x'8=. if inrange(lfCB,3,5)
@@ -79,16 +79,18 @@ pro setupdataDK
 		gl `x'comb3 `x'1 `x'2 `x'3 
 		gl `x'comb4 `x'1 `x'5 
 		gl `x'comb5 `x'1 `x'2  
+		gl `x'comb6 `x'1 `x'3 `x'5  
+		gl `x'comb7 `x'1 `x'3 
 	}
 
 	gl linoutcome support
 	gl proboutcome `varprefix'_cloned
 	foreach x in lin prob {
 		gl `x'eq1 ${`x'outcome}1 $treatcomb1
-		gl `x'eq2 ${`x'outcome}2 $treatcomb2
+		gl `x'eq2 ${`x'outcome}2 $treatcomb6
 		gl `x'eq3 ${`x'outcome}3 $treatcomb2
 		gl `x'eq4 ${`x'outcome}4 $treatcomb3
-		gl `x'eq5 ${`x'outcome}5 $treatcomb3
+		gl `x'eq5 ${`x'outcome}5 $treatcomb7
 		gl `x'eq6 ${`x'outcome}6 $treatcomb4
 		gl `x'eq7 ${`x'outcome}7 $treatcomb4
 		gl `x'eq8 ${`x'outcome}8 $treatcomb5
@@ -389,12 +391,12 @@ foreach sampresc in uncond {
 	"reg $lineq1 ${`sampresc'}, $seest" ///
 	"reg $lineq2 ${`sampresc'}, $seest" ///
 	"reg $lineq2 ${`sampresc'}, $seest" ///
+	"reg $lineq2 ${`sampresc'}, $seest" ///
 	"reg $lineq3 ${`sampresc'}, $seest" ///
 	"reg $lineq3 ${`sampresc'}, $seest" ///
 	"reg $lineq4 ${`sampresc'}, $seest" ///
 	"reg $lineq4 ${`sampresc'}, $seest" ///
 	"reg $lineq4 ${`sampresc'}, $seest" ///
-	"reg $lineq5 ${`sampresc'}, $seest" ///
 	"reg $lineq5 ${`sampresc'}, $seest" ///
 	"reg $lineq5 ${`sampresc'}, $seest" ///
 	"reg $lineq6 ${`sampresc'}, $seest" ///
@@ -414,10 +416,10 @@ foreach sampresc in uncond {
 	"reg $lineq13 ${`sampresc'}, $seest" ///
 	"reg $lineq13 ${`sampresc'}, $seest") ///
 	familyp($treatcomb1 /// pol1
-	$treatcomb2 /// pol2 
+	$treatcomb6 /// pol2 
 	$treatcomb2 /// pol3
 	$treatcomb3 /// pol4
-	$treatcomb3 /// pol5
+	$treatcomb7 /// pol5
 	$treatcomb4 /// pol6
 	$treatcomb4 /// pol7
 	$treatcomb5 /// pol8
@@ -450,12 +452,12 @@ foreach sampresc in uncond {
 		"reg $lineq1 ${covarset`j'_select1} ${`sampresc'}, $seest" ///
 		"reg $lineq2 ${covarset`j'_select2} ${`sampresc'}, $seest" ///
 		"reg $lineq2 ${covarset`j'_select2} ${`sampresc'}, $seest" ///
+		"reg $lineq2 ${covarset`j'_select2} ${`sampresc'}, $seest" ///
 		"reg $lineq3 ${covarset`j'_select3} ${`sampresc'}, $seest" ///
 		"reg $lineq3 ${covarset`j'_select3} ${`sampresc'}, $seest" ///
 		"reg $lineq4 ${covarset`j'_select4} ${`sampresc'}, $seest" ///
 		"reg $lineq4 ${covarset`j'_select4} ${`sampresc'}, $seest" ///
 		"reg $lineq4 ${covarset`j'_select4} ${`sampresc'}, $seest" ///
-		"reg $lineq5 ${covarset`j'_select5} ${`sampresc'}, $seest" ///
 		"reg $lineq5 ${covarset`j'_select5} ${`sampresc'}, $seest" ///
 		"reg $lineq5 ${covarset`j'_select5} ${`sampresc'}, $seest" ///
 		"reg $lineq6 ${covarset`j'_select6} ${`sampresc'}, $seest" ///
@@ -475,10 +477,10 @@ foreach sampresc in uncond {
 		"reg $lineq13 ${covarset`j'_select13} ${`sampresc'}, $seest" ///
 		"reg $lineq13 ${covarset`j'_select13} ${`sampresc'}, $seest") ///
 		familyp($treatcomb1 /// pol1
-		$treatcomb2 /// pol2 
+		$treatcomb6 /// pol2 
 		$treatcomb2 /// pol3
 		$treatcomb3 /// pol4
-		$treatcomb3 /// pol5
+		$treatcomb7 /// pol5
 		$treatcomb4 /// pol6
 		$treatcomb4 /// pol7
 		$treatcomb5 /// pol8
@@ -537,12 +539,12 @@ foreach sampresc in uncond {
 		"`x' $probeq1 ${`sampresc'}, `regress_options'" ///
 		"`x' $probeq2 ${`sampresc'}, `regress_options'" ///
 		"`x' $probeq2 ${`sampresc'}, `regress_options'" ///
+		"`x' $probeq2 ${`sampresc'}, `regress_options'" ///
 		"`x' $probeq3 ${`sampresc'}, `regress_options'" ///
 		"`x' $probeq3 ${`sampresc'}, `regress_options'" ///
 		"`x' $probeq4 ${`sampresc'}, `regress_options'" ///
 		"`x' $probeq4 ${`sampresc'}, `regress_options'" ///
 		"`x' $probeq4 ${`sampresc'}, `regress_options'" ///
-		"`x' $probeq5 ${`sampresc'}, `regress_options'" ///
 		"`x' $probeq5 ${`sampresc'}, `regress_options'" ///
 		"`x' $probeq5 ${`sampresc'}, `regress_options'" ///
 		"`x' $probeq6 ${`sampresc'}, `regress_options'" ///
@@ -562,10 +564,10 @@ foreach sampresc in uncond {
 		"`x' $probeq13 ${`sampresc'}, `regress_options'" ///
 		"`x' $probeq13 ${`sampresc'}, `regress_options'") ///
 		familyp($treatcomb1 /// pol1
-		$treatcomb2 /// pol2 
+		$treatcomb6 /// pol2 
 		$treatcomb2 /// pol3
 		$treatcomb3 /// pol4
-		$treatcomb3 /// pol5
+		$treatcomb7 /// pol5
 		$treatcomb4 /// pol6
 		$treatcomb4 /// pol7
 		$treatcomb5 /// pol8
@@ -598,12 +600,12 @@ foreach sampresc in uncond {
 			"`x' $probeq1 ${covarset`j'_select1} ${`sampresc'}, `regress_options'" ///
 			"`x' $probeq2 ${covarset`j'_select2} ${`sampresc'}, `regress_options'" ///
 			"`x' $probeq2 ${covarset`j'_select2} ${`sampresc'}, `regress_options'" ///
+			"`x' $probeq2 ${covarset`j'_select2} ${`sampresc'}, `regress_options'" ///
 			"`x' $probeq3 ${covarset`j'_select3} ${`sampresc'}, `regress_options'" ///
 			"`x' $probeq3 ${covarset`j'_select3} ${`sampresc'}, `regress_options'" ///
 			"`x' $probeq4 ${covarset`j'_select4} ${`sampresc'}, `regress_options'" ///
 			"`x' $probeq4 ${covarset`j'_select4} ${`sampresc'}, `regress_options'" ///
 			"`x' $probeq4 ${covarset`j'_select4} ${`sampresc'}, `regress_options'" ///
-			"`x' $probeq5 ${covarset`j'_select5} ${`sampresc'}, `regress_options'" ///
 			"`x' $probeq5 ${covarset`j'_select5} ${`sampresc'}, `regress_options'" ///
 			"`x' $probeq5 ${covarset`j'_select5} ${`sampresc'}, `regress_options'" ///
 			"`x' $probeq6 ${covarset`j'_select6} ${`sampresc'}, `regress_options'" ///
@@ -623,10 +625,10 @@ foreach sampresc in uncond {
 			"`x' $probeq13 ${covarset`j'_select13} ${`sampresc'}, `regress_options'" ///
 			"`x' $probeq13 ${covarset`j'_select13} ${`sampresc'}, `regress_options'") ///
 			familyp($treatcomb1 /// pol1
-			$treatcomb2 /// pol2 
+			$treatcomb6 /// pol2 
 			$treatcomb2 /// pol3
 			$treatcomb3 /// pol4
-			$treatcomb3 /// pol5
+			$treatcomb7 /// pol5
 			$treatcomb4 /// pol6
 			$treatcomb4 /// pol7
 			$treatcomb5 /// pol8
@@ -1752,15 +1754,15 @@ forval i = 1/$numvar {
 wyoung, cmd("ivreg2 support1 (complytreat1=treat1) if inlist(lfCB,1,6), ro first" ///
 "ivreg2 support1 (complytreat2=treat2) if inlist(lfCB,2,6), ro first" ///
 "ivreg2 support1 (complytreat5=treat5) if inlist(lfCB,5,6), ro first" ///
-"ivreg2 support2 (complytreat2=treat2) if inlist(lfCB,2,6), ro first" ///
+"ivreg2 support2 (complytreat1=treat1) if inlist(lfCB,1,6), ro first" ///
 "ivreg2 support2 (complytreat3=treat3) if inlist(lfCB,3,6), ro first" ///
+"ivreg2 support2 (complytreat5=treat5) if inlist(lfCB,5,6), ro first" ///
 "ivreg2 support3 (complytreat2=treat2) if inlist(lfCB,2,6), ro first" ///
 "ivreg2 support3 (complytreat3=treat3) if inlist(lfCB,3,6), ro first" ///
 "ivreg2 support4 (complytreat1=treat1) if inlist(lfCB,1,6), ro first" ///
 "ivreg2 support4 (complytreat2=treat2) if inlist(lfCB,2,6), ro first" ///
 "ivreg2 support4 (complytreat3=treat3) if inlist(lfCB,3,6), ro first" ///
 "ivreg2 support5 (complytreat1=treat1) if inlist(lfCB,1,6), ro first" ///
-"ivreg2 support5 (complytreat2=treat2) if inlist(lfCB,2,6), ro first" ///
 "ivreg2 support5 (complytreat3=treat3) if inlist(lfCB,3,6), ro first" ///
 "ivreg2 support6 (complytreat1=treat1) if inlist(lfCB,1,6), ro first" ///
 "ivreg2 support6 (complytreat5=treat5) if inlist(lfCB,5,6), ro first" ///
@@ -1779,10 +1781,10 @@ wyoung, cmd("ivreg2 support1 (complytreat1=treat1) if inlist(lfCB,1,6), ro first
 "ivreg2 support13 (complytreat2=treat2) if inlist(lfCB,2,6), ro first" ///
 "ivreg2 support13 (complytreat3=treat3) if inlist(lfCB,3,6), ro first") ///
 familyp($complytreatcomb1 /// pol1
-$complytreatcomb2 /// pol2 
+$complytreatcomb6 /// pol2 
 $complytreatcomb2 /// pol3
 $complytreatcomb3 /// pol4
-$complytreatcomb3 /// pol5
+$complytreatcomb7 /// pol5
 $complytreatcomb4 /// pol6
 $complytreatcomb4 /// pol7
 $complytreatcomb5 /// pol8
@@ -1815,15 +1817,15 @@ forval j = 1/2 {
 	wyoung, cmd("ivreg2 support1 ${covarset`j'_select1} (complytreat1=treat1) if inlist(lfCB,1,6), ro first" ///
 	"ivreg2 support1 ${covarset`j'_select1} (complytreat2=treat2) if inlist(lfCB,2,6), ro first" ///
 	"ivreg2 support1 ${covarset`j'_select1} (complytreat5=treat5) if inlist(lfCB,5,6), ro first" ///
-	"ivreg2 support2 ${covarset`j'_select2} (complytreat2=treat2) if inlist(lfCB,2,6), ro first" ///
+	"ivreg2 support2 ${covarset`j'_select2} (complytreat1=treat1) if inlist(lfCB,1,6), ro first" ///
 	"ivreg2 support2 ${covarset`j'_select2} (complytreat3=treat3) if inlist(lfCB,3,6), ro first" ///
+	"ivreg2 support2 ${covarset`j'_select2} (complytreat5=treat5) if inlist(lfCB,5,6), ro first" ///
 	"ivreg2 support3 ${covarset`j'_select3} (complytreat2=treat2) if inlist(lfCB,2,6), ro first" ///
 	"ivreg2 support3 ${covarset`j'_select3} (complytreat3=treat3) if inlist(lfCB,3,6), ro first" ///
 	"ivreg2 support4 ${covarset`j'_select4} (complytreat1=treat1) if inlist(lfCB,1,6), ro first" ///
 	"ivreg2 support4 ${covarset`j'_select4} (complytreat2=treat2) if inlist(lfCB,2,6), ro first" ///
 	"ivreg2 support4 ${covarset`j'_select4} (complytreat3=treat3) if inlist(lfCB,3,6), ro first" ///
 	"ivreg2 support5 ${covarset`j'_select5} (complytreat1=treat1) if inlist(lfCB,1,6), ro first" ///
-	"ivreg2 support5 ${covarset`j'_select5} (complytreat2=treat2) if inlist(lfCB,2,6), ro first" ///
 	"ivreg2 support5 ${covarset`j'_select5} (complytreat3=treat3) if inlist(lfCB,3,6), ro first" ///
 	"ivreg2 support6 ${covarset`j'_select6} (complytreat1=treat1) if inlist(lfCB,1,6), ro first" ///
 	"ivreg2 support6 ${covarset`j'_select6} (complytreat5=treat5) if inlist(lfCB,5,6), ro first" ///
@@ -1842,10 +1844,10 @@ forval j = 1/2 {
 	"ivreg2 support13 ${covarset`j'_select13} (complytreat2=treat2) if inlist(lfCB,2,6), ro first" ///
 	"ivreg2 support13 ${covarset`j'_select13} (complytreat3=treat3) if inlist(lfCB,3,6), ro first") ///
 	familyp($complytreatcomb1 /// pol1
-	$complytreatcomb2 /// pol2 
+	$complytreatcomb6 /// pol2 
 	$complytreatcomb2 /// pol3
 	$complytreatcomb3 /// pol4
-	$complytreatcomb3 /// pol5
+	$complytreatcomb7 /// pol5
 	$complytreatcomb4 /// pol6
 	$complytreatcomb4 /// pol7
 	$complytreatcomb5 /// pol8
@@ -2686,9 +2688,68 @@ forval j = 1/2 {
 	save "$temp\CB07_nlift_model`modnum'.dta", replace 
 }
 
+* ==== CB08: GOVERNMENT ROLE ==== *
+** model 1
+* open data
+setupdataCB08
+est clear
+
+* regressions
+forval i=1/$numvar {
+	preserve
+	reg ${lineq`i'}, $seest
+	regsave
+	g outcome="CB08`i'"
+	tempfile reg`i'
+	save `reg`i'', replace 
+	restore
+} 
+
+* append results
+use `reg1', clear 
+forval i=2/$numvar {
+	append using `reg`i''
+}
+g model=1
+save "$temp\CB08_nlift_model1.dta", replace 
+
+** model 2 & 3
+forval j = 1/2 {
+	* open data
+	est clear
+	setupdataCB08
+	
+	* regressions
+	forval i = 1/$numvar {
+		* pds lasso
+		qui dsregress $linoutcome`i' ib6.lfCB, ${covarset`j'}
+		gl covarset`j'_select`i' `e(controls_sel)'
+		
+		* ols
+		preserve
+		reg ${lineq`i'} ${covarset`j'_select1}, $seest
+		regsave
+		g outcome="CB08`i'"
+		tempfile reg`i'
+		save `reg`i'', replace 
+		restore
+	}
+	
+	* append results
+	use `reg1', clear 
+	forval i=2/$numvar {
+		append using `reg`i''
+	}
+	loc modnum=`j'+1
+	g model=`modnum'
+	keep if regexm(var,"treat") | regexm(var,"cons") 
+	save "$temp\CB08_nlift_model`modnum'.dta", replace 
+}
+
 * ==== APPEND ALL OUTCOMES AND MODELS ==== *
 * initial data prep
-foreach outfam in CB05 CB07 DK {
+loc outfamlist CB05 CB07 CB08 DK
+foreach outfam in `outfamlist' {
 	forval model = 1/3 {
 		if "`outfam'"=="CB05" & `model'==1 {
 			use "$temp\\`outfam'_nlift_model`model'.dta", clear
@@ -2699,10 +2760,11 @@ foreach outfam in CB05 CB07 DK {
 	}
 }
 g outfam=""
-foreach outcome in CB05 CB07 DK {
+foreach outcome in `outfamlist' {
 	replace outfam="`outcome'" if regexm(outcome,"`outcome'")
 }
 replace var="treat4" if var=="treat5"
+replace var="treat5" if outfam=="CB08" & var!="_cons"
 
 * reshape to wide
 keep coef outcome model var
@@ -2713,7 +2775,7 @@ foreach x of varlist coef* {
 	replace `x'=1 if `x'>1 & `x'<. // bounding baseline probability
 } 
 
-forval i = 1/4 {
+forval i = 1/5 {
 	g probtreat`i'=coef_cons+coeftreat`i'
 	replace probtreat`i'=1 if probtreat`i'>1 & probtreat`i'<. // bounding treatment probability
 }

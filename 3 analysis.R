@@ -5,7 +5,7 @@ graphics.off(); rm(list=ls());cat("\14");
 # Clear and load packages 
 # install.packages("pacman") # install the package if you haven't 
 pacman::p_unload(p_loaded(), character.only = TRUE)
-pacman::p_load(tidyverse,data.table,writexl,fastDummies,hdm,kableExtra,
+pacman::p_load(tidyverse,data.table,readxl,writexl,fastDummies,hdm,kableExtra,
                jmvReadWrite,miceadds,broom,ivreg,sandwich,lmtest,flextable,officer)
 
 # Retrieve the current system username
@@ -891,8 +891,7 @@ plotprep <- function(model) {
     unclass() %>% 
     data.frame() %>% 
     rownames_to_column(var = "term") %>%
-    filter(!term %in% c("(Intercept)",
-                        paste0("treat", 1:5),
+    filter(!term %in% c(paste0("treat", 1:5),
                         paste0("complytreat", 1:5),
                         basechar,
                         basecogctrl,
@@ -1051,6 +1050,14 @@ allmodres <- list("unconditional"=bind_rows(mutate(modsres$unconditional,model=1
                                           mutate(modsres$`model 2 conditional`,model=2),
                                           mutate(modsres$`model 3 conditional`,model=3)))
 
+# Export results
+filenm <- file.path(temp,"conjoint_itt_acmes.xlsx")
+write_xlsx(allmodres$unconditional, path = filenm)
+
+# Remove intercept from the final data to be plotted
+allmodres$unconditional <- allmodres$unconditional %>%
+  filter(term!="(Intercept)")
+
 # Define a named vector for the new facet labels
 model_labels <- c(
   "1" = "Model 1: OLS",
@@ -1061,10 +1068,6 @@ model_labels <- c(
 # Plot
 fignm <- file.path(fig,"conjoint_itt.png")
 plotcjitt <- plotnsave(allmodres$unconditional, filepath = fignm)
-
-# Export results
-filenm <- file.path(temp,"conjoint_itt_acmes.xlsx")
-write_xlsx(allmodres$unconditional, path = filenm)
 
 ##### Calculate attribute relative importance #####
 # Calculation
