@@ -827,7 +827,8 @@ p_cb04_nar1 <- ggplot(sum_cb04_nar1, aes(x = fct_relevel(sentence, rev(levels(se
   geom_bar(stat = "identity", width = 0.7) +
   scale_fill_manual(values = rev(diverging_colors), name = "",
                      labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
-                                    "Strongly Agree", "Agree", "Slightly Agree")) +
+                                    "Strongly Agree", "Agree", "Slightly Agree")
+                    ) +
   coord_flip() +
   geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
             size = 3,
@@ -844,22 +845,28 @@ p_cb04_nar1 <- ggplot(sum_cb04_nar1, aes(x = fct_relevel(sentence, rev(levels(se
   theme_minimal() +
   custom_theme() +
   theme(
-    legend.position = "bottom",
-    #legend.nrow = 1,
+    plot.title.position = "plot", 
+    legend.position = "top",
+    legend.box = "horizontal", 
+    legend.spacing.x = unit(0.2, "cm"), # Adjust horizontal spacing between legend items (smaller)
+    legend.key.width = unit(0.5, "cm"), # Make legend keys smaller
+    legend.key.height = unit(0.5, "cm"), # Make legend keys smaller
+    legend.text = element_text(size = 9), # Make legend text smaller
     axis.text.y = element_text(hjust = 0), # Align statement labels to the left
-    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
   ) +
   guides(
     fill = guide_legend(
-      ncol = 2,
-      #order = 1,  # Controls the order of the legend
-      breaks = c("Strongly Disagree",  "Slightly Agree", 
-                 "Disagree", "Agree",
-                 "Slightly Disagree", "Strongly Agree"),
-      title = "",  # Title for the legend
-      #title.position = "top",  # Position of the title
-      title.hjust = 0.5  # Center the title
-    ))
+      nrow = 2, # Set to 2 rows
+      byrow = TRUE, # Fill by row first
+      title = "",
+      override.aes = list(alpha = 1), # Ensure legend keys are fully opaque
+      order = 1, # Keep this to ensure legend is the first guide
+      breaks = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                  "Slightly Agree", "Agree", "Strongly Agree")
+    )
+  )
 
 print(p_cb04_nar1)
 
@@ -928,22 +935,28 @@ p_cb04_sub_nar1 <- ggplot(sum_cb04_nar1_sub, aes(x = fct_relevel(sentence, rev(l
   theme_minimal() +
   custom_theme() +
   theme(
-    legend.position = "bottom",
-    #legend.nrow = 1,
+    plot.title.position = "plot", 
+    legend.position = "top",
+    legend.box = "horizontal", 
+    legend.spacing.x = unit(0.2, "cm"), # Adjust horizontal spacing between legend items (smaller)
+    legend.key.width = unit(0.5, "cm"), # Make legend keys smaller
+    legend.key.height = unit(0.5, "cm"), # Make legend keys smaller
+    legend.text = element_text(size = 9), # Make legend text smaller
     axis.text.y = element_text(hjust = 0), # Align statement labels to the left
-    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
   ) +
   guides(
     fill = guide_legend(
-      ncol = 2,
-      #order = 1,  # Controls the order of the legend
-      breaks = c("Strongly Disagree",  "Slightly Agree", 
-                 "Disagree", "Agree",
-                 "Slightly Disagree", "Strongly Agree"),
-      title = "",  # Title for the legend
-      #title.position = "top",  # Position of the title
-      title.hjust = 0.5  # Center the title
-    ))
+      nrow = 2, # Set to 2 rows
+      byrow = TRUE, # Fill by row first
+      title = "",
+      override.aes = list(alpha = 1), # Ensure legend keys are fully opaque
+      order = 1, # Keep this to ensure legend is the first guide
+      breaks = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                  "Slightly Agree", "Agree", "Strongly Agree")
+    )
+  )
 
 print(p_cb04_sub_nar1)
 
@@ -1101,22 +1114,28 @@ p_cb04_nar2 <- ggplot(sum_cb04_nar2, aes(x = fct_relevel(sentence, rev(levels(se
   theme_minimal() +
   custom_theme() +
   theme(
-    legend.position = "bottom",
-    #legend.nrow = 1,
+    plot.title.position = "plot", 
+    legend.position = "top",
+    legend.box = "horizontal", 
+    legend.spacing.x = unit(0.2, "cm"), # Adjust horizontal spacing between legend items (smaller)
+    legend.key.width = unit(0.5, "cm"), # Make legend keys smaller
+    legend.key.height = unit(0.5, "cm"), # Make legend keys smaller
+    legend.text = element_text(size = 9), # Make legend text smaller
     axis.text.y = element_text(hjust = 0), # Align statement labels to the left
-    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
   ) +
   guides(
     fill = guide_legend(
-      ncol = 2,
-      #order = 1,  # Controls the order of the legend
-      breaks = c("Strongly Disagree",  "Slightly Agree", 
-                 "Disagree", "Agree",
-                 "Slightly Disagree", "Strongly Agree"),
-      title = "",  # Title for the legend
-      #title.position = "top",  # Position of the title
-      title.hjust = 0.5  # Center the title
-    ))
+      nrow = 2, # Set to 2 rows
+      byrow = TRUE, # Fill by row first
+      title = "",
+      override.aes = list(alpha = 1), # Ensure legend keys are fully opaque
+      order = 1, # Keep this to ensure legend is the first guide
+      breaks = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                  "Slightly Agree", "Agree", "Strongly Agree")
+    )
+  )
 
 print(p_cb04_nar2)
 
@@ -1186,22 +1205,29 @@ p_cb04_sub_nar2 <- ggplot(sum_cb04_nar2_sub, aes(x = fct_relevel(sentence, rev(l
   theme_minimal() +
   custom_theme() +
   theme(
-    legend.position = "bottom",
-    #legend.nrow = 1,
+    plot.title.position = "plot", 
+    legend.position = "top",
+    legend.box = "horizontal", 
+    legend.spacing.x = unit(0.2, "cm"), # Adjust horizontal spacing between legend items (smaller)
+    legend.key.width = unit(0.5, "cm"), # Make legend keys smaller
+    legend.key.height = unit(0.5, "cm"), # Make legend keys smaller
+    legend.text = element_text(size = 9), # Make legend text smaller
     axis.text.y = element_text(hjust = 0), # Align statement labels to the left
-    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
   ) +
   guides(
     fill = guide_legend(
-      ncol = 2,
-      #order = 1,  # Controls the order of the legend
-      breaks = c("Strongly Disagree",  "Slightly Agree", 
-                 "Disagree", "Agree",
-                 "Slightly Disagree", "Strongly Agree"),
-      title = "",  # Title for the legend
-      #title.position = "top",  # Position of the title
-      title.hjust = 0.5  # Center the title
-    ))
+      nrow = 2, # Set to 2 rows
+      byrow = TRUE, # Fill by row first
+      title = "",
+      override.aes = list(alpha = 1), # Ensure legend keys are fully opaque
+      order = 1, # Keep this to ensure legend is the first guide
+      breaks = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                  "Slightly Agree", "Agree", "Strongly Agree")
+    )
+  )
+
 
 print(p_cb04_sub_nar2)
 
@@ -1356,22 +1382,29 @@ p_cb04_nar3 <- ggplot(sum_cb04_nar3, aes(x = fct_relevel(sentence, rev(levels(se
   theme_minimal() +
   custom_theme() +
   theme(
-    legend.position = "bottom",
-    #legend.nrow = 1,
+    plot.title.position = "plot", 
+    legend.position = "top",
+    legend.box = "horizontal", 
+    legend.spacing.x = unit(0.2, "cm"), # Adjust horizontal spacing between legend items (smaller)
+    legend.key.width = unit(0.5, "cm"), # Make legend keys smaller
+    legend.key.height = unit(0.5, "cm"), # Make legend keys smaller
+    legend.text = element_text(size = 9), # Make legend text smaller
     axis.text.y = element_text(hjust = 0), # Align statement labels to the left
-    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
   ) +
   guides(
     fill = guide_legend(
-      ncol = 2,
-      #order = 1,  # Controls the order of the legend
-      breaks = c("Strongly Disagree",  "Slightly Agree", 
-                 "Disagree", "Agree",
-                 "Slightly Disagree", "Strongly Agree"),
-      title = "",  # Title for the legend
-      #title.position = "top",  # Position of the title
-      title.hjust = 0.5  # Center the title
-    ))
+      nrow = 2, # Set to 2 rows
+      byrow = TRUE, # Fill by row first
+      title = "",
+      override.aes = list(alpha = 1), # Ensure legend keys are fully opaque
+      order = 1, # Keep this to ensure legend is the first guide
+      breaks = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                  "Slightly Agree", "Agree", "Strongly Agree")
+    )
+  )
+
 
 print(p_cb04_nar3)
 
@@ -1441,22 +1474,29 @@ p_cb04_sub_nar3 <- ggplot(sum_cb04_nar3_sub, aes(x = fct_relevel(sentence, rev(l
   theme_minimal() +
   custom_theme() +
   theme(
-    legend.position = "bottom",
-    #legend.nrow = 1,
+    plot.title.position = "plot", 
+    legend.position = "top",
+    legend.box = "horizontal", 
+    legend.spacing.x = unit(0.2, "cm"), # Adjust horizontal spacing between legend items (smaller)
+    legend.key.width = unit(0.5, "cm"), # Make legend keys smaller
+    legend.key.height = unit(0.5, "cm"), # Make legend keys smaller
+    legend.text = element_text(size = 9), # Make legend text smaller
     axis.text.y = element_text(hjust = 0), # Align statement labels to the left
-    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
   ) +
   guides(
     fill = guide_legend(
-      ncol = 2,
-      #order = 1,  # Controls the order of the legend
-      breaks = c("Strongly Disagree",  "Slightly Agree", 
-                 "Disagree", "Agree",
-                 "Slightly Disagree", "Strongly Agree"),
-      title = "",  # Title for the legend
-      #title.position = "top",  # Position of the title
-      title.hjust = 0.5  # Center the title
-    ))
+      nrow = 2, # Set to 2 rows
+      byrow = TRUE, # Fill by row first
+      title = "",
+      override.aes = list(alpha = 1), # Ensure legend keys are fully opaque
+      order = 1, # Keep this to ensure legend is the first guide
+      breaks = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                  "Slightly Agree", "Agree", "Strongly Agree")
+    )
+  )
+
 
 print(p_cb04_sub_nar3)
 
@@ -1609,24 +1649,30 @@ p_cb04_nar4 <- ggplot(sum_cb04_nar5, aes(x = fct_relevel(sentence, rev(levels(se
   geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
   scale_y_continuous(labels=NULL) +
   theme_minimal() +
-  custom_theme() +
+    custom_theme() +
   theme(
-    legend.position = "bottom",
-    #legend.nrow = 1,
+    plot.title.position = "plot", 
+    legend.position = "top",
+    legend.box = "horizontal", 
+    legend.spacing.x = unit(0.2, "cm"), # Adjust horizontal spacing between legend items (smaller)
+    legend.key.width = unit(0.5, "cm"), # Make legend keys smaller
+    legend.key.height = unit(0.5, "cm"), # Make legend keys smaller
+    legend.text = element_text(size = 9), # Make legend text smaller
     axis.text.y = element_text(hjust = 0), # Align statement labels to the left
-    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
   ) +
   guides(
     fill = guide_legend(
-      ncol = 2,
-      #order = 1,  # Controls the order of the legend
-      breaks = c("Strongly Disagree",  "Slightly Agree", 
-                 "Disagree", "Agree",
-                 "Slightly Disagree", "Strongly Agree"),
-      title = "",  # Title for the legend
-      #title.position = "top",  # Position of the title
-      title.hjust = 0.5  # Center the title
-    ))
+      nrow = 2, # Set to 2 rows
+      byrow = TRUE, # Fill by row first
+      title = "",
+      override.aes = list(alpha = 1), # Ensure legend keys are fully opaque
+      order = 1, # Keep this to ensure legend is the first guide
+      breaks = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                  "Slightly Agree", "Agree", "Strongly Agree")
+    )
+  )
 
 print(p_cb04_nar4)
 
@@ -1698,22 +1744,29 @@ p_cb04_sub_nar4 <- ggplot(sum_cb04_sub_nar5, aes(x = fct_relevel(sentence, rev(l
   theme_minimal() +
   custom_theme() +
   theme(
-    legend.position = "bottom",
-    #legend.nrow = 1,
+    plot.title.position = "plot", 
+    legend.position = "top",
+    legend.box = "horizontal", 
+    legend.spacing.x = unit(0.2, "cm"), # Adjust horizontal spacing between legend items (smaller)
+    legend.key.width = unit(0.5, "cm"), # Make legend keys smaller
+    legend.key.height = unit(0.5, "cm"), # Make legend keys smaller
+    legend.text = element_text(size = 9), # Make legend text smaller
     axis.text.y = element_text(hjust = 0), # Align statement labels to the left
-    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
   ) +
   guides(
     fill = guide_legend(
-      ncol = 2,
-      #order = 1,  # Controls the order of the legend
-      breaks = c("Strongly Disagree",  "Slightly Agree", 
-                 "Disagree", "Agree",
-                 "Slightly Disagree", "Strongly Agree"),
-      title = "",  # Title for the legend
-      #title.position = "top",  # Position of the title
-      title.hjust = 0.5  # Center the title
-    ))
+      nrow = 2, # Set to 2 rows
+      byrow = TRUE, # Fill by row first
+      title = "",
+      override.aes = list(alpha = 1), # Ensure legend keys are fully opaque
+      order = 1, # Keep this to ensure legend is the first guide
+      breaks = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                  "Slightly Agree", "Agree", "Strongly Agree")
+    )
+  )
+
 
 print(p_cb04_sub_nar4)
 ggsave(filename = file.path(fig, "paper_cb04_sub_stim4.png"),
@@ -1867,22 +1920,29 @@ p_cb04_nar5 <- ggplot(sum_cb04_nar4, aes(x = fct_relevel(sentence, rev(levels(se
   theme_minimal() +
   custom_theme() +
   theme(
-    legend.position = "bottom",
-    #legend.nrow = 1,
+    plot.title.position = "plot", 
+    legend.position = "top",
+    legend.box = "horizontal", 
+    legend.spacing.x = unit(0.2, "cm"), # Adjust horizontal spacing between legend items (smaller)
+    legend.key.width = unit(0.5, "cm"), # Make legend keys smaller
+    legend.key.height = unit(0.5, "cm"), # Make legend keys smaller
+    legend.text = element_text(size = 9), # Make legend text smaller
     axis.text.y = element_text(hjust = 0), # Align statement labels to the left
-    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
   ) +
   guides(
     fill = guide_legend(
-      ncol = 2,
-      #order = 1,  # Controls the order of the legend
-      breaks = c("Strongly Disagree",  "Slightly Agree", 
-                 "Disagree", "Agree",
-                 "Slightly Disagree", "Strongly Agree"),
-      title = "",  # Title for the legend
-      #title.position = "top",  # Position of the title
-      title.hjust = 0.5  # Center the title
-    ))
+      nrow = 2, # Set to 2 rows
+      byrow = TRUE, # Fill by row first
+      title = "",
+      override.aes = list(alpha = 1), # Ensure legend keys are fully opaque
+      order = 1, # Keep this to ensure legend is the first guide
+      breaks = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                  "Slightly Agree", "Agree", "Strongly Agree")
+    )
+  )
+
 
 #print(p_cb04_nar5)
 
@@ -2040,22 +2100,29 @@ p_cb04_nar5_raw <- ggplot(sum_cb04_nar4_raw, aes(x = fct_relevel(sentence, rev(l
   theme_minimal() +
   custom_theme() +
   theme(
-    legend.position = "bottom",
-    #legend.nrow = 1,
+    plot.title.position = "plot", 
+    legend.position = "top",
+    legend.box = "horizontal", 
+    legend.spacing.x = unit(0.2, "cm"), # Adjust horizontal spacing between legend items (smaller)
+    legend.key.width = unit(0.5, "cm"), # Make legend keys smaller
+    legend.key.height = unit(0.5, "cm"), # Make legend keys smaller
+    legend.text = element_text(size = 9), # Make legend text smaller
     axis.text.y = element_text(hjust = 0), # Align statement labels to the left
-    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
   ) +
   guides(
     fill = guide_legend(
-      ncol = 2,
-      #order = 1,  # Controls the order of the legend
-      breaks = c("Strongly Disagree",  "Slightly Agree", 
-                 "Disagree", "Agree",
-                 "Slightly Disagree", "Strongly Agree"),
-      title = "",  # Title for the legend
-      #title.position = "top",  # Position of the title
-      title.hjust = 0.5  # Center the title
-    ))
+      nrow = 2, # Set to 2 rows
+      byrow = TRUE, # Fill by row first
+      title = "",
+      override.aes = list(alpha = 1), # Ensure legend keys are fully opaque
+      order = 1, # Keep this to ensure legend is the first guide
+      breaks = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                  "Slightly Agree", "Agree", "Strongly Agree")
+    )
+  )
+
 
 print(p_cb04_nar5_raw)
 
@@ -2126,23 +2193,28 @@ p_cb04_sub_nar5_raw <- ggplot(sum_cb04_nar4_sub_raw, aes(x = fct_relevel(sentenc
   theme_minimal() +
   custom_theme() +
   theme(
-    legend.position = "bottom",
-    #legend.nrow = 1,
+    plot.title.position = "plot", 
+    legend.position = "top",
+    legend.box = "horizontal", 
+    legend.spacing.x = unit(0.2, "cm"), # Adjust horizontal spacing between legend items (smaller)
+    legend.key.width = unit(0.5, "cm"), # Make legend keys smaller
+    legend.key.height = unit(0.5, "cm"), # Make legend keys smaller
+    legend.text = element_text(size = 9), # Make legend text smaller
     axis.text.y = element_text(hjust = 0), # Align statement labels to the left
-    panel.grid.major.y = element_blank() # Remove horizontal grid lines
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
   ) +
   guides(
     fill = guide_legend(
-      ncol = 2,
-      #order = 1,  # Controls the order of the legend
-      breaks = c("Strongly Disagree",  "Slightly Agree", 
-                 "Disagree", "Agree",
-                 "Slightly Disagree", "Strongly Agree"),
-      title = "",  # Title for the legend
-      #title.position = "top",  # Position of the title
-      title.hjust = 0.5  # Center the title
-    ))
-
+      nrow = 2, # Set to 2 rows
+      byrow = TRUE, # Fill by row first
+      title = "",
+      override.aes = list(alpha = 1), # Ensure legend keys are fully opaque
+      order = 1, # Keep this to ensure legend is the first guide
+      breaks = c("Strongly Disagree", "Disagree", "Slightly Disagree",
+                  "Slightly Agree", "Agree", "Strongly Agree")
+    )
+  )
 print(p_cb04_sub_nar5_raw)
 
 ggsave(filename = file.path(fig, "paper_cb04_sub_stim5_raw.png"),
@@ -2810,14 +2882,17 @@ flo_nosocast <- flo_nosocast %>%
 
 ``` {r combine_all_stats}
 ## combie all statxs
-flo_combined <- bind_rows(flo_gender, flo_age, flo_educ, flo_region, flo_urban, flo_hhhead_female, flo_hhsize, flo_nosocast) %>%
+flo_combined <- bind_rows(flo_gender, flo_age, flo_educ, flo_region, 
+                          flo_urban, flo_hhhead_female, flo_hhsize
+                          #, flo_nosocast
+                          ) %>%
   ungroup() %>%
   select(category, susenas, sample, difference, se, margin_of_error, ci_lower, ci_upper) %>%
   mutate(
     category = case_when(
       category == "gender" ~ "Male",
       category == "hhhead_female" ~ "Female",
-      category == "nosocast" ~ "No",
+      #category == "nosocast" ~ "No",
       TRUE ~ category # Keep other category values as they are
     )) %>%
   mutate(order = row_number())
@@ -2830,7 +2905,7 @@ flo_combined$group <- case_when(
   flo_combined$category %in% c("No education", "Primary School", "Junior High School", "High School", "Higher Education") ~ "Education",
   flo_combined$category %in% c("Male") ~ "Gender",
   flo_combined$category %in% c("Female") ~ "HH Head Gender",
-  flo_combined$category %in% c("No") ~ "Receive Social Assistance",
+  #flo_combined$category %in% c("No") ~ "Receive Social Assistance",
   flo_combined$category %in% c("1-5", "6-10", ">10") ~ "HH Size",
   flo_combined$category %in% c("West", "Central", "East") ~ "Region",
   flo_combined$category %in% c("Urban") ~ "Location Type",
@@ -2870,7 +2945,7 @@ ggsave(filename = file.path(fig, "paper_diff_demographics.png"),
        plot = p_demog_diff,
        #width = 8,
        #height = 4,
-       dpi = 100)
+       dpi = 150)
 ```
 
 \newpage
