@@ -53,7 +53,7 @@ date <- "20250304"
 
 # Load data
 datnm <- paste0("processed_",date,".csv") 
-data <- file.path(temp,datnm) 
+data <- file.path(ipt,datnm) 
 maindata <- fread(data)
 
 # Define potential controls variables
@@ -1051,7 +1051,7 @@ allmodres <- list("unconditional"=bind_rows(mutate(modsres$unconditional,model=1
                                           mutate(modsres$`model 3 conditional`,model=3)))
 
 # Export results
-filenm <- file.path(temp,"conjoint_itt_acmes.xlsx")
+filenm <- file.path(opt,"conjoint_itt_acmes.xlsx")
 write_xlsx(allmodres$unconditional, path = filenm)
 
 # Remove intercept from the final data to be plotted
@@ -1099,7 +1099,7 @@ relimp <- allmodres$unconditional %>%
   ungroup()
 
 # Export results
-filenm <- file.path(temp,"conjoint_itt_relimp.xlsx")
+filenm <- file.path(opt,"conjoint_itt_relimp.xlsx")
 write_xlsx(relimp, path = filenm)
 
 ##### TOT #####

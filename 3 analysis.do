@@ -13,7 +13,7 @@ set more off
 *** GENERAL DATA SETUP
 pro setupdatagen 
 	* load data
-	use "$temp\processed_$date.dta", clear 
+	use "$ipt\processed_$date.dta", clear 
 
 	* set scheme
 	set scheme plotplainblind
@@ -2789,8 +2789,8 @@ replace coef=. if treatment=="_cons"
 drop if coef==. & prob==.
 
 * save
-save "$temp\alloutcomes_nlift_allmodel.dta", replace
-export excel "$temp\alloutcomes_nlift_allmodel.xlsx", replace first(var)
+save "$opt\alloutcomes_nlift_allmodel.dta", replace
+export excel "$opt\alloutcomes_nlift_allmodel.xlsx", replace first(var)
 
 
 
