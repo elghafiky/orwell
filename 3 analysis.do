@@ -363,7 +363,13 @@ pro plotprep
 	clonevar equation=eqnum
 	tostring equation, replace 
 	replace equation = "Model " + equation
-	egen treateq = concat(treat equation), punct(:)
+	g narnm="Fix distribution" if treat=="Treatment 1"
+	replace narnm="No victimization" if treat=="Treatment 2"
+	replace narnm="Balanced development" if treat=="Treatment 3"
+	replace narnm="Equal opportunity" if treat=="Treatment 4"
+	replace narnm="Gov. is ruler" if treat=="Treatment 5"
+	// egen treateq = concat(treat equation), punct(:)
+	egen treateq = concat(narnm equation), punct(:)
 end 
 
 *******************
