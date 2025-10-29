@@ -363,7 +363,7 @@ pro plotprep
 	clonevar equation=eqnum
 	tostring equation, replace 
 	replace equation = "Model " + equation
-	g narnm="Fix distribution" if treat=="Treatment 1"
+	g narnm="Fix the distribution" if treat=="Treatment 1"
 	replace narnm="No victimization" if treat=="Treatment 2"
 	replace narnm="Balanced development" if treat=="Treatment 3"
 	replace narnm="Equal opportunity" if treat=="Treatment 4"

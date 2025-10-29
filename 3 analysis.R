@@ -76,7 +76,36 @@ basechar <- c('region1',
 ##### Write reusable function #####
 # Define a reusable plotting function
 generate_plot <- function(data, outnums, model_labels, xlab, ncol) {
+  # Define desired order for treatment names and models
+  treat_levels <- c(
+    "Fix the distribution",
+    "No victimization",
+    "Balanced development",
+    "Equal opportunity"
+  )
+  model_levels <- c("Model 1", "Model 2", "Model 3")
+  
+  # Create wrapped labels for facets
   wrapped_labels <- as_labeller(model_labels, default = label_wrap_gen(width = 25))
+  
+  # Build ordered combination (treatment within model)
+  ordered_levels <- expand.grid(
+    model = model_levels,
+    treat = treat_levels
+  ) %>%
+    transmute(level = paste(treat, model, sep = ":")) %>%
+    pull(level)
+  
+  # Enforce ordering inside the function
+  data <- data %>%
+    mutate(
+      narnm = factor(narnm, levels = treat_levels),
+      equation = factor(equation, levels = model_levels),
+      treateq = factor(
+        paste(narnm, equation, sep = ":"),
+        levels = ordered_levels
+      )
+    )
   
   ggplot(filter(data, outnum %in% outnums), 
          aes(x = coef, y = treateq)) +
@@ -85,7 +114,7 @@ generate_plot <- function(data, outnums, model_labels, xlab, ncol) {
     scale_color_manual(values = cb_palette) +
     scale_shape_manual(values = c("p < .01" = 8, "p < .05" = 17, "p < .1" = 16, "Null" = 1)) +
     scale_y_discrete(limits = rev) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
     labs(
       x = xlab,
       y = NULL,
