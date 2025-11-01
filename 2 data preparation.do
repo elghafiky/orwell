@@ -90,5 +90,5 @@ forval i = 1/6 {
 g agreestim=(lfCB==6)|(inrange(CB04,4,6) & (inrange(lfCB,1,3) | lfCB==5))|(inrange(CB04,1,3) & lfCB==4)
 
 * save data
-save "$temp\processed_$date.dta", replace 
-export delimited "$temp\processed_$date.csv", replace nolab
+save "$ipt\processed_$date.dta", replace 
+export delimited "$ipt\processed_$date.csv", replace nolab
