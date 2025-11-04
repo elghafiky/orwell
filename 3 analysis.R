@@ -954,16 +954,54 @@ obtain_selecvar <- function(modres) {
 
 # Write reusable function for plotting and saving the graph
 plotnsave <- function(modres, filepath) {
+  # Mapping from treatment codes (with or without "comply" prefix) to descriptive labels
+  treat_labels <- c(
+    "treat1" = "Fix the distribution",
+    "treat2" = "No victimization",
+    "treat3" = "Balanced development",
+    "treat4" = "Equal opportunity",
+    "complytreat1" = "Fix distribution",
+    "complytreat2" = "No victimization",
+    "complytreat3" = "Balanced development",
+    "complytreat4" = "Equal opportunity"
+  )
+  
+  # Replace full tokens only (avoid partial matches like "complytreat1" → "complyFix ...")
+  for (pattern in names(treat_labels)) {
+    modres$term <- str_replace_all(modres$term, paste0("\\b", pattern, "\\b"), treat_labels[[pattern]])
+  }
+  
+  # Define ACMEs (main effects)
+  main_effects <- c("econ_2", "econ_3", "rights_1", "rights_2", "env_2", "participation_1")
+  
+  # Define treatment order for interactions
+  treat_order <- c("Fix the distribution", "No victimization", "Balanced development", "Equal opportunity")
+  
+  # Compute term order
+  modres <- modres %>%
+    mutate(
+      is_interaction = str_detect(term, ":"),               # Detect interactions
+      treat_rank = sapply(term, function(x) {
+        idx <- which(sapply(treat_order, function(t) str_detect(x, fixed(t))))
+        if (length(idx) == 0) NA_integer_ else idx[1]
+      }),
+      main_rank = match(term, main_effects),               # Identify main effect order
+      term_order = ifelse(is_interaction, 100 + treat_rank, main_rank)  # ACMEs first
+    ) %>%
+    arrange(term_order, term) %>%
+    mutate(term = factor(term, levels = unique(term)))
+  
+  # Build the plot
   plot <- ggplot(data = modres, aes(x = estimate, y = term)) +
     geom_errorbarh(aes(xmin = conf.low, xmax = conf.high, color = sig), height = 0.2) +
     geom_point(aes(color = sig, shape = sig), size = 3) +
     scale_color_manual(values = cb_palette) +
     scale_shape_manual(values = c("p < .01" = 8, "p < .05" = 17, "p < .1" = 16, "Null" = 1)) +
     scale_y_discrete(limits = rev) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
     facet_wrap(~ model, ncol = 3, labeller = labeller(model = model_labels)) +
     labs(
-      x = "Probability of choosing an economic scenario relative to base option",
+      x = "Probability of choosing a development scenario relative to base option",
       y = NULL,
       color = "Statistical significance based on Holm p-values",
       shape = "Statistical significance based on Holm p-values"
