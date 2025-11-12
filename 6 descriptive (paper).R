@@ -1,6 +1,6 @@
 ##################################### Meta ######################################
 
-# Code for rendering R Markdown of Voltaire National Survey's descriptive analysis
+# Code for rendering R Markdown of Orwell IRSA paper descriptive analysis
 # April 24, 2025
 # Contributors : Azzah
 
