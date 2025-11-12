@@ -13,7 +13,7 @@ set more off
 *** GENERAL DATA SETUP
 pro setupdatagen 
 	* load data
-	use "$temp\processed_$date.dta", clear 
+	use "$ipt\processed_$date.dta", clear 
 
 	* set scheme
 	set scheme plotplainblind
@@ -363,7 +363,13 @@ pro plotprep
 	clonevar equation=eqnum
 	tostring equation, replace 
 	replace equation = "Model " + equation
-	egen treateq = concat(treat equation), punct(:)
+	g narnm="Fix the distribution" if treat=="Treatment 1"
+	replace narnm="No victimization" if treat=="Treatment 2"
+	replace narnm="Balanced development" if treat=="Treatment 3"
+	replace narnm="Equal opportunity" if treat=="Treatment 4"
+	replace narnm="Gov. is ruler" if treat=="Treatment 5"
+	// egen treateq = concat(treat equation), punct(:)
+	egen treateq = concat(narnm equation), punct(:)
 end 
 
 *******************
@@ -2789,8 +2795,8 @@ replace coef=. if treatment=="_cons"
 drop if coef==. & prob==.
 
 * save
-save "$temp\alloutcomes_nlift_allmodel.dta", replace
-export excel "$temp\alloutcomes_nlift_allmodel.xlsx", replace first(var)
+save "$opt\alloutcomes_nlift_allmodel.dta", replace
+export excel "$opt\alloutcomes_nlift_allmodel.xlsx", replace first(var)
 
 
 

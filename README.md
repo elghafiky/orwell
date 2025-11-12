@@ -1,2 +1,1 @@
-# orwell
-C4C's research on public narratives about development and economic growth
+Bahana's and C4C's research on public narratives about development and economic growth. Request data and instrument here: https://labnarasi.id/topik/pemahaman-masyarakat-indonesia-dan-narasi-dominan-tentang-pembangunan-dan-pertumbuhan-ekonomi. Review our trial registry here: https://www.socialscienceregistry.org/trials/15433.

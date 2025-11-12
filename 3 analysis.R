@@ -53,7 +53,7 @@ date <- "20250304"
 
 # Load data
 datnm <- paste0("processed_",date,".csv") 
-data <- file.path(temp,datnm) 
+data <- file.path(ipt,datnm) 
 maindata <- fread(data)
 
 # Define potential controls variables
@@ -76,7 +76,36 @@ basechar <- c('region1',
 ##### Write reusable function #####
 # Define a reusable plotting function
 generate_plot <- function(data, outnums, model_labels, xlab, ncol) {
+  # Define desired order for treatment names and models
+  treat_levels <- c(
+    "Fix the distribution",
+    "No victimization",
+    "Balanced development",
+    "Equal opportunity"
+  )
+  model_levels <- c("Model 1", "Model 2", "Model 3")
+  
+  # Create wrapped labels for facets
   wrapped_labels <- as_labeller(model_labels, default = label_wrap_gen(width = 25))
+  
+  # Build ordered combination (treatment within model)
+  ordered_levels <- expand.grid(
+    model = model_levels,
+    treat = treat_levels
+  ) %>%
+    transmute(level = paste(treat, model, sep = ":")) %>%
+    pull(level)
+  
+  # Enforce ordering inside the function
+  data <- data %>%
+    mutate(
+      narnm = factor(narnm, levels = treat_levels),
+      equation = factor(equation, levels = model_levels),
+      treateq = factor(
+        paste(narnm, equation, sep = ":"),
+        levels = ordered_levels
+      )
+    )
   
   ggplot(filter(data, outnum %in% outnums), 
          aes(x = coef, y = treateq)) +
@@ -85,7 +114,7 @@ generate_plot <- function(data, outnums, model_labels, xlab, ncol) {
     scale_color_manual(values = cb_palette) +
     scale_shape_manual(values = c("p < .01" = 8, "p < .05" = 17, "p < .1" = 16, "Null" = 1)) +
     scale_y_discrete(limits = rev) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
     labs(
       x = xlab,
       y = NULL,
@@ -925,16 +954,54 @@ obtain_selecvar <- function(modres) {
 
 # Write reusable function for plotting and saving the graph
 plotnsave <- function(modres, filepath) {
+  # Mapping from treatment codes (with or without "comply" prefix) to descriptive labels
+  treat_labels <- c(
+    "treat1" = "Fix the distribution",
+    "treat2" = "No victimization",
+    "treat3" = "Balanced development",
+    "treat4" = "Equal opportunity",
+    "complytreat1" = "Fix distribution",
+    "complytreat2" = "No victimization",
+    "complytreat3" = "Balanced development",
+    "complytreat4" = "Equal opportunity"
+  )
+  
+  # Replace full tokens only (avoid partial matches like "complytreat1" → "complyFix ...")
+  for (pattern in names(treat_labels)) {
+    modres$term <- str_replace_all(modres$term, paste0("\\b", pattern, "\\b"), treat_labels[[pattern]])
+  }
+  
+  # Define ACMEs (main effects)
+  main_effects <- c("econ_2", "econ_3", "rights_1", "rights_2", "env_2", "participation_1")
+  
+  # Define treatment order for interactions
+  treat_order <- c("Fix the distribution", "No victimization", "Balanced development", "Equal opportunity")
+  
+  # Compute term order
+  modres <- modres %>%
+    mutate(
+      is_interaction = str_detect(term, ":"),               # Detect interactions
+      treat_rank = sapply(term, function(x) {
+        idx <- which(sapply(treat_order, function(t) str_detect(x, fixed(t))))
+        if (length(idx) == 0) NA_integer_ else idx[1]
+      }),
+      main_rank = match(term, main_effects),               # Identify main effect order
+      term_order = ifelse(is_interaction, 100 + treat_rank, main_rank)  # ACMEs first
+    ) %>%
+    arrange(term_order, term) %>%
+    mutate(term = factor(term, levels = unique(term)))
+  
+  # Build the plot
   plot <- ggplot(data = modres, aes(x = estimate, y = term)) +
     geom_errorbarh(aes(xmin = conf.low, xmax = conf.high, color = sig), height = 0.2) +
     geom_point(aes(color = sig, shape = sig), size = 3) +
     scale_color_manual(values = cb_palette) +
     scale_shape_manual(values = c("p < .01" = 8, "p < .05" = 17, "p < .1" = 16, "Null" = 1)) +
     scale_y_discrete(limits = rev) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
     facet_wrap(~ model, ncol = 3, labeller = labeller(model = model_labels)) +
     labs(
-      x = "Probability of choosing an economic scenario relative to base option",
+      x = "Probability of choosing a development scenario relative to base option",
       y = NULL,
       color = "Statistical significance based on Holm p-values",
       shape = "Statistical significance based on Holm p-values"
@@ -1051,7 +1118,7 @@ allmodres <- list("unconditional"=bind_rows(mutate(modsres$unconditional,model=1
                                           mutate(modsres$`model 3 conditional`,model=3)))
 
 # Export results
-filenm <- file.path(temp,"conjoint_itt_acmes.xlsx")
+filenm <- file.path(opt,"conjoint_itt_acmes.xlsx")
 write_xlsx(allmodres$unconditional, path = filenm)
 
 # Remove intercept from the final data to be plotted
@@ -1099,7 +1166,7 @@ relimp <- allmodres$unconditional %>%
   ungroup()
 
 # Export results
-filenm <- file.path(temp,"conjoint_itt_relimp.xlsx")
+filenm <- file.path(opt,"conjoint_itt_relimp.xlsx")
 write_xlsx(relimp, path = filenm)
 
 ##### TOT #####
