@@ -1,3 +1,6 @@
+#*******************************************************************************
+#  ORWELL NARRATIVE TESTING: WESTFALL YOUNG PLOTS + CONJOINT ANALYSIS							   
+#*******************************************************************************
 ##### PRELIMINARIES #####
 # Clear console and environment 
 graphics.off(); rm(list=ls());cat("\14");
@@ -13,8 +16,8 @@ current_user <- Sys.info()[["user"]]
 
 # Check if the username matches and set the working directory accordingly
 if (current_user == "elgha") {
-  #base_dir <- "G:/" # laptop
-  base_dir <- "H:/" # computer
+  base_dir <- "G:/" # laptop
+  #base_dir <- "H:/" # computer
 }
 
 # Set directory
@@ -46,35 +49,15 @@ cb_palette <- c("p < .01" = "#E69F00",  # orange
                 "p < .1"  = "#009E73",  # bluish green
                 "Null"= "#999999")  # grey
 
-## Data preparation for conjoint and covariate balance
-# Set data date
-date <- "20250304"
-
-# Load data
-datnm <- paste0("processed_",date,".csv") 
-data <- file.path(ipt,datnm) 
-maindata <- fread(data)
-
-# Define potential controls variables
-basechar <- c('region1', 
-              'region2',
-              'region3',
-              'urban',
-              'male',
-              'age',
-              'edu1',
-              'edu2',
-              'edu3',
-              'edu4',
-              'edu5',
-              'hhhead_female',
-              'nosocast',
-              'hhsize')
-
 ##### WESTFALL-YOUNG VISUALIZATIONS #####
 ##### Write reusable function #####
 # Define a reusable plotting function
-generate_plot <- function(data, outnums, model_labels, xlab, ncol) {
+generate_plot <- function(data, 
+                          outnums, 
+                          model_labels,
+                          model_levels=c("Model 1", "Model 2"),
+                          xlab, 
+                          ncol) {
   # Define desired order for treatment names and models
   treat_levels <- c(
     "Fix the distribution",
@@ -82,10 +65,11 @@ generate_plot <- function(data, outnums, model_labels, xlab, ncol) {
     "Balanced development",
     "Equal opportunity"
   )
-  model_levels <- c("Model 1", "Model 2", "Model 3")
+#  model_levels <- c("Model 1", "Model 2")
   
   # Create wrapped labels for facets
-  wrapped_labels <- as_labeller(model_labels, default = label_wrap_gen(width = 25))
+  wrapped_labels <- as_labeller(model_labels, 
+                                default = label_wrap_gen(width = 25))
   
   # Build ordered combination (treatment within model)
   ordered_levels <- expand.grid(
@@ -121,14 +105,26 @@ generate_plot <- function(data, outnums, model_labels, xlab, ncol) {
     labs(
       x = xlab,
       y = NULL,
-      color = "Statistical significance based on Westfall-Young p-values",
-      shape = "Statistical significance based on Westfall-Young p-values"
+      color = "Significance (Westfall-Young p-values)",
+      shape = "Significance (Westfall-Young p-values)"
     ) +
     theme_minimal() +
-    theme(legend.position = "top") +
+    theme(
+      legend.position = "top",
+      legend.direction = "horizontal",
+      axis.title.x = element_text(size = 10)
+    ) +
     guides(
-      color = guide_legend(title.position = "top"),
-      shape = guide_legend(title.position = "top")
+      color = guide_legend(
+        title.position = "left",
+        nrow = 1,
+        byrow = TRUE
+      ),
+      shape = guide_legend(
+        title.position = "left",
+        nrow = 1,
+        byrow = TRUE
+      )
     ) +
     facet_wrap(~ outnum, ncol = ncol, labeller = labeller(outnum = wrapped_labels))
 }
@@ -142,6 +138,7 @@ process_plot_configs <- function(plot_configs) {
       data = config$data,
       outnums = config$outnums,
       model_labels = config$model_labels,
+      model_levels = config$model_levels,
       xlab = config$xlabs,
       ncol = config$ncol
     )
@@ -159,30 +156,25 @@ process_plot_configs <- function(plot_configs) {
       bg = "white"
     )
   }
-  
   return(plot_list)
 }
 
 ##### Setting up graph labels #####
-#### DK 
-# Labels for models 1 to 4
+##### DK #####
+# Labels for outcomes 1-7
 DK_labels_set1 <- c(
   "1" = "Utilities price hike",
   "2" = "Larger gov. budget for public transport",
   "3" = "Larger gov. budget for env. friendly tech and renewable energies",
-  "4" = "Displaced people receives benefit from infra. utilization"
-)
-
-# Labels for models 5 to 8
-DK_labels_set2 <- c(
+  "4" = "Displaced people receives benefit from infra. utilization",
   "5" = "Subsidy for energy-efficient houses and buildings",
   "6" = "Larger soc. asst. amount",
-  "7" = "Larger soc. asst. recipient coverage",
-  "8" = "Higher vehicle tax"
+  "7" = "Larger soc. asst. recipient coverage"
 )
 
-# Labels for models 9 to 13
-DK_labels_set3 <- c(
+# Labels for outcomes 8-13
+DK_labels_set2 <- c(
+  "8" = "Higher vehicle tax",
   "9" = "Industry subsidy to switch to env. friendly tech and energy",
   "10" = "Employment insurance",
   "11" = "Forest clearance for agriculture",
@@ -190,57 +182,117 @@ DK_labels_set3 <- c(
   "13" = "Forest clearance for infrastructure"
 )
 
-#### CB05
+# # Labels for outcomes 1 to 4
+# DK_labels_set1 <- c(
+#   "1" = "Utilities price hike",
+#   "2" = "Larger gov. budget for public transport",
+#   "3" = "Larger gov. budget for env. friendly tech and renewable energies",
+#   "4" = "Displaced people receives benefit from infra. utilization"
+# )
+# 
+# # Labels for outcomes 5 to 8
+# DK_labels_set2 <- c(
+#   "5" = "Subsidy for energy-efficient houses and buildings",
+#   "6" = "Larger soc. asst. amount",
+#   "7" = "Larger soc. asst. recipient coverage",
+#   "8" = "Higher vehicle tax"
+# )
+# 
+# # Labels for outcomes 9 to 13
+# DK_labels_set3 <- c(
+#   "9" = "Industry subsidy to switch to env. friendly tech and energy",
+#   "10" = "Employment insurance",
+#   "11" = "Forest clearance for agriculture",
+#   "12" = "Forest clearance for settlement development",
+#   "13" = "Forest clearance for infrastructure"
+# )
+
+##### CB05 #####
 # Set 1 labels
 CB05_labels_set1 <- c(
   "3" = "Increase income of all citizens",
   "5" = "Improve human resources quality",
   "6" = "Encourage citizens to make democratic decisions about their life",
   "7" = "Build public infrastructure",
-  "8" = "Provide basic services"
-)
-
-# Set 2 labels
-CB05_labels_set2 <- c(
+  "8" = "Provide basic services",
   "9" = "Advance lagging-behind regions",
   "10" = "Enable citizens achieve important goals according to their own choice",
   "11" = "Ensure fairness for all",
   "12" = "Ensure next generations have a better life"
 )
 
-#### CB06 
+# # Set 1 labels
+# CB05_labels_set1 <- c(
+#   "3" = "Increase income of all citizens",
+#   "5" = "Improve human resources quality",
+#   "6" = "Encourage citizens to make democratic decisions about their life",
+#   "7" = "Build public infrastructure",
+#   "8" = "Provide basic services"
+# )
+
+# Set 2 labels
+# CB05_labels_set2 <- c(
+#   "9" = "Advance lagging-behind regions",
+#   "10" = "Enable citizens achieve important goals according to their own choice",
+#   "11" = "Ensure fairness for all",
+#   "12" = "Ensure next generations have a better life"
+# )
+
+##### CB06 #####
 # Set 1 labels
 CB06_labels_set1 <- c(
   "1" = "Capital owners",
   "2" = "Powerful people",
   "3" = "Well-connected people",
-  "4" = "People with grit in working"
-)
-
-# Set 2 labels
-CB06_labels_set2 <- c(
+  "4" = "People with grit in working",
   "5" = "People who's clever at exploiting opportunity",
   "6" = "People who don't give up to conditions",
   "7" = "Poor people",
   "8" = "People living in lagging-behind regions"
 )
 
-#### CB07
+# # Set 1 labels
+# CB06_labels_set1 <- c(
+#   "1" = "Capital owners",
+#   "2" = "Powerful people",
+#   "3" = "Well-connected people",
+#   "4" = "People with grit in working"
+# )
+
+# Set 2 labels
+# CB06_labels_set2 <- c(
+#   "5" = "People who's clever at exploiting opportunity",
+#   "6" = "People who don't give up to conditions",
+#   "7" = "Poor people",
+#   "8" = "People living in lagging-behind regions"
+# )
+
+##### CB07 #####
 # Set 1 labels
 CB07_labels_set1 <- c(
   "1" = "We can reduce reliance on env. destructive econ. act. once society's econ. condition is good",
   "2" = "Gov. can relocate locals to dev. infra. provided that replacement housing are available",
-  "3" = "Citizens must not accept gov. decisions without questions"
-)
-
-# Set 2 labels
-CB07_labels_set2 <- c(
+  "3" = "Citizens must not accept gov. decisions without questions",
   "4" = "Wealth inequality is normal",
   "5" = "Gov.-made laws and reg. determine people's opportunity for success",
   "6" = "Gov. decisions determine who rules in the economy"
 )
 
-#### CB08
+# # Set 1 labels
+# CB07_labels_set1 <- c(
+#   "1" = "We can reduce reliance on env. destructive econ. act. once society's econ. condition is good",
+#   "2" = "Gov. can relocate locals to dev. infra. provided that replacement housing are available",
+#   "3" = "Citizens must not accept gov. decisions without questions"
+# )
+# 
+# # Set 2 labels
+# CB07_labels_set2 <- c(
+#   "4" = "Wealth inequality is normal",
+#   "5" = "Gov.-made laws and reg. determine people's opportunity for success",
+#   "6" = "Gov. decisions determine who rules in the economy"
+# )
+
+##### CB08 #####
 # Set 1 labels
 CB08_labels <- c(
   "1" = "Rulers",
@@ -250,7 +302,7 @@ CB08_labels <- c(
   "5" = "Referee"
 )
 
-#### CB11
+##### CB11 #####
 # Set 1 labels
 CB11_labels <- c(
   "1" = "Laws and regulations",
@@ -259,7 +311,7 @@ CB11_labels <- c(
   "4" = "Fate"
 )
 
-#### TD 
+##### TD #####
 # Set 1 labels
 TD_labels <- c(
   "1" = "How much can we do to create an economy that meets everyone's needs?",
@@ -286,8 +338,40 @@ data_list <- lapply(datavariants$datfilenm, function(x) {
   }
 })
 names(data_list) <- datavariants$datnm
+data_list <- Filter(Negate(is.null), data_list) # Remove null data list
+
+# Modify equation label
+data_list_names <- names(data_list)
+data_list <- lapply(names(data_list), function(nm) {
+
+  df <- data_list[[nm]]
+
+  if (grepl("linear", nm)) {
+
+    df$equation <- dplyr::recode(
+      df$equation,
+      "Model 1" = "OLS",
+      "Model 2" = "+PDS Lasso"
+    )
+
+  } else if (grepl("ologit", nm)) {
+
+    df$equation <- dplyr::recode(
+      df$equation,
+      "Model 1" = "O. Logit",
+      "Model 2" = "+PDS Lasso"
+    )
+
+  }
+
+  df
+})
+names(data_list) <- data_list_names
 
 ##### Linear model #####
+# Define model labels
+model_levels_linear <- c("OLS", "+PDS Lasso")
+
 #### DK ####
 ## Create plots
 # Set data
@@ -297,27 +381,45 @@ cond_data <- data_list$`DK linear cond`
 # Set x-axis label
 xlabel <- "Probability of supporting policy relative to control"
 
-# List plot configs
+# List plot configs (new)
 plot_configs_DK <- list(
   list(data = uncond_data, 
-       outnums = 1:4, 
-       model_labels = DK_labels_set1, 
+       outnums = 1:7, 
+       model_labels = DK_labels_set1,
+       model_levels = model_levels_linear,
        filename = "DK_wyoung_linear_set1_uncond.png", 
        ncol = 4,
        xlabs = xlabel),
   list(data = uncond_data, 
-       outnums = 5:8, 
+       outnums = 8:13, 
        model_labels = DK_labels_set2, 
+       model_levels = model_levels_linear,
        filename = "DK_wyoung_linear_set2_uncond.png", 
-       ncol = 4,
-       xlabs = xlabel),
-  list(data = uncond_data, 
-       outnums = 9:13, 
-       model_labels = DK_labels_set3, 
-       filename = "DK_wyoung_linear_set3_uncond.png", 
-       ncol = 5,
+       ncol = 3,
        xlabs = xlabel)
 )
+
+# # List plot configs (old)
+# plot_configs_DK <- list(
+#   list(data = uncond_data, 
+#        outnums = 1:4, 
+#        model_labels = DK_labels_set1, 
+#        filename = "DK_wyoung_linear_set1_uncond.png", 
+#        ncol = 4,
+#        xlabs = xlabel),
+#   list(data = uncond_data, 
+#        outnums = 5:8, 
+#        model_labels = DK_labels_set2, 
+#        filename = "DK_wyoung_linear_set2_uncond.png", 
+#        ncol = 4,
+#        xlabs = xlabel),
+#   list(data = uncond_data, 
+#        outnums = 9:13, 
+#        model_labels = DK_labels_set3, 
+#        filename = "DK_wyoung_linear_set3_uncond.png", 
+#        ncol = 5,
+#        xlabs = xlabel)
+# )
 
 #### CB05 #### 
 ## Create plots
@@ -331,17 +433,19 @@ xlabel <- "Probability of prioritizing development goal relative to control"
 # List plot configs
 plot_configs_CB05 <- list(
   list(data = uncond_data, 
-       outnums = 3:8, 
+       outnums = 3:12, 
        model_labels = CB05_labels_set1, 
+       model_levels = model_levels_linear,
        filename = "CB05_wyoung_linear_set1_uncond.png", 
        ncol = 5,
-       xlabs = xlabel),
-  list(data = uncond_data, 
-       outnums = 9:12, 
-       model_labels = CB05_labels_set2, 
-       filename = "CB05_wyoung_linear_set2_uncond.png", 
-       ncol = 4,
        xlabs = xlabel)
+  # ,
+  # list(data = uncond_data, 
+  #      outnums = 9:12, 
+  #      model_labels = CB05_labels_set2, 
+  #      filename = "CB05_wyoung_linear_set2_uncond.png", 
+  #      ncol = 4,
+  #      xlabs = xlabel)
 )
 
 #### CB06 #### 
@@ -356,17 +460,19 @@ xlabel <- "Probability of being in top three priority relative to control"
 # List plot configs
 plot_configs_CB06 <- list(
   list(data = uncond_data, 
-       outnums = 1:4, 
+       outnums = 1:8, 
        model_labels = CB06_labels_set1, 
+       model_levels = model_levels_linear,
        filename = "CB06_wyoung_linear_set1_uncond.png", 
        ncol = 4,
-       xlabs = xlabel),
-  list(data = uncond_data, 
-       outnums = 5:8, 
-       model_labels = CB06_labels_set2, 
-       filename = "CB06_wyoung_linear_set2_uncond.png", 
-       ncol = 4,
        xlabs = xlabel)
+  # ,
+  # list(data = uncond_data, 
+  #      outnums = 5:8, 
+  #      model_labels = CB06_labels_set2, 
+  #      filename = "CB06_wyoung_linear_set2_uncond.png", 
+  #      ncol = 4,
+  #      xlabs = xlabel)
 )
 
 #### CB07 #### 
@@ -381,17 +487,19 @@ xlabel <- "Probability of agreeing to statement relative to control"
 # List plot configs
 plot_configs_CB07 <- list(
   list(data = uncond_data, 
-       outnums = 1:3, 
+       outnums = 1:6, 
        model_labels = CB07_labels_set1, 
+       model_levels = model_levels_linear,
        filename = "CB07_wyoung_linear_set1_uncond.png", 
        ncol = 3,
-       xlabs = xlabel),
-  list(data = uncond_data, 
-       outnums = 4:6, 
-       model_labels = CB07_labels_set2, 
-       filename = "CB07_wyoung_linear_set2_uncond.png", 
-       ncol = 3,
        xlabs = xlabel)
+  # ,
+  # list(data = uncond_data, 
+  #      outnums = 4:6, 
+  #      model_labels = CB07_labels_set2, 
+  #      filename = "CB07_wyoung_linear_set2_uncond.png", 
+  #      ncol = 3,
+  #      xlabs = xlabel)
 )
 
 #### CB08 #### 
@@ -408,6 +516,7 @@ plot_configs_CB08 <- list(
   list(data = uncond_data, 
        outnums = 1:5, 
        model_labels = CB08_labels, 
+       model_levels = model_levels_linear,
        filename = "CB08_wyoung_linear_set1_uncond.png", 
        ncol = 5,
        xlabs = xlabel)
@@ -427,6 +536,7 @@ plot_configs_CB11 <- list(
   list(data = uncond_data, 
        outnums = 1:4, 
        model_labels = CB11_labels, 
+       model_levels = model_levels_linear,
        filename = "CB11_wyoung_linear_set1_uncond.png", 
        ncol = 4,
        xlabs = xlabel)
@@ -446,6 +556,7 @@ plot_configs_TD <- list(
   list(data = uncond_data, 
        outnums = 1:5, 
        model_labels = TD_labels, 
+       model_levels = model_levels_linear,
        filename = "TD_wyoung_linear_set1_uncond.png", 
        ncol = 5,
        xlabs = xlabel)
@@ -463,9 +574,12 @@ plot_configs <- list(plot_configs_DK,
 names(plot_configs) <- outcomes
 
 # Process and save plots
-allplots_ITT <- lapply(plot_configs,process_plot_configs)
+allplots_ITT_lin <- lapply(plot_configs,process_plot_configs)
 
 ##### Probability model #####
+# Define model labels
+model_levels_prob <- c("O. Logit", "+PDS Lasso")
+
 #### DK ####
 ## Create plots
 # Set data
@@ -475,27 +589,45 @@ cond_data <- data_list$`DK ologit cond`
 # Set x-axis label
 xlabel <- "Odds ratio of higher policy support relative to control"
 
-# List plot configs
+# List plot configs (new)
 plot_configs_DK <- list(
-  list(data = uncond_data, 
-       outnums = 1:4, 
-       model_labels = DK_labels_set1, 
-       filename = "DK_wyoung_ologit_set1_uncond.png", 
+  list(data = uncond_data,
+       outnums = 1:7,
+       model_labels = DK_labels_set1,
+       model_levels = model_levels_prob,
+       filename = "DK_wyoung_ologit_set1_uncond.png",
        ncol = 4,
        xlabs = xlabel),
-  list(data = uncond_data, 
-       outnums = 5:8, 
-       model_labels = DK_labels_set2, 
-       filename = "DK_wyoung_ologit_set2_uncond.png", 
-       ncol = 4,
-       xlabs = xlabel),
-  list(data = uncond_data, 
-       outnums = 9:13, 
-       model_labels = DK_labels_set3, 
-       filename = "DK_wyoung_ologit_set3_uncond.png", 
-       ncol = 5,
+  list(data = uncond_data,
+       outnums = 8:13,
+       model_labels = DK_labels_set2,
+       model_levels = model_levels_prob,
+       filename = "DK_wyoung_ologit_set2_uncond.png",
+       ncol = 3,
        xlabs = xlabel)
 )
+
+# # List plot configs (old)
+# plot_configs_DK <- list(
+#   list(data = uncond_data, 
+#        outnums = 1:4, 
+#        model_labels = DK_labels_set1, 
+#        filename = "DK_wyoung_ologit_set1_uncond.png", 
+#        ncol = 4,
+#        xlabs = xlabel),
+#   list(data = uncond_data, 
+#        outnums = 5:8, 
+#        model_labels = DK_labels_set2, 
+#        filename = "DK_wyoung_ologit_set2_uncond.png", 
+#        ncol = 4,
+#        xlabs = xlabel),
+#   list(data = uncond_data, 
+#        outnums = 9:13, 
+#        model_labels = DK_labels_set3, 
+#        filename = "DK_wyoung_ologit_set3_uncond.png", 
+#        ncol = 5,
+#        xlabs = xlabel)
+# )
 
 #### CB06 #### 
 ## Create plots
@@ -509,17 +641,19 @@ xlabel <- "Odds ratio of higher priority relative to control"
 # List plot configs
 plot_configs_CB06 <- list(
   list(data = uncond_data, 
-       outnums = 1:4, 
-       model_labels = CB06_labels_set1, 
+       outnums = 1:8, 
+       model_labels = CB06_labels_set1,
+       model_levels = model_levels_prob,
        filename = "CB06_wyoung_ologit_set1_uncond.png", 
        ncol = 4,
-       xlabs = xlabel),
-  list(data = uncond_data, 
-       outnums = 5:8, 
-       model_labels = CB06_labels_set2, 
-       filename = "CB06_wyoung_ologit_set2_uncond.png", 
-       ncol = 4,
        xlabs = xlabel)
+  # ,
+  # list(data = uncond_data, 
+  #      outnums = 5:8, 
+  #      model_labels = CB06_labels_set2, 
+  #      filename = "CB06_wyoung_ologit_set2_uncond.png", 
+  #      ncol = 4,
+  #      xlabs = xlabel)
 )
 
 #### CB07 #### 
@@ -534,17 +668,19 @@ xlabel <- "Odds ratio of higher level of agreement relative to control"
 # List plot configs
 plot_configs_CB07 <- list(
   list(data = uncond_data, 
-       outnums = 1:3, 
+       outnums = 1:6, 
        model_labels = CB07_labels_set1, 
+       model_levels = model_levels_prob,
        filename = "CB07_wyoung_ologit_set1_uncond.png", 
        ncol = 3,
-       xlabs = xlabel),
-  list(data = uncond_data, 
-       outnums = 4:6, 
-       model_labels = CB07_labels_set2, 
-       filename = "CB07_wyoung_ologit_set2_uncond.png", 
-       ncol = 3,
        xlabs = xlabel)
+  # ,
+  # list(data = uncond_data, 
+  #      outnums = 4:6, 
+  #      model_labels = CB07_labels_set2, 
+  #      filename = "CB07_wyoung_ologit_set2_uncond.png", 
+  #      ncol = 3,
+  #      xlabs = xlabel)
 )
 
 #### CB08 #### 
@@ -561,6 +697,7 @@ plot_configs_CB08 <- list(
   list(data = uncond_data, 
        outnums = 1:5, 
        model_labels = CB08_labels, 
+       model_levels = model_levels_prob,
        filename = "CB08_wyoung_ologit_set1_uncond.png", 
        ncol = 5,
        xlabs = xlabel)
@@ -580,6 +717,7 @@ plot_configs_CB11 <- list(
   list(data = uncond_data, 
        outnums = 1:4, 
        model_labels = CB11_labels, 
+       model_levels = model_levels_prob,
        filename = "CB11_wyoung_ologit_set1_uncond.png", 
        ncol = 4,
        xlabs = xlabel)
@@ -599,6 +737,7 @@ plot_configs_TD <- list(
   list(data = uncond_data, 
        outnums = 1:5, 
        model_labels = TD_labels, 
+       model_levels = model_levels_prob,
        filename = "TD_wyoung_ologit_set1_uncond.png", 
        ncol = 5,
        xlabs = xlabel)
@@ -615,7 +754,7 @@ plot_configs <- list(plot_configs_DK,
 names(plot_configs) <- c(outcomes[1],outcomes[3:length(outcomes)])
 
 # Process and save plots
-allplots_ITT <- lapply(plot_configs,process_plot_configs)
+allplots_ITT_prob <- lapply(plot_configs,process_plot_configs)
 
 ##### TOT #####
 # Load data
@@ -623,6 +762,23 @@ outcomes <- c("DK","CB05","CB06","CB07","CB08","CB11","TD")
 datfilenm <- paste0(temp,"/",outcomes,"_wyoung_ivreg_allmodel.csv")
 data_list <- lapply(datfilenm, fread)
 names(data_list) <- outcomes
+
+# Define equation label
+data_list <- lapply(data_list, function(df) {
+  
+  if (is.null(df) || !"equation" %in% names(df)) return(df)
+  
+  df$equation <- dplyr::recode(
+    df$equation,
+    "Model 1" = "2SLS",
+    "Model 2" = "+PDS Lasso"
+  )
+  
+  df
+})
+
+# Define model labels
+model_levels_2sls <- c("2SLS","+PDS Lasso")
 
 #### DK ####
 ## Create plots
@@ -632,27 +788,45 @@ ivdata <- data_list$DK
 # Set x-axis label
 xlabel <- "Probability of supporting policy relative to control"
 
-# List plot configs
+# List plot configs (new)
 plot_configs_DK <- list(
   list(data = ivdata, 
-       outnums = 1:4, 
+       outnums = 1:7, 
        model_labels = DK_labels_set1, 
+       model_levels = model_levels_2sls,
        filename = "DK_wyoung_ivreg_set1.png", 
        ncol = 4,
        xlabs = xlabel),
   list(data = ivdata, 
-       outnums = 5:8, 
+       outnums = 8:13, 
        model_labels = DK_labels_set2, 
+       model_levels = model_levels_2sls,
        filename = "DK_wyoung_ivreg_set2.png", 
        ncol = 4,
-       xlabs = xlabel),
-  list(data = ivdata, 
-       outnums = 9:13, 
-       model_labels = DK_labels_set3, 
-       filename = "DK_wyoung_ivreg_set3.png", 
-       ncol = 5,
        xlabs = xlabel)
 )
+
+# # List plot configs (old)
+# plot_configs_DK <- list(
+#   list(data = ivdata, 
+#        outnums = 1:4, 
+#        model_labels = DK_labels_set1, 
+#        filename = "DK_wyoung_ivreg_set1.png", 
+#        ncol = 4,
+#        xlabs = xlabel),
+#   list(data = ivdata, 
+#        outnums = 5:8, 
+#        model_labels = DK_labels_set2, 
+#        filename = "DK_wyoung_ivreg_set2.png", 
+#        ncol = 4,
+#        xlabs = xlabel),
+#   list(data = ivdata, 
+#        outnums = 9:13, 
+#        model_labels = DK_labels_set3, 
+#        filename = "DK_wyoung_ivreg_set3.png", 
+#        ncol = 5,
+#        xlabs = xlabel)
+# )
 
 #### CB05 #### 
 ## Create plots
@@ -665,17 +839,19 @@ xlabel <- "Probability of prioritizing development goal relative to control"
 # List plot configs
 plot_configs_CB05 <- list(
   list(data = ivdata, 
-       outnums = 3:8, 
+       outnums = 3:12, 
        model_labels = CB05_labels_set1, 
+       model_levels = model_levels_2sls,
        filename = "CB05_wyoung_ivreg_set1.png", 
        ncol = 5,
-       xlabs = xlabel),
-  list(data = ivdata, 
-       outnums = 9:12, 
-       model_labels = CB05_labels_set2, 
-       filename = "CB05_wyoung_ivreg_set2.png", 
-       ncol = 4,
        xlabs = xlabel)
+  # ,
+  # list(data = ivdata, 
+  #      outnums = 9:12, 
+  #      model_labels = CB05_labels_set2, 
+  #      filename = "CB05_wyoung_ivreg_set2.png", 
+  #      ncol = 4,
+  #      xlabs = xlabel)
 )
 
 #### CB06 #### 
@@ -689,17 +865,19 @@ xlabel <- "Probability of being in top three priority relative to control"
 # List plot configs
 plot_configs_CB06 <- list(
   list(data = ivdata, 
-       outnums = 1:4, 
+       outnums = 1:8, 
        model_labels = CB06_labels_set1, 
+       model_levels = model_levels_2sls,
        filename = "CB06_wyoung_ivreg_set1.png", 
        ncol = 4,
-       xlabs = xlabel),
-  list(data = ivdata, 
-       outnums = 5:8, 
-       model_labels = CB06_labels_set2, 
-       filename = "CB06_wyoung_ivreg_set2.png", 
-       ncol = 4,
        xlabs = xlabel)
+  # ,
+  # list(data = ivdata, 
+  #      outnums = 5:8, 
+  #      model_labels = CB06_labels_set2, 
+  #      filename = "CB06_wyoung_ivreg_set2.png", 
+  #      ncol = 4,
+  #      xlabs = xlabel)
 )
 
 #### CB07 #### 
@@ -713,17 +891,19 @@ xlabel <- "Probability of agreeing to statement relative to control"
 # List plot configs
 plot_configs_CB07 <- list(
   list(data = ivdata, 
-       outnums = 1:3, 
+       outnums = 1:6, 
        model_labels = CB07_labels_set1, 
+       model_levels = model_levels_2sls,
        filename = "CB07_wyoung_ivreg_set1.png", 
        ncol = 3,
-       xlabs = xlabel),
-  list(data = ivdata, 
-       outnums = 4:6, 
-       model_labels = CB07_labels_set2, 
-       filename = "CB07_wyoung_ivreg_set2.png", 
-       ncol = 3,
        xlabs = xlabel)
+  # ,
+  # list(data = ivdata, 
+  #      outnums = 4:6, 
+  #      model_labels = CB07_labels_set2, 
+  #      filename = "CB07_wyoung_ivreg_set2.png", 
+  #      ncol = 3,
+  #      xlabs = xlabel)
 )
 
 #### CB08 #### 
@@ -739,6 +919,7 @@ plot_configs_CB08 <- list(
   list(data = ivdata, 
        outnums = 1:5, 
        model_labels = CB08_labels, 
+       model_levels = model_levels_2sls,
        filename = "CB08_wyoung_ivreg_set1.png", 
        ncol = 5,
        xlabs = xlabel)
@@ -757,6 +938,7 @@ plot_configs_CB11 <- list(
   list(data = ivdata, 
        outnums = 1:4, 
        model_labels = CB11_labels, 
+       model_levels = model_levels_2sls,
        filename = "CB11_wyoung_ivreg_set1.png", 
        ncol = 4,
        xlabs = xlabel)
@@ -775,6 +957,7 @@ plot_configs_TD <- list(
   list(data = ivdata, 
        outnums = 1:5, 
        model_labels = TD_labels, 
+       model_levels = model_levels_2sls,
        filename = "TD_wyoung_ivreg_set1.png", 
        ncol = 5,
        xlabs = xlabel)
@@ -795,9 +978,34 @@ names(plot_configs) <- outcomes
 allplots_TOT <- lapply(plot_configs,process_plot_configs)
 
 ##### CONJOINT #####
+## Data preparation for conjoint
+# Set data date
+date <- "20250304"
+
+# Load data
+datnm <- paste0("processed_",date,".csv") 
+data <- file.path(ipt,datnm) 
+maindata <- fread(data)
+
+# Define potential controls variables
+basechar <- c('region1', 
+              'region2',
+              'region3',
+              'urban',
+              'male',
+              'age',
+              'edu1',
+              'edu2',
+              'edu3',
+              'edu4',
+              'edu5',
+              'hhhead_female',
+              'nosocast',
+              'hhsize',
+              'sdbi')
+
 # Setup cognitive controls
 basecogctrl <- c('read_stim_time', 'sdbi', 'agreestim', 'crt_intrpt_msg')
-
 basecovlist <- c(basechar, basecogctrl)
 
 ## Prepare chosen profile data 
@@ -929,11 +1137,14 @@ plotprep <- function(model) {
     unclass() %>% 
     data.frame() %>% 
     rownames_to_column(var = "term") %>%
-    filter(!term %in% c(paste0("treat", 1:5),
-                        paste0("complytreat", 1:5),
-                        basechar,
-                        basecogctrl,
-                        "ConjointOverall_Time")) %>%
+    filter(!term %in% c(
+      "(Intercept)",
+      paste0("treat", 1:5),
+      paste0("complytreat", 1:5),
+      basechar,
+      basecogctrl,
+      "ConjointOverall_Time")
+      ) %>%
     rename(p.unadj = Pr...t..,
            estimate = Estimate,
            std.error = Std..Error) %>%
@@ -1012,14 +1223,26 @@ plotnsave <- function(modres, filepath) {
     labs(
       x = "Probability of choosing a development scenario relative to base option",
       y = NULL,
-      color = "Statistical significance based on Holm p-values",
-      shape = "Statistical significance based on Holm p-values"
+      color = "Significance (Holm p-values)",
+      shape = "Significance (Holm p-values)"
     ) +
     theme_minimal() +
-    theme(legend.position = "top") +
+    theme(
+      legend.position = "top",
+      legend.direction = "horizontal",
+      axis.title.x = element_text(size = 10)
+    ) +
     guides(
-      color = guide_legend(title.position = "top"),
-      shape = guide_legend(title.position = "top")
+      color = guide_legend(
+        title.position = "left",
+        nrow = 1,
+        byrow = TRUE
+      ),
+      shape = guide_legend(
+        title.position = "left",
+        nrow = 1,
+        byrow = TRUE
+      )
     )
   
   ggsave(
@@ -1046,11 +1269,13 @@ treatvarlist <- paste(treatments, collapse = " + ")
 main_effects <- paste(attrbvarlist,treatvarlist,sep = " + ")
 interactions <- paste(intrterms_treat, collapse = " + ")
 regressors1 <- paste(main_effects,interactions, sep = " + ")
-formula1 <- paste("alt_chosen ~",regressors1)
+formula1_base <- paste("alt_chosen ~",attrbvarlist)
+formula1_intr <- paste("alt_chosen ~",regressors1)
 
 # Run the model
 wgt__ <- NULL  # Initialize wgt__ in the global environment
-infmodel1 <- lapply(cjdf, clusterols, formula1)
+infmodel1_base <- lapply(cjdf, clusterols, formula1_base)
+infmodel1_intr <- lapply(cjdf, clusterols, formula1_intr)
 
 ##### Model 2 covariates selection (PDS LASSO) #####
 # Setup the matrices
@@ -1076,33 +1301,11 @@ lassomod2 <- lapply(names(cjdf_nacl), function(sample) {
 })
 names(lassomod2) <- names(cjdf_nacl)
 
-##### Model 3 covariates selection (PDS LASSO) #####
-# Loop through conditional and unconditional data
-lassomod3 <- lapply(names(cjdf_nacl), function(sample) {
-  # Prepare variables
-  regressors <- select(cjdf_nacl[[sample]],all_of(c(attr_levels,
-                                                    treatments,
-                                                    intrterms_treat,
-                                                    basechar,
-                                                    basecogctrl,
-                                                    "ConjointOverall_Time")))
-  outcome <- cjdf_nacl[[sample]]$alt_chosen
-  
-  # Run Lasso
-  rlassoEffects(x = as.matrix(regressors),
-                y = outcome,
-                index = infervars,
-                method = "double selection",
-                I3 = c(basecogctrl,"ConjointOverall_Time"))
-})
-names(lassomod3) <- names(cjdf_nacl)
-
-##### Estimate model 2 and 3 with OLS #####
-## Setup formula model 2 and 3
+##### Estimate model 2 with OLS #####
+## Setup formula model 2
 # Extract selected variables from PDS Lasso results
-selectedctrls <- lapply(c(lassomod2,lassomod3),obtain_selecvar)
+selectedctrls <- lapply(c(lassomod2),obtain_selecvar)
 names(selectedctrls)[1:2] <- paste("model 2", names(selectedctrls)[1:2])
-names(selectedctrls)[3:4] <- paste("model 3", names(selectedctrls)[3:4])
 
 # Convert character strings to formula objects
 formulas <- lapply(names(selectedctrls), function(model) {
@@ -1120,11 +1323,10 @@ modsres <- lapply(c(infmodel1,infmodels),plotprep)
 ##### Create combined plots #####
 # Combine results
 allmodres <- list("unconditional"=bind_rows(mutate(modsres$unconditional,model=1),
-                                            mutate(modsres$`model 2 unconditional`,model=2),
-                                            mutate(modsres$`model 3 unconditional`,model=3)),
+                                            mutate(modsres$`model 2 unconditional`,model=2)),
                   "conditional"=bind_rows(mutate(modsres$conditional,model=1),
-                                          mutate(modsres$`model 2 conditional`,model=2),
-                                          mutate(modsres$`model 3 conditional`,model=3)))
+                                          mutate(modsres$`model 2 conditional`,model=2))
+                  )
 
 # Export results
 filenm <- file.path(opt,"conjoint_itt_acmes.xlsx")
@@ -1136,9 +1338,8 @@ allmodres$unconditional <- allmodres$unconditional %>%
 
 # Define a named vector for the new facet labels
 model_labels <- c(
-  "1" = "Model 1: OLS",
-  "2" = "Model 2: PDS Lasso",
-  "3" = "Model 3: PDS Lasso"
+  "1" = "OLS",
+  "2" = "PDS Lasso + OLS"
 )
 
 # Plot
@@ -1269,28 +1470,11 @@ lassomod2 <- rlassoEffects(x = as.matrix(regressors),
               index = infervars,
               method = "double selection")
 
-##### Model 3 covariates selection (PDS LASSO) #####
-# Prepare variables
-regressors <- select(cjdff_nacl,all_of(c(attr_levels,
-                                         complytreatments,
-                                         intrterms_complytreat,
-                                         basechar,
-                                         basecogctrl,
-                                         "ConjointOverall_Time")))
-outcome <- cjdff_nacl$alt_chosen
-
-# Run Lasso
-lassomod3 <-  rlassoEffects(x = as.matrix(regressors),
-              y = outcome,
-              index = infervars,
-              method = "double selection",
-              I3 = c(basecogctrl,"ConjointOverall_Time"))
-
-##### Estimate model 2 and 3 with IVREG #####
-## Setup formula model 2 and 3
+##### Estimate model 2 with IVREG #####
+## Setup formula model 2
 # Extract selected variables from PDS Lasso results
-selectedctrls <- lapply(list(lassomod2,lassomod3),obtain_selecvar)
-names(selectedctrls) <- paste0("lassomod",2:3)
+selectedctrls <- lapply(list(lassomod2),obtain_selecvar)
+names(selectedctrls) <- paste0("lassomod",2)
 
 # Create formula
 for (equation in c("str_formula","redf_regressors")) {
@@ -1328,14 +1512,13 @@ names(modsres) <- names(infmodels)
 ##### Create combined plots #####
 # Combine results
 allmodres <- bind_rows(mutate(modres1,model=1),
-                       mutate(modsres$lassomod2,model=2),
-                       mutate(modsres$lassomod3,model=3))
+                       mutate(modsres$lassomod2,model=2)
+                       )
 
 # Define a named vector for the new facet labels
 model_labels <- c(
-  "1" = "Model 1: 2SLS",
-  "2" = "Model 2: PDS Lasso + 2SLS",
-  "3" = "Model 3: PDS Lasso + 2SLS"
+  "1" = "2SLS",
+  "2" = "PDS Lasso + 2SLS"
 )
 
 # Plot
@@ -1343,6 +1526,32 @@ fignm <- file.path(fig,paste0("conjoint_tot.png"))
 plotcjtot <- plotnsave(allmodres, filepath = fignm)
 
 ##### COVARIATE BALANCE #####
+## Data preparation for covariate balance
+# Set data date
+date <- "20250304"
+
+# Load data
+datnm <- paste0("processed_",date,".csv") 
+data <- file.path(ipt,datnm) 
+maindata <- fread(data)
+
+# Define potential controls variables
+basechar <- c('region1', 
+              'region2',
+              'region3',
+              'urban',
+              'male',
+              'age',
+              'edu1',
+              'edu2',
+              'edu3',
+              'edu4',
+              'edu5',
+              'hhhead_female',
+              'nosocast',
+              'hhsize',
+              'sdbi')
+
 # Setup data
 cbdata <- maindata %>% 
   filter(lfCB!=4) %>%
@@ -1365,7 +1574,8 @@ names(covbalreshc) <- basechar
 covbalreshc <- covbalreshc[names(covbalreshc) != "edu1"] ## Remove edu1
 names(covbalreshc) <- c("West","Central","East","Urban","Male","Age",
                         "Primary","JHS","SHS","Tertiary","HH head female",
-                        "No soc. asst.", "Household size")
+                        "No soc. asst.", "Household size",
+                        "SDBI")
 
 # Convert regression results into data frame
 cbresdfl <- map_dfr(covbalreshc, tidy, .id = "cov") %>% 
@@ -1392,7 +1602,12 @@ cbresdfl <- map_dfr(covbalreshc, tidy, .id = "cov") %>%
 # Create wide data
 cbresdfw <- pivot_wider(cbresdfl,names_from = cov, values_from = label) %>%
   rename(Group=term) 
-cbresdfw$Group <- paste("Treatment",1:4)
+cbresdfw$Group <- c(
+  "Fix the distribution",
+  "No victimization",
+  "Balanced development",
+  "Equal opportunity"
+)
 
 # build a flextable directly from your wide tibble
 ft <- regulartable(cbresdfw)

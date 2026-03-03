@@ -2766,7 +2766,7 @@ forval j = 1/1 {
 * initial data prep
 loc outfamlist CB05 CB07 CB08 DK
 foreach outfam in `outfamlist' {
-	forval model = 1/3 {
+	forval model = 1/2 {
 		if "`outfam'"=="CB05" & `model'==1 {
 			use "$temp\\`outfam'_nlift_model`model'.dta", clear
 		}
