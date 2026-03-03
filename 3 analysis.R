@@ -12,10 +12,9 @@ pacman::p_load(tidyverse,data.table,readxl,writexl,fastDummies,hdm,kableExtra,
 current_user <- Sys.info()[["user"]]
 
 # Check if the username matches and set the working directory accordingly
-if (current_user == "User") {
-  base_dir <- "H:/"
-} else if (current_user == "elgha") {
-  base_dir <- "G:/"
+if (current_user == "elgha") {
+  #base_dir <- "G:/" # laptop
+  base_dir <- "H:/" # computer
 }
 
 # Set directory
@@ -109,7 +108,11 @@ generate_plot <- function(data, outnums, model_labels, xlab, ncol) {
   
   ggplot(filter(data, outnum %in% outnums), 
          aes(x = coef, y = treateq)) +
-    geom_errorbarh(aes(xmin = lci, xmax = uci, color = sig), height = 0.2) +
+    geom_errorbar(
+      aes(xmin = lci, xmax = uci, color = sig),
+      width = 0.2,
+      orientation = "y"
+    ) +
     geom_point(aes(color = sig, shape = sig), size = 3) +
     scale_color_manual(values = cb_palette) +
     scale_shape_manual(values = c("p < .01" = 8, "p < .05" = 17, "p < .1" = 16, "Null" = 1)) +
@@ -275,7 +278,13 @@ datavariants <- expand.grid(outcomes,modelvariants,samplevariants) %>%
   rename(outcome=Var1,estimator=Var2,sample=Var3) %>%
   mutate(datfilenm = paste0(temp,"/",outcome,"_wyoung_",estimator,"_allmodel_",sample,".csv"),
          datnm = paste(outcome,estimator,sample))
-data_list <- lapply(datavariants$datfilenm, fread)
+data_list <- lapply(datavariants$datfilenm, function(x) {
+  if (file.exists(x)) {
+    fread(x)
+  } else {
+    NULL
+  }
+})
 names(data_list) <- datavariants$datnm
 
 ##### Linear model #####
