@@ -1,14 +1,17 @@
+/*******************************************************************************
+					ORWELL NARRATIVE TESTING DATA ANALYSIS							   
+*******************************************************************************/
 * ==== PRELIMINARIES ==== *
-* GOAL: ANALYZE DATA
-
 * clear environment
 capture log close
 clear all 
 set more off
 
 * ==== PROGRAMS ==== *
+* install once, then turn it off
 // net describe ritest, from(https://raw.githubusercontent.com/simonheb/ritest/master/)
 // net install ritest 
+// net install wyoung, from("https://raw.githubusercontent.com/reifjulian/wyoung/master") replace
 
 *** GENERAL DATA SETUP
 pro setupdatagen 
@@ -25,7 +28,7 @@ pro setupdatagen
 	gl uncond
 	gl seest robust
 	
-	gl covariates i.region urban male age i.edlvl hhhead_female nosocast hhsize
+	gl covariates i.region urban male age i.edlvl hhhead_female nosocast hhsize sdbi
 	gl basecogctrl read_stim_time sdbi agreestim crt_intrpt_msg
 	gl covarset1 controls(() $covariates)
 	gl covarset2 controls(($cognitivecontrols) $covariates)
@@ -444,8 +447,8 @@ foreach sampresc in uncond {
 	}
 	save "$temp\DK_wyoung_linear_model1_`sampresc'.dta", replace
 
-	** model 2 & 3
-	forval j = 1/2 {
+	** model 2
+	forval j = 1/1 {
 		est clear
 		setupdataDK
 		forval i = 1/$numvar {
@@ -509,7 +512,7 @@ foreach sampresc in uncond {
 foreach sampresc in uncond {
 	** tidy all wyoung result for plotting
 	use "$temp\DK_wyoung_linear_model1_`sampresc'.dta", clear
-	forval i = 2/3 {
+	forval i = 2/2 {
 		append using "$temp\DK_wyoung_linear_model`i'_`sampresc'.dta"
 	}
 	plotprep 
@@ -592,8 +595,8 @@ foreach sampresc in uncond {
 		}
 		save "$temp\DK_wyoung_`x'_model1_`sampresc'.dta", replace
 
-		** model 2 & 3
-		forval j = 1/2 {
+		** model 2
+		forval j = 1/1 {
 			est clear
 			setupdataDK
 			forval i = 1/$numvar {
@@ -659,7 +662,7 @@ foreach sampresc in uncond {
 	foreach x in ologit {
 		** tidy all wyoung result for plotting
 		use "$temp\DK_wyoung_`x'_model1_`sampresc'.dta", clear
-		forval i = 2/3 {
+		forval i = 2/2 {
 			append using "$temp\DK_wyoung_`x'_model`i'_`sampresc'.dta"
 		}
 		plotprep 
@@ -725,8 +728,8 @@ foreach sampresc in uncond {
 	}
 	save "$temp\CB05_wyoung_linear_model1_`sampresc'.dta", replace
 
-	** model 2 & 3
-	forval j = 1/2 {
+	** model 2
+	forval j = 1/1 {
 		est clear
 		setupdataCB05
 		foreach i of numlist $varnumlist {
@@ -779,7 +782,7 @@ foreach sampresc in uncond {
 foreach sampresc in uncond {
 	** tidy all wyoung result for plotting
 	use "$temp\CB05_wyoung_linear_model1_`sampresc'.dta", clear
-	forval i = 2/3 {
+	forval i = 2/2 {
 		append using "$temp\CB05_wyoung_linear_model`i'_`sampresc'.dta"
 	}
 	plotprep 
@@ -838,8 +841,8 @@ foreach sampresc in uncond {
 	}
 	save "$temp\CB06_wyoung_linear_model1_`sampresc'.dta", replace
 
-	** model 2 & 3
-	forval j = 1/2 {
+	** model 2
+	forval j = 1/1 {
 		est clear
 		setupdataCB06
 		forval i = 1/$numvar {
@@ -886,7 +889,7 @@ foreach sampresc in uncond {
 foreach sampresc in uncond {	
 	** tidy all wyoung result for plotting
 	use "$temp\CB06_wyoung_linear_model1_`sampresc'.dta", clear
-	forval i = 2/3 {
+	forval i = 2/2 {
 		append using "$temp\CB06_wyoung_linear_model`i'_`sampresc'.dta"
 	}
 	plotprep 
@@ -951,8 +954,8 @@ foreach sampresc in uncond {
 		}
 		save "$temp\CB06_wyoung_`x'_model1_`sampresc'.dta", replace
 
-		** model 2 & 3
-		forval j = 1/2 {
+		** model 2
+		forval j = 1/1 {
 			est clear
 			setupdataCB06
 			forval i = 1/$numvar {
@@ -1002,7 +1005,7 @@ foreach sampresc in uncond {
 	foreach x in ologit  {
 		** tidy all wyoung result for plotting
 		use "$temp\CB06_wyoung_`x'_model1_`sampresc'.dta", clear
-		forval i = 2/3 {
+		forval i = 2/2 {
 			append using "$temp\CB06_wyoung_`x'_model`i'_`sampresc'.dta"
 		}
 		plotprep 
@@ -1056,8 +1059,8 @@ foreach sampresc in uncond {
 	}
 	save "$temp\CB07_wyoung_linear_model1_`sampresc'.dta", replace
 
-	** model 2 & 3
-	forval j = 1/2 {
+	** model 2
+	forval j = 1/1 {
 		est clear
 		setupdataCB07
 		forval i = 1/$numvar {
@@ -1097,7 +1100,7 @@ foreach sampresc in uncond {
 foreach sampresc in uncond {	
 	** tidy all wyoung result for plotting
 	use "$temp\CB07_wyoung_linear_model1_`sampresc'.dta", clear
-	forval i = 2/3 {
+	forval i = 2/2 {
 		append using "$temp\CB07_wyoung_linear_model`i'_`sampresc'.dta"
 	}
 	plotprep 
@@ -1156,8 +1159,8 @@ foreach sampresc in uncond {
 		}
 		save "$temp\CB07_wyoung_`x'_model1_`sampresc'.dta", replace
 
-		** model 2 & 3
-		forval j = 1/2 {
+		** model 2
+		forval j = 1/1 {
 			est clear
 			setupdataCB07
 			forval i = 1/$numvar {
@@ -1200,7 +1203,7 @@ foreach sampresc in uncond {
 	foreach x in ologit  {
 		** tidy all wyoung result for plotting
 		use "$temp\CB07_wyoung_`x'_model1_`sampresc'.dta", clear
-		forval i = 2/3 {
+		forval i = 2/2 {
 			append using "$temp\CB07_wyoung_`x'_model`i'_`sampresc'.dta"
 		}
 		plotprep 
@@ -1246,8 +1249,8 @@ foreach sampresc in uncond {
 	}
 	save "$temp\CB08_wyoung_linear_model1_`sampresc'.dta", replace
 
-	** model 2 & 3
-	forval j = 1/2 {
+	** model 2
+	forval j = 1/1 {
 		est clear
 		setupdataCB08
 		forval i = 1/$numvar {
@@ -1279,7 +1282,7 @@ foreach sampresc in uncond {
 foreach sampresc in uncond {
 	** tidy all wyoung result for plotting
 	use "$temp\CB08_wyoung_linear_model1_`sampresc'.dta", clear
-	forval i = 2/3 {
+	forval i = 2/2 {
 		append using "$temp\CB08_wyoung_linear_model`i'_`sampresc'.dta"
 	}
 	plotprep 
@@ -1330,8 +1333,8 @@ foreach sampresc in uncond {
 		}
 		save "$temp\CB08_wyoung_`x'_model1_`sampresc'.dta", replace
 
-		** model 2 & 3
-		forval j = 1/2 {
+		** model 2
+		forval j = 1/1 {
 			est clear
 			setupdataCB08
 			forval i = 1/$numvar {
@@ -1366,7 +1369,7 @@ foreach sampresc in uncond {
 	foreach x in ologit {
 		** tidy all wyoung result for plotting
 		use "$temp\CB08_wyoung_`x'_model1_`sampresc'.dta", clear
-		forval i = 2/3 {
+		forval i = 2/2 {
 			append using "$temp\CB08_wyoung_`x'_model`i'_`sampresc'.dta"
 		}
 		plotprep 
@@ -1414,8 +1417,8 @@ foreach sampresc in uncond {
 	}
 	save "$temp\CB11_wyoung_linear_model1_`sampresc'.dta", replace
 
-	** model 2 & 3
-	forval j = 1/2 {
+	** model 2
+	forval j = 1/1 {
 		est clear
 		setupdataCB11
 		forval i = 1/$numvar {
@@ -1450,7 +1453,7 @@ foreach sampresc in uncond {
 foreach sampresc in uncond {	
 	** tidy all wyoung result for plotting
 	use "$temp\CB11_wyoung_linear_model1_`sampresc'.dta", clear
-	forval i = 2/3 {
+	forval i = 2/2 {
 		append using "$temp\CB11_wyoung_linear_model`i'_`sampresc'.dta"
 	}
 	plotprep 
@@ -1503,8 +1506,8 @@ foreach sampresc in uncond {
 		}
 		save "$temp\CB11_wyoung_`x'_model1_`sampresc'.dta", replace
 
-		** model 2 & 3
-		forval j = 1/2 {
+		** model 2
+		forval j = 1/1 {
 			est clear
 			setupdataCB11
 			forval i = 1/$numvar {
@@ -1542,7 +1545,7 @@ foreach sampresc in uncond {
 	foreach x in ologit  {
 		** tidy all wyoung result for plotting
 		use "$temp\CB11_wyoung_`x'_model1_`sampresc'.dta", clear
-		forval i = 2/3 {
+		forval i = 2/2 {
 			append using "$temp\CB11_wyoung_`x'_model`i'_`sampresc'.dta"
 		}
 		plotprep 
@@ -1593,8 +1596,8 @@ foreach sampresc in uncond {
 	}
 	save "$temp\TD_wyoung_linear_model1_`sampresc'.dta", replace
 
-	** model 2 & 3
-	forval j = 1/2 {
+	** model 2
+	forval j = 1/1 {
 		est clear
 		setupdataTD
 		forval i = 1/$numvar {
@@ -1632,7 +1635,7 @@ foreach sampresc in uncond {
 foreach sampresc in uncond {	
 	** tidy all wyoung result for plotting
 	use "$temp\TD_wyoung_linear_model1_`sampresc'.dta", clear
-	forval i = 2/3 {
+	forval i = 2/2 {
 		append using "$temp\TD_wyoung_linear_model`i'_`sampresc'.dta"
 	}
 	plotprep 
@@ -1688,8 +1691,8 @@ foreach sampresc in uncond {
 		}
 		save "$temp\TD_wyoung_`x'_model1_`sampresc'.dta", replace
 
-		** model 2 & 3
-		forval j = 1/2 {
+		** model 2
+		forval j = 1/1 {
 			est clear
 			setupdataTD
 			forval i = 1/$numvar {
@@ -1729,7 +1732,7 @@ foreach sampresc in uncond {
 	foreach x in ologit {
 		** tidy all wyoung result for plotting
 		use "$temp\TD_wyoung_`x'_model1_`sampresc'.dta", clear
-		forval i = 2/3 {
+		forval i = 2/2 {
 			append using "$temp\TD_wyoung_`x'_model`i'_`sampresc'.dta"
 		}
 		plotprep 
@@ -1809,8 +1812,8 @@ forval i=1/$numvar {
 }
 save "$temp\DK_wyoung_ivreg_model1.dta", replace
 
-** model 2 & 3
-forval j = 1/2 {
+** model 2
+forval j = 1/1 {
 	est clear
 	setupdataDK
 	forval i = 1/$numvar {
@@ -1874,7 +1877,7 @@ forval j = 1/2 {
 
 ** tidy all wyoung result for plotting
 use "$temp\DK_wyoung_ivreg_model1.dta", clear
-forval i = 2/3 {
+forval i = 2/2 {
 	append using "$temp\DK_wyoung_ivreg_model`i'.dta"
 }
 plotprep 
@@ -1936,8 +1939,8 @@ foreach i of numlist $varnumlist {
 }
 save "$temp\CB05_wyoung_ivreg_model1.dta", replace
 
-** model 2 & 3
-forval j = 1/2 {
+** model 2
+forval j = 1/1 {
 	est clear
 	setupdataCB05
 	foreach i of numlist $varnumlist {
@@ -1989,7 +1992,7 @@ forval j = 1/2 {
 
 ** tidy all wyoung result for plotting
 use "$temp\CB05_wyoung_ivreg_model1.dta", clear
-forval i = 2/3 {
+forval i = 2/2 {
 	append using "$temp\CB05_wyoung_ivreg_model`i'.dta"
 }
 plotprep 
@@ -2045,8 +2048,8 @@ forval i=1/$numvar {
 }
 save "$temp\CB06_wyoung_ivreg_model1.dta", replace
 
-** model 2 & 3
-forval j = 1/2 {
+** model 2
+forval j = 1/1 {
 	est clear
 	setupdataCB06
 	forval i = 1/$numvar {
@@ -2092,7 +2095,7 @@ forval j = 1/2 {
 
 ** tidy all wyoung result for plotting
 use "$temp\CB06_wyoung_ivreg_model1.dta", clear
-forval i = 2/3 {
+forval i = 2/2 {
 	append using "$temp\CB06_wyoung_ivreg_model`i'.dta"
 }
 plotprep 
@@ -2142,8 +2145,8 @@ forval i=1/$numvar {
 }
 save "$temp\CB07_wyoung_ivreg_model1.dta", replace
 
-** model 2 & 3
-forval j = 1/2 {
+** model 2
+forval j = 1/1 {
 	est clear
 	setupdataCB07
 	forval i = 1/$numvar {
@@ -2183,7 +2186,7 @@ forval j = 1/2 {
 
 ** tidy all wyoung result for plotting
 use "$temp\CB07_wyoung_ivreg_model1.dta", clear
-forval i = 2/3 {
+forval i = 2/2 {
 	append using "$temp\CB07_wyoung_ivreg_model`i'.dta"
 }
 plotprep 
@@ -2225,8 +2228,8 @@ forval i=1/$numvar {
 }
 save "$temp\CB08_wyoung_ivreg_model1.dta", replace
 
-** model 2 & 3
-forval j = 1/2 {
+** model 2
+forval j = 1/1 {
 	est clear
 	setupdataCB08
 	forval i = 1/$numvar {
@@ -2256,7 +2259,7 @@ forval j = 1/2 {
 
 ** tidy all wyoung result for plotting
 use "$temp\CB08_wyoung_ivreg_model1.dta", clear
-forval i = 2/3 {
+forval i = 2/2 {
 	append using "$temp\CB08_wyoung_ivreg_model`i'.dta"
 }
 plotprep 
@@ -2300,8 +2303,8 @@ forval i=1/$numvar {
 }
 save "$temp\CB11_wyoung_ivreg_model1.dta", replace
 
-** model 2 & 3
-forval j = 1/2 {
+** model 2
+forval j = 1/1 {
 	est clear
 	setupdataCB11
 	forval i = 1/$numvar {
@@ -2334,7 +2337,7 @@ forval j = 1/2 {
 
 ** tidy all wyoung result for plotting
 use "$temp\CB11_wyoung_ivreg_model1.dta", clear
-forval i = 2/3 {
+forval i = 2/2 {
 	append using "$temp\CB11_wyoung_ivreg_model`i'.dta"
 }
 plotprep 
@@ -2381,8 +2384,8 @@ forval i=1/$numvar {
 }
 save "$temp\TD_wyoung_ivreg_model1.dta", replace
 
-** model 2 & 3
-forval j = 1/2 {
+** model 2
+forval j = 1/1 {
 	est clear
 	setupdataTD
 	forval i = 1/$numvar {
@@ -2419,7 +2422,7 @@ forval j = 1/2 {
 
 ** tidy all wyoung result for plotting
 use "$temp\TD_wyoung_ivreg_model1.dta", clear
-forval i = 2/3 {
+forval i = 2/2 {
 	append using "$temp\TD_wyoung_ivreg_model`i'.dta"
 }
 plotprep 
@@ -2435,13 +2438,20 @@ export delimited "$temp\\`filenm'.csv", replace nolab
 setupdatagen
 drop if lfCB==4
 
-** combined omnibus tests of joint orthogonality across all study arms with manova
 capture log close 
 log using "$lg\balancetest.smcl", replace
+
+** combined omnibus tests of joint orthogonality across all study arms with manova
 loc basechar region urban male c.age unmarried ID06 hhhead_female nosocast c.hhsize
 qui manova lfCB = `basechar' 
 set seed 250834328 // seed taken from https://www.random.org/
 ritest lfCB `e(F)',  reps(10000)  : manova lfCB = `basechar' 
+
+** cognitive controls
+foreach x of varlist $basecogctrl pagetime* {
+	capture noisily reg `x' ib6.lfCB, ro
+}
+
 log close 
 
 *************************
@@ -2537,8 +2547,8 @@ forval i=2/$numvar {
 g model=1
 save "$temp\DK_nlift_model1.dta", replace 
 
-** model 2 & 3
-forval j = 1/2 {
+** model 2
+forval j = 1/1 {
 	* open data
 	est clear
 	setupdataDK
@@ -2599,8 +2609,8 @@ foreach i of numlist $varnumlist {
 g model=1
 save "$temp\CB05_nlift_model1.dta", replace 
 
-** model 2 & 3
-forval j = 1/2 {
+** model 2
+forval j = 1/1 {
 	* open data
 	est clear
 	setupdataCB05
@@ -2661,8 +2671,8 @@ forval i=2/$numvar {
 g model=1
 save "$temp\CB07_nlift_model1.dta", replace 
 
-** model 2 & 3
-forval j = 1/2 {
+** model 2
+forval j = 1/1 {
 	* open data
 	est clear
 	setupdataCB07
@@ -2719,8 +2729,8 @@ forval i=2/$numvar {
 g model=1
 save "$temp\CB08_nlift_model1.dta", replace 
 
-** model 2 & 3
-forval j = 1/2 {
+** model 2
+forval j = 1/1 {
 	* open data
 	est clear
 	setupdataCB08

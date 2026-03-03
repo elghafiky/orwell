@@ -1,19 +1,16 @@
+/*******************************************************************************
+					ORWELL NARRATIVE TESTING MASTER DO-FILE							   
+*******************************************************************************/
 * ==== PRELIMINARIES ==== *
-
 * clear environment
 capture log close
 clear all 
 set more off
 
 * directory
-if "`c(username)'"=="User" {
-	gl basedir "H:"
-} 
-else if "`c(username)'"=="azzah" {
-	gl basedir "G:"
-}
-else if "`c(username)'"=="elgha" {
-	gl basedir "G:"
+if "`c(username)'"=="elgha" {
+// 	gl basedir "G:" // laptop
+	gl basedir "H:" // computer
 }
 
 * globals
