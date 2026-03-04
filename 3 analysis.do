@@ -2807,6 +2807,3 @@ drop if coef==. & prob==.
 * save
 save "$opt\alloutcomes_nlift_allmodel.dta", replace
 export excel "$opt\alloutcomes_nlift_allmodel.xlsx", replace first(var)
-
-
-

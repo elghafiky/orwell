@@ -16,8 +16,8 @@ current_user <- Sys.info()[["user"]]
 
 # Check if the username matches and set the working directory accordingly
 if (current_user == "elgha") {
-  base_dir <- "G:/" # laptop
-  #base_dir <- "H:/" # computer
+  #base_dir <- "G:/" # laptop
+  base_dir <- "H:/" # computer
 }
 
 # Set directory
@@ -1130,99 +1130,276 @@ for (treat in c(treatments,complytreatments)) {
 cjdf <- list("unconditional" = cjdff, 
              "conditional" = cjdff %>% filter(crt_intrpt_msg==1))
 
-# Write a function to prepare results for plotting
+# Write a function to tidy regression results
 plotprep <- function(model) {
   model %>%
-    summary() %>% 
-    unclass() %>% 
-    data.frame() %>% 
-    rownames_to_column(var = "term") %>%
-    filter(!term %in% c(
-      "(Intercept)",
-      paste0("treat", 1:5),
-      paste0("complytreat", 1:5),
-      basechar,
-      basecogctrl,
-      "ConjointOverall_Time")
-      ) %>%
-    rename(p.unadj = Pr...t..,
-           estimate = Estimate,
-           std.error = Std..Error) %>%
-    mutate(p.adj = p.adjust(p.unadj, method ="holm"),
-           conf.low = estimate - 1.96 * std.error,
-           conf.high = estimate + 1.96 * std.error,
-           term = factor(term, levels=term)) %>%
-    mutate(sig   = case_when(
-      p.adj < 0.01 ~ "p < .01",
-      p.adj < 0.05 ~ "p < .05",
-      p.adj < 0.1  ~ "p < .1",
-      TRUE          ~ "Null"
-    )) 
+    summary() %>%
+    unclass() %>%
+    data.frame() %>%
+    tibble::rownames_to_column("term") %>%
+    rename(
+      estimate = Estimate,
+      std.error = Std..Error,
+      p.unadj  = Pr...t..
+    ) %>%
+    mutate(
+      conf.low  = estimate - 1.96 * std.error,
+      conf.high = estimate + 1.96 * std.error
+    )
 }
 
-# Write a function to extract selected variables from PDS Lasso
-obtain_selecvar <- function(modres) {
-  # Extract the selection matrix
-  selectionmat <- coef(modres, selection.matrix = TRUE, include.targets = FALSE)$selection.matrix
+# Holm Function With Attribute Grouping
+adjust_holm <- function(df, model_type) {
   
-  # Identify variables selected in at least one auxiliary regression
-  selected <- rownames(selectionmat)[apply(selectionmat[, -ncol(selectionmat)], 1, function(row) any(row == "x"))]  
+  # classify attribute
+  df <- df %>%
+    mutate(
+      attribute = case_when(
+        grepl("^econ_", term) ~ "econ",
+        grepl("^rights_", term) ~ "rights",
+        grepl("^env_", term) ~ "env",
+        grepl("^participation_", term) ~ "participation",
+        TRUE ~ NA_character_
+      ),
+      is_interaction = grepl(":", term)
+    )
   
-  # Remove "sum" element
-  selected[!selected %in% "sum"]
+  if (model_type == "base") {
+    
+    # Only adjust main AMCEs (exclude intercept)
+    df <- df %>%
+      mutate(
+        p.adj = ifelse(
+          !is.na(attribute),
+          ave(p.unadj, attribute, FUN = function(x) p.adjust(x, "holm")),
+          p.unadj
+        )
+      )
+    
+  }
+  
+  if (model_type == "interactions") {
+    
+    # Only adjust interaction terms
+    df <- df %>%
+      mutate(
+        p.adj = ifelse(
+          is_interaction & !is.na(attribute),
+          ave(p.unadj, attribute, FUN = function(x) p.adjust(x, "holm")),
+          p.unadj
+        )
+      )
+    
+  }
+  
+  df %>%
+    mutate(
+      sig = case_when(
+        p.adj < 0.01 ~ "p < .01",
+        p.adj < 0.05 ~ "p < .05",
+        p.adj < 0.1  ~ "p < .1",
+        TRUE         ~ "Null"
+      )
+    )
 }
 
+##### ITT ##### 
+# Write a function to conduct cluster regression 
+clusterols <- function(data,formula) {
+  lm.cluster(data = data, formula = formula, cluster = "record")  
+}
+
+##### Estimation (OLS) #####
+# Setting up the formula
+attrbvarlist <- paste(attr_levels, collapse = " + ")
+treatvarlist <- paste(treatments, collapse = " + ")
+main_effects <- paste(attrbvarlist,treatvarlist,sep = " + ")
+interactions <- paste(intrterms_treat, collapse = " + ")
+regressors <- paste(main_effects,interactions, sep = " + ")
+formula_base <- paste("alt_chosen ~",attrbvarlist)
+formula_intr <- paste("alt_chosen ~",regressors)
+formulas <- list(formula_base,formula_intr)
+names(formulas) <- c("base","interactions")
+
+# Run the model
+wgt__ <- NULL  # Initialize wgt__ in the global environment
+infmodels <- lapply(names(cjdf), function(data) {
+  lapply(names(formulas), function(formulae) {
+    clusterols(cjdf[[data]],formulas[[formulae]])
+  })
+})
+
+# Name the results
+names(infmodels) <- names(cjdf)
+for (sampresc in names(cjdf)) {
+  names(infmodels[[sampresc]]) <- names(formulas)
+}
+
+# Tidy results
+modsres <- lapply(names(cjdf), function(sampresc) {
+  lapply(names(formulas), function(formulae) {
+    
+    raw <- plotprep(infmodels[[sampresc]][[formulae]])
+    
+    adjust_holm(raw, model_type = formulae)
+    
+  })
+})
+
+# Name the tidy results
+names(modsres) <- names(infmodels)
+for (sampresc in names(infmodels)) {
+  names(modsres[[sampresc]]) <- names(formulas)
+}
+
+# Combine results
+allmodres <- list("unconditional"=bind_rows(mutate(modsres$unconditional$base,
+                                                   model="base"),
+                                            mutate(modsres$unconditional$interactions,
+                                                   model="interactions")),
+                  "conditional"=bind_rows(mutate(modsres$conditional$base,
+                                                 model="base"),
+                                          mutate(modsres$conditional$interactions,
+                                                 model="interactions"))
+)
+
+# Export results
+filenm <- file.path(opt,"conjoint_itt_acmes.xlsx")
+write_xlsx(allmodres$unconditional, path = filenm)
+
+##### Create combined plots #####
 # Write reusable function for plotting and saving the graph
 plotnsave <- function(modres, filepath) {
-  # Mapping from treatment codes (with or without "comply" prefix) to descriptive labels
+  
+  # -----------------------------
+  # 1. Treatment label mapping
+  # -----------------------------
+  
   treat_labels <- c(
     "treat1" = "Fix the distribution",
     "treat2" = "No victimization",
     "treat3" = "Balanced development",
-    "treat4" = "Equal opportunity",
-    "complytreat1" = "Fix distribution",
-    "complytreat2" = "No victimization",
-    "complytreat3" = "Balanced development",
-    "complytreat4" = "Equal opportunity"
+    "treat4" = "Equal opportunity"
   )
   
-  # Replace full tokens only (avoid partial matches like "complytreat1" → "complyFix ...")
   for (pattern in names(treat_labels)) {
-    modres$term <- str_replace_all(modres$term, paste0("\\b", pattern, "\\b"), treat_labels[[pattern]])
+    modres$term <- str_replace_all(
+      modres$term,
+      paste0("\\b", pattern, "\\b"),
+      treat_labels[[pattern]]
+    )
   }
   
-  # Define ACMEs (main effects)
-  main_effects <- c("econ_2", "econ_3", "rights_1", "rights_2", "env_2", "participation_1")
+  # -----------------------------
+  # 2. Identify main vs interaction
+  # -----------------------------
   
-  # Define treatment order for interactions
-  treat_order <- c("Fix the distribution", "No victimization", "Balanced development", "Equal opportunity")
-  
-  # Compute term order
   modres <- modres %>%
+    mutate(is_interaction = str_detect(term, ":"))
+  
+  # -----------------------------
+  # 3. Split and filter per model
+  # -----------------------------
+  
+  base_df <- modres %>%
+    filter(model == "base", !is_interaction) %>%
+    mutate(attribute = as.character(attribute))
+  
+  interaction_df <- modres %>%
+    filter(model == "interactions", is_interaction) %>%
+    mutate(attribute = as.character(attribute))
+  
+  # -----------------------------
+  # 4. Order BASE terms
+  # -----------------------------
+  
+  base_order <- c(
+    "econ_2",
+    "econ_3",
+    "rights_1",
+    "rights_2",
+    "env_2",
+    "participation_1"
+  )
+  
+  base_df <- base_df %>%
+    mutate(term = factor(term, levels = base_order))
+  
+  # -----------------------------
+  # 5. Clean & Order INTERACTIONS
+  # -----------------------------
+  
+  treat_order <- c(
+    "Fix the distribution",
+    "Equal opportunity",
+    "No victimization",
+    "Balanced development"
+  )
+  
+  interaction_df <- interaction_df %>%
     mutate(
-      is_interaction = str_detect(term, ":"),               # Detect interactions
+      attribute_rank = case_when(
+        str_detect(term, "^econ_") ~ 1,
+        str_detect(term, "^rights_") ~ 2,
+        str_detect(term, "^env_") ~ 3,
+        str_detect(term, "^participation_") ~ 4
+      ),
       treat_rank = sapply(term, function(x) {
-        idx <- which(sapply(treat_order, function(t) str_detect(x, fixed(t))))
+        idx <- which(sapply(treat_order, function(t)
+          str_detect(x, fixed(t))
+        ))
         if (length(idx) == 0) NA_integer_ else idx[1]
       }),
-      main_rank = match(term, main_effects),               # Identify main effect order
-      term_order = ifelse(is_interaction, 100 + treat_rank, main_rank)  # ACMEs first
+      level_rank = case_when(
+        str_detect(term, "econ_2") ~ 1,
+        str_detect(term, "econ_3") ~ 2,
+        str_detect(term, "rights_1") ~ 1,
+        str_detect(term, "rights_2") ~ 2,
+        TRUE ~ 1
+      ),
+      order_val = attribute_rank * 100 + treat_rank * 10 + level_rank,
+      term_clean = str_replace(term, ":", " × ")
     ) %>%
-    arrange(term_order, term) %>%
-    mutate(term = factor(term, levels = unique(term)))
+    arrange(order_val) %>%
+    mutate(term_clean = factor(term_clean, levels = rev(unique(term_clean))))
   
-  # Build the plot
-  plot <- ggplot(data = modres, aes(x = estimate, y = term)) +
-    geom_errorbarh(aes(xmin = conf.low, xmax = conf.high, color = sig), height = 0.2) +
+  # -----------------------------
+  # 6. Combine
+  # -----------------------------
+  
+  base_df <- base_df %>%
+    mutate(
+      term_clean = factor(term, levels = rev(base_order))
+    )
+  
+  plot_df <- bind_rows(base_df, interaction_df)
+  
+  # -----------------------------
+  # 7. Plot (VERTICAL stacking)
+  # -----------------------------
+  
+  plot <- ggplot(plot_df, aes(y = term_clean, x = estimate)) +
+    geom_errorbar(
+      aes(xmin = conf.low, xmax = conf.high, color = sig),
+      width = 0.2,
+      orientation = "y"
+    ) +
     geom_point(aes(color = sig, shape = sig), size = 3) +
-    scale_color_manual(values = cb_palette) +
-    scale_shape_manual(values = c("p < .01" = 8, "p < .05" = 17, "p < .1" = 16, "Null" = 1)) +
-    scale_y_discrete(limits = rev) +
     geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
-    facet_wrap(~ model, ncol = 3, labeller = labeller(model = model_labels)) +
+    scale_color_manual(values = cb_palette) +
+    scale_shape_manual(
+      values = c(
+        "p < .01" = 8,
+        "p < .05" = 17,
+        "p < .1"  = 16,
+        "Null"    = 1
+      )
+    ) +
+    facet_wrap(~ model, ncol = 1, scales = "free_y",
+               labeller = labeller(model = model_labels)) +
     labs(
-      x = "Probability of choosing a development scenario relative to base option",
       y = NULL,
+      x = "Probability of choosing a development scenario relative to base option",
       color = "Significance (Holm p-values)",
       shape = "Significance (Holm p-values)"
     ) +
@@ -1231,18 +1408,6 @@ plotnsave <- function(modres, filepath) {
       legend.position = "top",
       legend.direction = "horizontal",
       axis.title.x = element_text(size = 10)
-    ) +
-    guides(
-      color = guide_legend(
-        title.position = "left",
-        nrow = 1,
-        byrow = TRUE
-      ),
-      shape = guide_legend(
-        title.position = "left",
-        nrow = 1,
-        byrow = TRUE
-      )
     )
   
   ggsave(
@@ -1256,95 +1421,22 @@ plotnsave <- function(modres, filepath) {
   return(plot)
 }
 
-##### ITT ##### 
-# Write a function to conduct cluster regression 
-clusterols <- function(data,formula) {
-  lm.cluster(data = data, formula = formula, cluster = "record")  
-}
-
-##### Model 1 estimation (OLS) #####
-# Setting up the formula
-attrbvarlist <- paste(attr_levels, collapse = " + ")
-treatvarlist <- paste(treatments, collapse = " + ")
-main_effects <- paste(attrbvarlist,treatvarlist,sep = " + ")
-interactions <- paste(intrterms_treat, collapse = " + ")
-regressors1 <- paste(main_effects,interactions, sep = " + ")
-formula1_base <- paste("alt_chosen ~",attrbvarlist)
-formula1_intr <- paste("alt_chosen ~",regressors1)
-
-# Run the model
-wgt__ <- NULL  # Initialize wgt__ in the global environment
-infmodel1_base <- lapply(cjdf, clusterols, formula1_base)
-infmodel1_intr <- lapply(cjdf, clusterols, formula1_intr)
-
-##### Model 2 covariates selection (PDS LASSO) #####
-# Setup the matrices
-cjdf_nacl <- lapply(cjdf,na.omit)
-
-# Set inference variables
-infervars <- c(attr_levels,treatments,intrterms_treat)  
-
-# Loop through conditional and unconditional data
-lassomod2 <- lapply(names(cjdf_nacl), function(sample) {
-  # Prepare variables
-  regressors <- select(cjdf_nacl[[sample]],all_of(c(attr_levels,
-                                                    treatments,
-                                                    intrterms_treat,
-                                                    basechar)))
-  outcome <- cjdf_nacl[[sample]]$alt_chosen
-  
-  # Run Lasso
-  rlassoEffects(x = as.matrix(regressors),
-                y = outcome,
-                index = infervars,
-                method = "double selection")
-})
-names(lassomod2) <- names(cjdf_nacl)
-
-##### Estimate model 2 with OLS #####
-## Setup formula model 2
-# Extract selected variables from PDS Lasso results
-selectedctrls <- lapply(c(lassomod2),obtain_selecvar)
-names(selectedctrls)[1:2] <- paste("model 2", names(selectedctrls)[1:2])
-
-# Convert character strings to formula objects
-formulas <- lapply(names(selectedctrls), function(model) {
-  formula_str <- paste(formula1, paste(selectedctrls[[model]], collapse = " + "), sep = " + ")
-})
-names(formulas) <- names(selectedctrls)
-
-# Run models
-infmodels <- mapply(clusterols, cjdf, formulas, SIMPLIFY=F)
-names(infmodels) <- names(formulas)
-
-# Prepare results for plotting
-modsres <- lapply(c(infmodel1,infmodels),plotprep)
-
-##### Create combined plots #####
-# Combine results
-allmodres <- list("unconditional"=bind_rows(mutate(modsres$unconditional,model=1),
-                                            mutate(modsres$`model 2 unconditional`,model=2)),
-                  "conditional"=bind_rows(mutate(modsres$conditional,model=1),
-                                          mutate(modsres$`model 2 conditional`,model=2))
-                  )
-
-# Export results
-filenm <- file.path(opt,"conjoint_itt_acmes.xlsx")
-write_xlsx(allmodres$unconditional, path = filenm)
-
 # Remove intercept from the final data to be plotted
-allmodres$unconditional <- allmodres$unconditional %>%
-  filter(term!="(Intercept)")
+plotdata <- allmodres$unconditional %>%
+  filter(
+    (model == "base" & !grepl(":", term) & term != "(Intercept)") |
+      (model == "interactions" & grepl(":", term))
+  )
 
 # Define a named vector for the new facet labels
 model_labels <- c(
-  "1" = "OLS",
-  "2" = "PDS Lasso + OLS"
+  "base" = "Base",
+  "interactions" = "Interactions"
 )
 
 # Plot
 fignm <- file.path(fig,"conjoint_itt.png")
-plotcjitt <- plotnsave(allmodres$unconditional, filepath = fignm)
+plotcjitt <- plotnsave(plotdata, filepath = fignm)
 
 ##### Calculate attribute relative importance #####
 # Calculation
@@ -1395,135 +1487,188 @@ IVcse <- function(formula, data, cluster_var) {
 
 # Write a function to prepare results for plotting
 plotprep <- function(model, keyterm) {
+  
   model %>%
-    unclass() %>% 
-    data.frame() %>% 
-    rownames_to_column(var = "term") %>%
+    unclass() %>%
+    data.frame() %>%
+    tibble::rownames_to_column(var = "term") %>%
     filter(term == keyterm) %>%
-    rename(p.unadj = Pr...t..,
-           estimate = Estimate,
-           std.error = Std..Error) %>%
-    mutate(p.adj = p.adjust(p.unadj, method ="holm"),
-           conf.low = estimate - 1.96 * std.error,
-           conf.high = estimate + 1.96 * std.error,
-           term = factor(term, levels=term)) %>%
-    mutate(sig   = case_when(
-      p.adj < 0.01 ~ "p < .01",
-      p.adj < 0.05 ~ "p < .05",
-      p.adj < 0.1  ~ "p < .1",
-      TRUE          ~ "Null"
-    )) 
+    rename(
+      p.unadj = Pr...t..,
+      estimate = Estimate,
+      std.error = Std..Error
+    ) %>%
+    mutate(
+      conf.low  = estimate - 1.96 * std.error,
+      conf.high = estimate + 1.96 * std.error,
+      
+      # identify attribute family
+      attribute = dplyr::case_when(
+        stringr::str_detect(term, "^econ_") ~ "Economic",
+        stringr::str_detect(term, "^rights_") ~ "Rights",
+        stringr::str_detect(term, "^env_") ~ "Environment",
+        stringr::str_detect(term, "^participation_") ~ "Participation"
+      )
+    )
 }
 
-#### Model 1 estimation (IVREG) ####
+#### Estimation (IVREG) ####
 # Build the structural equation
 attrbvarlist <- paste(attr_levels, collapse = " + ")
 treatvarlist <- paste(complytreatments, collapse = " + ")
 main_effects <- paste(attrbvarlist,treatvarlist,sep = " + ")
 main_interactions <- paste(intrterms_complytreat, collapse = " + ")
-main_regressors1 <- paste(main_effects,main_interactions, sep = " + ")
-str_formula1 <- paste("alt_chosen ~",main_regressors1)
+main_regressors <- paste(main_effects,main_interactions, sep = " + ")
+str_formula <- paste("alt_chosen ~",main_regressors)
 
 # Create the interaction list of the reduced form equation
-interactions_list1 <- lapply(seq_along(intrterms_treat), function(i) {
+interactions_list <- lapply(seq_along(intrterms_treat), function(i) {
   c(intrterms_treat[i], intrterms_complytreat[-i])
 })
-redf_interactions1 <- lapply(seq_along(interactions_list1), function(i) {
-  paste(interactions_list1[[i]], collapse = " + ")
+redf_interactions <- lapply(seq_along(interactions_list), function(i) {
+  paste(interactions_list[[i]], collapse = " + ")
 })
-redf_regressors1 <- lapply(seq_along(redf_interactions1), function(i) {
-  paste(main_effects, redf_interactions1[[i]], sep = " + ")
+redf_regressors <- lapply(seq_along(redf_interactions), function(i) {
+  paste(main_effects, redf_interactions[[i]], sep = " + ")
 })
 
 # Build the complete equation list
-formulas1 <- lapply(seq_along(redf_interactions1), function(i) {
-  paste(str_formula1,redf_regressors1[[i]], sep = " | ")
+formulas <- lapply(seq_along(redf_interactions), function(i) {
+  paste(str_formula,redf_regressors[[i]], sep = " | ")
 })
-names(formulas1) <- intrterms_complytreat
+names(formulas) <- intrterms_complytreat
 
 # Estimate IV
-infmodels1 <- lapply(formulas1, IVcse, data = cjdff,
-                     cluster_var = "record")
+infmodels <- lapply(formulas, IVcse, data = cjdff,
+                    cluster_var = "record")
 
 # Prepare results for plotting
-modres1 <- lapply(names(infmodels1), function(key) {
-  plotprep(infmodels1[[key]], keyterm = key)
-}) %>% bind_rows() 
-
-##### Model 2 covariates selection (PDS LASSO) #####
-# Setup the matrices
-cjdff_nacl <- na.omit(cjdff)
-
-# Set inference variables
-infervars <- c(attr_levels,complytreatments,intrterms_complytreat)  
-
-# Prepare variables
-regressors <- select(cjdff_nacl,all_of(c(attr_levels,
-                                         complytreatments,
-                                         intrterms_complytreat,
-                                         basechar)))
-outcome <- cjdff_nacl$alt_chosen
-
-# Run Lasso
-lassomod2 <- rlassoEffects(x = as.matrix(regressors),
-              y = outcome,
-              index = infervars,
-              method = "double selection")
-
-##### Estimate model 2 with IVREG #####
-## Setup formula model 2
-# Extract selected variables from PDS Lasso results
-selectedctrls <- lapply(list(lassomod2),obtain_selecvar)
-names(selectedctrls) <- paste0("lassomod",2)
-
-# Create formula
-for (equation in c("str_formula","redf_regressors")) {
-  assign(equation,
-         lapply(names(selectedctrls), function(model) {
-           paste(get(paste0(equation,"1")), paste(selectedctrls[[model]], collapse = " + "), sep = " + ")
-         }))
-}
-
-formulas <- lapply(seq_along(str_formula), function(j) {
-  lapply(seq_along(redf_regressors[[j]]), function(i) {
-    paste(str_formula[[j]],redf_regressors[[j]][[i]], sep = " | ")
-  })
-})
-
-# Run models
-infmodels <- lapply(seq_along(formulas), function(i) {
-  lapply(seq_along(formulas[[i]]), function(j) {
-    IVcse(formulas[[i]][[j]], data = cjdff, cluster_var = "record")
-  })
-})
-names(infmodels) <- names(selectedctrls)
-for (model in names(infmodels)) {
-  names(infmodels[[model]]) <- intrterms_complytreat
-}
-
-# Prepare results for plotting
-modsres <- lapply(names(infmodels), function(model) {
-  lapply(names(infmodels[[model]]), function(key) {
-    plotprep(infmodels[[model]][[key]], keyterm = key)
-  }) %>% bind_rows()    
-})
-names(modsres) <- names(infmodels)
+modres <- lapply(names(infmodels), function(key) {
+  plotprep(infmodels[[key]], keyterm = key)
+}) %>% 
+  bind_rows() %>%
+  group_by(attribute) %>%
+  mutate(p.adj = p.adjust(p.unadj, method = "holm")) %>%
+  ungroup() %>%
+  mutate(sig = case_when(
+    p.adj < 0.01 ~ "p < .01",
+    p.adj < 0.05 ~ "p < .05",
+    p.adj < 0.1  ~ "p < .1",
+    TRUE ~ "Null"
+  ))
 
 ##### Create combined plots #####
-# Combine results
-allmodres <- bind_rows(mutate(modres1,model=1),
-                       mutate(modsres$lassomod2,model=2)
-                       )
-
-# Define a named vector for the new facet labels
-model_labels <- c(
-  "1" = "2SLS",
-  "2" = "PDS Lasso + 2SLS"
-)
+plot_iv_interactions <- function(modres, filepath) {
+  
+  # -----------------------------
+  # 1. Treatment label mapping
+  # -----------------------------
+  
+  treat_labels <- c(
+    "complytreat1" = "Fix the distribution",
+    "complytreat2" = "No victimization",
+    "complytreat3" = "Balanced development",
+    "complytreat4" = "Equal opportunity"
+  )
+  
+  for (pattern in names(treat_labels)) {
+    modres$term <- stringr::str_replace_all(
+      modres$term,
+      paste0("\\b", pattern, "\\b"),
+      treat_labels[[pattern]]
+    )
+  }
+  
+  # Clean interaction symbol
+  modres <- modres %>%
+    mutate(term_clean = stringr::str_replace(term, ":", " × "))
+  
+  # -----------------------------
+  # 2. Ordering variables
+  # -----------------------------
+  
+  modres <- modres %>%
+    mutate(
+      attribute_rank = case_when(
+        attribute == "Economic" ~ 1,
+        attribute == "Rights" ~ 2,
+        attribute == "Environment" ~ 3,
+        attribute == "Participation" ~ 4
+      ),
+      
+      level_rank = case_when(
+        stringr::str_detect(term, "econ_2") ~ 1,
+        stringr::str_detect(term, "econ_3") ~ 2,
+        stringr::str_detect(term, "rights_1") ~ 1,
+        stringr::str_detect(term, "rights_2") ~ 2,
+        TRUE ~ 1
+      ),
+      
+      treat_rank = case_when(
+        stringr::str_detect(term, "Fix the distribution") ~ 1,
+        stringr::str_detect(term, "No victimization") ~ 2,
+        stringr::str_detect(term, "Balanced development") ~ 3,
+        stringr::str_detect(term, "Equal opportunity") ~ 4
+      ),
+      
+      order_val = attribute_rank * 100 +
+        treat_rank * 10 +
+        level_rank
+    ) %>%
+    arrange(order_val) %>%
+    mutate(term_clean = factor(term_clean,
+                               levels = rev(unique(term_clean))))
+  
+  # -----------------------------
+  # 3. Plot
+  # -----------------------------
+  
+  plot <- ggplot(modres, aes(y = term_clean, x = estimate)) +
+    geom_errorbar(
+      aes(xmin = conf.low, xmax = conf.high, color = sig),
+      width = 0.2,
+      orientation = "y"
+    ) +
+    geom_point(aes(color = sig, shape = sig), size = 3) +
+    geom_vline(xintercept = 0,
+               linetype = "dashed",
+               color = "red") +
+    scale_color_manual(values = cb_palette) +
+    scale_shape_manual(
+      values = c(
+        "p < .01" = 8,
+        "p < .05" = 17,
+        "p < .1"  = 16,
+        "Null"    = 1
+      )
+    ) +
+    labs(
+      y = NULL,
+      x = "Probability of choosing a development scenario relative to base option",
+      color = "Significance (Holm-adjusted)",
+      shape = "Significance (Holm-adjusted)"
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "top",
+      legend.direction = "horizontal",
+      axis.title.x = element_text(size = 10)
+    )
+  
+  ggsave(
+    filename = filepath,
+    plot = plot,
+    width = width,
+    height = height,
+    bg = "white"
+  )
+  
+  return(plot)
+}
 
 # Plot
 fignm <- file.path(fig,paste0("conjoint_tot.png"))
-plotcjtot <- plotnsave(allmodres, filepath = fignm)
+plotcjtot <- plot_iv_interactions(modres, filepath = fignm)
 
 ##### COVARIATE BALANCE #####
 ## Data preparation for covariate balance
