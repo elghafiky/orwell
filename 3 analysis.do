@@ -12,6 +12,10 @@ set more off
 // net describe ritest, from(https://raw.githubusercontent.com/simonheb/ritest/master/)
 // net install ritest 
 // net install wyoung, from("https://raw.githubusercontent.com/reifjulian/wyoung/master") replace
+// ssc install ivreg2, replace
+// ssc install ranktest, replace
+// ssc install coefplot, replace
+// ssc install regsave, replace
 
 *** GENERAL DATA SETUP
 pro setupdatagen 
