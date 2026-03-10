@@ -27,11 +27,9 @@ base_path = os.path.join("Shared drives",
 
 # Fiky's directory
 if username in ["elgha"]:
-    working_folder = os.path.join(r"G:\\", base_path)
+#    working_folder = os.path.join(r"G:\\", base_path) # laptop
+    working_folder = os.path.join(r"H:\\", base_path) # computer
     os.chdir(working_folder)
-elif username in ["user"]:
-    working_folder = os.path.join(r"H:\\", base_path)
-    os.chdir(working_folder)    
     
 # Setup folder path
 raw = os.path.join(working_folder, "2a input")

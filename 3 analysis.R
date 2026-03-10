@@ -8,8 +8,9 @@ graphics.off(); rm(list=ls());cat("\14");
 # Clear and load packages 
 # install.packages("pacman") # install the package if you haven't 
 pacman::p_unload(p_loaded(), character.only = TRUE)
-pacman::p_load(tidyverse,data.table,readxl,writexl,fastDummies,hdm,kableExtra,
-               jmvReadWrite,miceadds,broom,ivreg,sandwich,lmtest,flextable,officer)
+pacman::p_load(tidyverse,data.table,readxl,writexl,fastDummies,hdm,kableExtra,knitr,
+               jmvReadWrite,miceadds,broom,ivreg,sandwich,lmtest,flextable,officer,
+               modelsummary,fixest)
 
 # Retrieve the current system username
 current_user <- Sys.info()[["user"]]
@@ -987,27 +988,6 @@ datnm <- paste0("processed_",date,".csv")
 data <- file.path(ipt,datnm) 
 maindata <- fread(data)
 
-# Define potential controls variables
-basechar <- c('region1', 
-              'region2',
-              'region3',
-              'urban',
-              'male',
-              'age',
-              'edu1',
-              'edu2',
-              'edu3',
-              'edu4',
-              'edu5',
-              'hhhead_female',
-              'nosocast',
-              'hhsize',
-              'sdbi')
-
-# Setup cognitive controls
-basecogctrl <- c('read_stim_time', 'sdbi', 'agreestim', 'crt_intrpt_msg')
-basecovlist <- c(basechar, basecogctrl)
-
 ## Prepare chosen profile data 
 # Subset profile and pairing data
 profpairw <- maindata %>% dplyr::select(record,
@@ -1091,7 +1071,7 @@ cjdff <- cjdfm %>%
              remove_selected_columns=TRUE, remove_first_dummy=TRUE) %>% # Dummify data
   left_join(dplyr::select(maindata,
                           record,
-                          all_of(basecovlist),
+                          crt_intrpt_msg,
                           ConjointOverall_Time,
                           contains("treat"),
                           lfCB),
@@ -1710,66 +1690,58 @@ formulas <- lapply(basechar, function(i) {
 names(formulas) <- basechar 
 
 # Run OLS
-covbalres <- lapply(formulas,lm,data=cbdata)
-covbalvcov <- lapply(covbalres,vcovHC,type="HC1")
-covbalreshc <- lapply(names(covbalres), function(i) {
-  coeftest(covbalres[[i]],vcov=covbalvcov[[i]])
+covbal_models <- lapply(formulas, function(f) {
+  lm(f, data = cbdata)
 })
-names(covbalreshc) <- basechar
-covbalreshc <- covbalreshc[names(covbalreshc) != "edu1"] ## Remove edu1
-names(covbalreshc) <- c("West","Central","East","Urban","Male","Age",
-                        "Primary","JHS","SHS","Tertiary","HH head female",
-                        "No soc. asst.", "Household size",
-                        "SDBI")
+covbal_models <- covbal_models[names(covbal_models) != "edu1"]
 
-# Convert regression results into data frame
-cbresdfl <- map_dfr(covbalreshc, tidy, .id = "cov") %>% 
-  filter(term!="(Intercept)") %>%
-  mutate(p.adj=p.adjust(p.value,method="holm")) %>%
-  # create a significance star column
-  mutate(stars = case_when(
-    p.adj < 0.01 ~ "***",
-    p.adj < 0.05 ~ "**",
-    p.adj < 0.10 ~ "*",
-    TRUE            ~ ""
-  ),
-  # ← this is the only line we changed
-  label = paste0(
-    sprintf("%.3f", estimate),
-    stars,
-    "\n(",
-    sprintf("%.3f", std.error),
-    ")"
-  )) %>%
-  # pivot each region into its own column of formatted labels
-  select(cov, term, label) 
-
-# Create wide data
-cbresdfw <- pivot_wider(cbresdfl,names_from = cov, values_from = label) %>%
-  rename(Group=term) 
-cbresdfw$Group <- c(
-  "Fix the distribution",
-  "No victimization",
-  "Balanced development",
-  "Equal opportunity"
+# Rename variables for table display
+names(covbal_models) <- c(
+  "West","Central","East","Urban","Male","Age",
+  "Primary","JHS","SHS","Tertiary",
+  "HH head female","No soc. asst.","Household size","SDBI"
 )
 
-# build a flextable directly from your wide tibble
-ft <- regulartable(cbresdfw)
-
-# styling
-ft <- theme_booktabs(ft)
-ft <- autofit(ft)
-ft <- add_footer_lines(
-  ft,
-  values = "*** p < 0.01; ** p < 0.05; * p < 0.10"
+coef_map <- c(
+  "treat1" = "Fix the distribution",
+  "treat2" = "No victimization",
+  "treat3" = "Balanced development",
+  "treat4" = "Equal opportunity"
 )
 
-# write to a Word file
-filenm <- file.path(tbl,"covbal.docx")
-doc <- read_docx()
-doc <- body_add_flextable(doc, value = ft)
-print(doc, target = filenm)
+# Create a custom tidy method
+tidy_holm <- function(model){
+  
+  s <- broom::tidy(model)
+  
+  s$p_holm <- p.adjust(s$p.value, method = "holm")
+  
+  s$stars <- dplyr::case_when(
+    s$p_holm < 0.01 ~ "***",
+    s$p_holm < 0.05 ~ "**",
+    s$p_holm < 0.10 ~ "*",
+    TRUE ~ ""
+  )
+  
+  s$estimate <- sprintf("%.3f%s", s$estimate, s$stars)
+  
+  s
+}
+
+# Final table export
+modelsummary(
+  covbal_models,
+  coef_map = coef_map,
+  statistic = "({std.error})",
+  vcov = "HC1",
+  gof_omit = ".*",
+  tidy = tidy_holm,
+  
+  title = "Conventional balance testing results",
+  notes = "Statistical significance based on Holm p-values: *** p < 0.01; ** p < 0.05; * p < 0.10. Standard errors in parentheses.",
+  
+  output = "latex"
+)
 
 ##### EXPORT DATA TO JAMOVI #####
 # Export analysis data to be imported to omv

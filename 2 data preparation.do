@@ -1,6 +1,7 @@
+/*******************************************************************************
+					ORWELL NARRATIVE TESTING DATA PREPARATION							   
+*******************************************************************************/
 * ==== PRELIMINARIES ==== *
-* GOAL: PREPARE DATA FOR ANALYSIS
-
 * clear environment
 capture log close
 clear all 

@@ -206,8 +206,8 @@ pro setupdataCB07
 	gl numvar: word count `r(varlist)'
 	forval i = 1/$numvar {
 		* generate binary agree/disagree indicator
-		g agree`i'=inrange(`varprefix'`i',4,6)
-		g disagree`i'=inrange(`varprefix'`i',1,3)
+		g agree`i'=inrange(`varprefix'`i',5,6)
+		g disagree`i'=inrange(`varprefix'`i',1,2)
 		
 		* recode and clone
 		clonevar `varprefix'_cloned`i'=`varprefix'`i'
@@ -2446,7 +2446,7 @@ capture log close
 log using "$lg\balancetest.smcl", replace
 
 ** combined omnibus tests of joint orthogonality across all study arms with manova
-loc basechar region urban male c.age unmarried ID06 hhhead_female nosocast c.hhsize
+loc basechar region urban male c.age unmarried ID06 hhhead_female nosocast c.hhsize c.sdbi
 qui manova lfCB = `basechar' 
 set seed 250834328 // seed taken from https://www.random.org/
 ritest lfCB `e(F)',  reps(10000)  : manova lfCB = `basechar' 

@@ -26,11 +26,10 @@ pacman::p_load(tidyverse,data.table,dplyr,knitr,tinytex,corrplot,stringr,summary
 current_user <- Sys.info()[["user"]]
 
 # Check if the username matches and set the working directory accordingly
-if (current_user == "User") {
-  base_dir <- "H:/"
-} else if (current_user %in% c("azzah", "USER")) {
-  base_dir <- "G:/"
-} 
+if (current_user == "elgha") {
+  #base_dir <- "G:/" # laptop
+  base_dir <- "H:/" # computer
+}
 
 # Set directory
 master <- file.path(base_dir, 
@@ -2701,7 +2700,8 @@ sam_hhsize <- demog_raw %>%
 
 ``` {r prep_susenas}
 ## Prepare national statistics
-susenas_raw <- read_csv("G:\\/Shared drives/Projects/2025/Orwell/Breadcrumbs/10 Quantitative Narrative Testing/3 Sampling frame/sus23-kor-ind.csv")
+susenas_raw <- read_csv(file.path(base_dir,
+                                  "Shared drives/Projects/2025/Orwell/Breadcrumbs/10 Quantitative Narrative Testing/3 Sampling frame/sus23-kor-ind.csv"))
 
 susenas_design <- susenas_raw %>%
   as_survey_design(
@@ -3015,10 +3015,10 @@ for (i in 1:13) {
       rdf_paper <- rdf_paper %>%
         mutate(!!var_name := case_when(
           i == 1 & lfCB %in% c(3, 4) ~ NA,
-          i == 2 & lfCB %in% c(1, 4, 5) ~ NA,
+          i == 2 & lfCB %in% c(2, 4) ~ NA,
           i == 3 & lfCB %in% c(1, 4, 5) ~ NA,
           i == 4 & lfCB %in% c(4, 5) ~ NA,
-          i == 5 & lfCB %in% c(4, 5) ~ NA,
+          i == 5 & lfCB %in% c(2, 4, 5) ~ NA,
           i == 6 & lfCB %in% c(2, 3, 4) ~ NA,
           i == 7 & lfCB %in% c(2, 3, 4) ~ NA,
           i == 8 & lfCB %in% c(3, 4, 5) ~ NA,
@@ -3387,8 +3387,8 @@ for (i in 1:numvar) {
   disagree_var_name <- paste0("disagree", i)
 
   pdata_cb07 <- pdata_cb07 %>%
-    mutate(!!agree_var_name := ifelse(.[[current_var]] %in% 4:6, 1, 0)) %>%
-    mutate(!!disagree_var_name := ifelse(.[[current_var]] %in% 1:3, 1, 0))
+    mutate(!!agree_var_name := ifelse(.[[current_var]] %in% 5:6, 1, 0)) %>%
+    mutate(!!disagree_var_name := ifelse(.[[current_var]] %in% 1:2, 1, 0))
 
   cloned_var_name <- paste0(varprefix, "_cloned", i)
   pdata_cb07 <- pdata_cb07 %>%
