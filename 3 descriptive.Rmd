@@ -27,8 +27,8 @@ current_user <- Sys.info()[["user"]]
 
 # Check if the username matches and set the working directory accordingly
 if (current_user == "elgha") {
-  #base_dir <- "G:/" # laptop
-  base_dir <- "H:/" # computer
+  base_dir <- "G:/" # laptop
+  #base_dir <- "H:/" # computer
 }
 
 # Set directory
@@ -316,9 +316,9 @@ plot_diff_readtime_exc5 <- ggplot(sum_diff_readtime_exc5, aes(x = mean_diff,
   geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
   geom_hline(yintercept = 0, linetype = "dashed", color = "#d0d0d0") +
   labs(
-    title = "Difference stimulus reading time from control group (in seconds)",
+    title = "",
     x = "",
-    caption = paste0("Notes: control group mean of reading time is ", round(control_mean, 2), " seconds"),
+    caption = paste0("Note: control group mean of reading time is ", round(control_mean, 2), " seconds"),
     y = ""
   ) +
   #custom_theme() +
@@ -665,21 +665,21 @@ plot_meandiff_read_correct <- ggplot(sum_diff_corr_treat, aes(x = mean_diff,
   geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
   geom_hline(yintercept = 0, linetype = "dashed", color = "#d0d0d0") +
   labs(
-    title = "Difference stimulus reading time from incorrect group (in seconds)",
+    title = "",
     x = "",
-    caption = paste0("Notes: Incorrect group mean of reading time is ", round(incorr_mean, 2), " seconds"), 
+    caption = paste0("Note: Incorrect group mean of reading time is ", round(incorr_mean, 2), " seconds"), 
     #\n", "All control observations are assumed to have correct interpretation"),
     y = ""
   ) +
   #custom_theme() +
   theme_minimal() +
-  theme(plot.caption = element_text(hjust=0),
+  theme(plot.caption = element_text(hjust=0, size=13),
         plot.caption.position = "plot",
         plot.title.position = "plot",
         #panel.grid.major = element_blank(),
         #panel.grid.minor = element_blank(),
         text = element_text(family = "arial"),
-        axis.text.y = element_text(size=11)
+        axis.text.y = element_text(size=14)
       )
 
 print(plot_meandiff_read_correct)

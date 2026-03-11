@@ -17,8 +17,8 @@ current_user <- Sys.info()[["user"]]
 
 # Check if the username matches and set the working directory accordingly
 if (current_user == "elgha") {
-  #base_dir <- "G:/" # laptop
-  base_dir <- "H:/" # computer
+  base_dir <- "G:/" # laptop
+  #base_dir <- "H:/" # computer
 }
 
 # Set directory
@@ -1728,19 +1728,17 @@ tidy_holm <- function(model){
   s
 }
 
-# Final table export
-modelsummary(
+# Build table
+covbal_table <- modelsummary(
   covbal_models,
   coef_map = coef_map,
   statistic = "({std.error})",
   vcov = "HC1",
   gof_omit = ".*",
   tidy = tidy_holm,
-  
   title = "Conventional balance testing results",
   notes = "Statistical significance based on Holm p-values: *** p < 0.01; ** p < 0.05; * p < 0.10. Standard errors in parentheses.",
-  
-  output = "latex"
+  output = file.path(tbl, "covbal.tex")
 )
 
 ##### EXPORT DATA TO JAMOVI #####

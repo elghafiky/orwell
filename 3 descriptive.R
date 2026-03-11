@@ -8,15 +8,16 @@ graphics.off(); rm(list=ls());cat("\14");
 # Load packages
 if (!require("pacman")) install.packages("pacman")
 pacman::p_unload(p_loaded(), character.only = TRUE)
-pacman::p_load(rmarkdown, knitr, kableExtra, tidyverse, kableExtra, readxl)
+pacman::p_load(rmarkdown, knitr, kableExtra, tidyverse, 
+               kableExtra, readxl, data.table)
 
 # Retrieve the current system username
 current_user <- Sys.info()[["user"]]
 
 # Check if the username matches and set the working directory accordingly
 if (current_user == "elgha") {
-  #base_dir <- "G:/" # laptop
-  base_dir <- "H:/" # computer
+  base_dir <- "G:/" # laptop
+  #base_dir <- "H:/" # computer
 }
 
 # Set directory
@@ -37,14 +38,13 @@ lg = file.path(getwd(),"3 log")
 fig = file.path(getwd(),"4 figures")
 tbl = file.path(getwd(),"5 tables")
 
-##################################### Meta ######################################
+############################ Code for Rendering Rmd #################################
 
 # Code for rendering R Markdown of Orwell narrative testing descriptive analysis
 # April 24, 2025
 # Contributors : Azzah
 
-############################ Code for Rendering Rmd #################################
-##### RUN R MARKDOWN #####
+# Run R Markdown
 code = file.path("C:",
                  "Users",
                  current_user,
@@ -52,7 +52,7 @@ code = file.path("C:",
                  "GitHub",
                  "Orwell")
 
-rmdfile = file.path(code,"6 descriptive (paper).Rmd")
+rmdfile = file.path(code,"3 descriptive.Rmd")
 
 # Render the R Markdown file and save the output in the 'tbl' directory
 filenm <- paste0("descriptive-paper-",Sys.Date(),".pdf")
@@ -209,4 +209,98 @@ kableExtra::save_kable(
 kableExtra::save_kable(
   likert_table,
   file.path(tbl,"unadj_diff_likert_outcomes.tex")
+)
+
+############################ Correct stimulus interpretation #################################
+# Load data
+date <- "20250304" # Set data date
+datnm <- paste0("processed_",date,".csv") 
+data <- file.path(ipt,datnm) 
+maindata <- fread(data)
+
+# Calculate correct interpretation rate by treatment arms
+crt_ipt_msg_rate <- maindata %>%
+  filter(!lfCB %in% c(4,6)) %>% # Remove non-development stimulus
+  group_by(lfCB) %>%
+  summarise(crt_intrpt_msg = mean(crt_intrpt_msg, na.rm = TRUE)) %>%
+  mutate(word_count=case_when(
+    lfCB==1 ~ 75,
+    lfCB==2 ~ 98,
+    lfCB==3 ~ 89,
+    lfCB==5 ~ 130
+  ))
+
+# Prepare plot
+labels <- c(
+  "1" = "Fix the distribution",
+  "2" = "No victimization",
+  "3" = "Balanced development",
+  "5" = "Equal opportunity"
+)
+
+df <- crt_ipt_msg_rate %>%
+  arrange(word_count) %>%
+  mutate(
+    lfCB = factor(lfCB, levels = lfCB),
+    lfCB_lab = labels[as.character(lfCB)]
+  )
+
+# scaling factor for the secondary axis
+scale_factor <- max(df$word_count) / max(df$crt_intrpt_msg)
+
+# Build the plot
+p <- ggplot(df, aes(x = reorder(lfCB_lab, word_count))) +
+  
+  geom_col(
+    aes(y = word_count, fill = "Word count"),
+    width = 0.6
+  ) +
+  
+  geom_line(
+    aes(y = crt_intrpt_msg * scale_factor,
+        color = "Correct interpretation (%)",
+        group = 1),
+    linewidth = 1.2
+  ) +
+  
+  geom_point(
+    aes(y = crt_intrpt_msg * scale_factor,
+        color = "Correct interpretation (%)"),
+    size = 3
+  ) +
+  
+  scale_y_continuous(
+    name = "Word count",
+    sec.axis = sec_axis(~ . / scale_factor,
+                        name = "Correct interpretation (%)")
+  ) +
+  
+  scale_fill_manual(
+    values = c("Word count" = "#999999"),
+    breaks = c("Word count")
+  ) +
+  
+  scale_color_manual(
+    values = c("Correct interpretation (%)" = "#E69F00"),
+    breaks = c("Correct interpretation (%)")
+  ) +
+  
+  labs(x = NULL, fill = NULL, color = NULL) +
+  
+  guides(
+    fill = guide_legend(order = 1),
+    color = guide_legend(order = 2)
+  ) +
+  
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "top"
+  )
+
+ggsave(
+  filename = file.path(fig, "comprehension.png"),
+  plot = p,
+  width = 12.8,
+  height = 6.98,
+  dpi = 300
 )
