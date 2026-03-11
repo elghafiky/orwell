@@ -6,7 +6,7 @@
 graphics.off(); rm(list=ls());cat("\14");
 
 # Clear and load packages 
-# install.packages("pacman") # install the package if you haven't 
+if (!require("pacman")) install.packages("pacman")
 pacman::p_unload(p_loaded(), character.only = TRUE)
 pacman::p_load(tidyverse,data.table,readxl,writexl,fastDummies,hdm,kableExtra,knitr,
                jmvReadWrite,miceadds,broom,ivreg,sandwich,lmtest,flextable,officer,

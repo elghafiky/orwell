@@ -6,8 +6,9 @@
 graphics.off(); rm(list=ls());cat("\14");
 
 # Load packages
-#install.packages("pacman") # install the package if you haven't 
-pacman::p_load(rmarkdown, knitr, kableExtra, tidyverse, kableExtra)
+if (!require("pacman")) install.packages("pacman")
+pacman::p_unload(p_loaded(), character.only = TRUE)
+pacman::p_load(rmarkdown, knitr, kableExtra, tidyverse, kableExtra, readxl)
 
 # Retrieve the current system username
 current_user <- Sys.info()[["user"]]
@@ -106,6 +107,19 @@ dfs$likert <- dfs$likert |>
 prep_table <- function(df){
   
   df |>
+    mutate(
+      Family = factor(
+        Family,
+        levels = c(
+          "Development priority",
+          "Whom should the government prioritize?",
+          "Opinions about the economy",
+          "Factors influencing the economy",
+          "Policy support",
+          "Personal efficacy"
+        )
+      )
+    ) |>
     arrange(Family) |>
     select(
       Family,
@@ -132,10 +146,10 @@ likert_tab <- prep_table(dfs$likert)
 make_outcome_table <- function(df, caption){
   
   family_sizes <- df |>
-    count(Family)
+    dplyr::count(Family)
   
   tab_print <- df |>
-    select(-Family)
+    dplyr::select(-Family)
   
   tab <- kableExtra::kbl(
     tab_print,
@@ -149,7 +163,7 @@ make_outcome_table <- function(df, caption){
       " " = 2,
       "Difference to control" = 4
     )) |>
-    kableExtra::column_spec(1, width = "7cm") |>
+    kableExtra::column_spec(1, width = "8cm") |>
     kableExtra::kable_styling(
       latex_options = "repeat_header"
     )
@@ -165,7 +179,8 @@ make_outcome_table <- function(df, caption){
         family_sizes$Family[i],
         start,
         end,
-        indent = FALSE
+        indent = FALSE,
+        latex_gap_space = "0.6em"
       )
     
     start <- end + 1
@@ -183,4 +198,15 @@ binary_table <- make_outcome_table(
 likert_table <- make_outcome_table(
   likert_tab,
   "Unadjusted differences of outcomes in Likert format"
+)
+
+# Export tables
+kableExtra::save_kable(
+  binary_table,
+  file.path(tbl,"unadj_diff_binary_outcomes.tex")
+)
+
+kableExtra::save_kable(
+  likert_table,
+  file.path(tbl,"unadj_diff_likert_outcomes.tex")
 )
