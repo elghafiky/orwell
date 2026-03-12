@@ -17,8 +17,8 @@ current_user <- Sys.info()[["user"]]
 
 # Check if the username matches and set the working directory accordingly
 if (current_user == "elgha") {
-  base_dir <- "G:/" # laptop
-  #base_dir <- "H:/" # computer
+  #base_dir <- "G:/" # laptop
+  base_dir <- "H:/" # computer
 }
 
 # Set directory
@@ -796,14 +796,14 @@ plot_configs_DK <- list(
        model_labels = DK_labels_set1, 
        model_levels = model_levels_2sls,
        filename = "DK_wyoung_ivreg_set1.png", 
-       ncol = 4,
+       ncol = 3,
        xlabs = xlabel),
   list(data = ivdata, 
        outnums = 8:13, 
        model_labels = DK_labels_set2, 
        model_levels = model_levels_2sls,
        filename = "DK_wyoung_ivreg_set2.png", 
-       ncol = 4,
+       ncol = 3,
        xlabs = xlabel)
 )
 
