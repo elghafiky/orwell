@@ -10,15 +10,15 @@ if (!require("pacman")) install.packages("pacman")
 pacman::p_unload(p_loaded(), character.only = TRUE)
 pacman::p_load(tidyverse,data.table,readxl,writexl,fastDummies,hdm,kableExtra,knitr,
                jmvReadWrite,miceadds,broom,ivreg,sandwich,lmtest,flextable,officer,
-               modelsummary,fixest)
+               modelsummary,fixest,treemapify)
 
 # Retrieve the current system username
 current_user <- Sys.info()[["user"]]
 
 # Check if the username matches and set the working directory accordingly
 if (current_user == "elgha") {
-  #base_dir <- "G:/" # laptop
-  base_dir <- "H:/" # computer
+  base_dir <- "G:/" # laptop
+  #base_dir <- "H:/" # computer
 }
 
 # Set directory
@@ -1450,6 +1450,56 @@ relimp <- allmodres$unconditional %>%
 # Export results
 filenm <- file.path(opt,"conjoint_itt_relimp.xlsx")
 write_xlsx(relimp, path = filenm)
+
+## Treemap ##
+# 1. Prepare the data
+relimp_base <- relimp %>%
+  filter(model == "base")
+
+# 2. Plot the treemap
+# Okabe–Ito palette (color-blind friendly)
+oi_palette <- c(
+  "econ" = "#E69F00",          # orange
+  "env" = "#009E73",           # bluish green
+  "participation" = "#999999", # grey
+  "rights" = "#000000"         # light grey
+)
+
+# Label mapping
+attr_labels <- c(
+  "econ" = "Income gain",
+  "rights" = "Rights of others",
+  "env" = "Environmental protection",
+  "participation" = "Citizen participation"
+)
+
+# Build the plot
+relimp_plot <- ggplot(
+  relimp_base,
+  aes(
+    area = rel_imp,
+    fill = attribute,
+    label = paste0(attr_labels[attribute], "\n", round(rel_imp, 1), "%")
+  )
+) +
+  geom_treemap() +
+  geom_treemap_text(
+    colour = "white",
+    place = "centre",
+    reflow = TRUE
+  ) +
+  scale_fill_manual(values = oi_palette) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Export plot
+ggsave(
+  filename = file.path(fig,"cjrelimp.png"),
+  plot = relimp_plot,
+  width = width,
+  height = height,
+  bg = "white"
+)
 
 ##### TOT #####
 # Write reusable function to estimate IV with cluster SE

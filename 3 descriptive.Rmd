@@ -18,9 +18,10 @@ graphics.off(); rm(list=ls());cat("\14");
 
 # Load packages
 #install.packages("pacman") # install the package if you haven't 
-pacman::p_load(tidyverse,data.table,dplyr,knitr,tinytex,corrplot,stringr,summarytable,makecell,haven,
-               Hmisc,showtext,stats,pollster,sjPlot,psych,lavaan, viridis, texreg, kableExtra,writexl,
-               rempsyc, effectsize, flextable, broom, report, stargazer, modelsummary, margins, srvyr, ggtext)
+pacman::p_load(tidyverse,data.table,dplyr,knitr,tinytex,corrplot,stringr,summarytable,
+               makecell,haven,Hmisc,showtext,stats,pollster,sjPlot,psych,lavaan,viridis,
+               texreg, kableExtra,writexl,rempsyc,effectsize,flextable,broom,report,
+               stargazer,modelsummary,margins,srvyr,ggtext,patchwork)
 
 # Retrieve the current system username
 current_user <- Sys.info()[["user"]]
@@ -729,12 +730,9 @@ sum_cb03_nar1 <- bind_rows(sum_cb03_correct_nar1, sum_cb03_all_nar1) %>%
     mutate(sentence = factor(CB03A,
                            levels = c(1,2,3,4),
                            labels = c("What is the point of Indonesia continuing to develop\nif only a few people get to experience the results?",
-                                      "All this time, the benefits of development have not\nreached all citizens.Those who enjoy it are the rich and\npowerful.Those at the bottom are still not prosperous.",
-                                      "The government should improve the distribution of\ndevelopment benefits.The government must ensure that\nthe benefits can be enjoyed by all Indonesians.",
-                                      "If the government can improve the distribution of\ndevelopment benefits,then all levels of society can thrive\nand improve their standard of living wherever they are.")))
-
-
-
+                                      "All this time, the benefits of development have not\nreached all citizens. Those who enjoy it are the rich and\npowerful.Those at the bottom are still not prosperous.",
+                                      "The government should improve the distribution of\ndevelopment benefits. The government must ensure that\nthe benefits can be enjoyed by all Indonesians.",
+                                      "If the government can improve the distribution of\ndevelopment benefits, then all levels of society can thrive\nand improve their standard of living wherever they are.")))
 ```
 
 ``` {r plot_cb03a_correct, fig.width = 10, fig.height = 3.5}
@@ -753,7 +751,7 @@ p_cb03_nar1 <- ggplot(sum_cb03_nar1) +
         y = percent) +
     facet_wrap(~d_correct, nrow=1, strip.position="top",
                labeller = labeller(d_correct = label_counts)) +
-    geom_bar(stat = "identity", fill=plotplainblind[1]) +
+    geom_bar(aes(fill = sentence), stat = "identity") +
     geom_text(aes(label = paste(round(percent, 0),"%")),
       vjust = 0.5,
       hjust = -0.1,
@@ -767,21 +765,23 @@ p_cb03_nar1 <- ggplot(sum_cb03_nar1) +
       x = "",
       y = ""
     ) +
+  scale_fill_manual(
+  values = c("#999999", "#E69F00", "#999999", "#999999"
+             )) +
   custom_theme() +
   theme(
     legend.position = "none",
     plot.caption = element_text(hjust=0),
     strip.text = element_text(size = 11),
     axis.text.y = element_text(hjust = 0), 
-  ) 
+  )
 print(p_cb03_nar1)
 
 ggsave(filename = file.path(fig, "paper_cb03_stim1.png"),
        plot = p_cb03_nar1,
        width = 10,
-       height = 3.5,
+       height = 4.5,
        dpi = 100)
-
 ```
 
 
@@ -811,24 +811,37 @@ sum_cb04_nar1 <- sum_cb04_nar1 %>%
                            labels = c("What is the point of Indonesia continuing to develop\nif only a few people get to experience the results?",
                                       "All this time, the benefits of development have not\nreached all citizens.Those who enjoy it are the rich and\npowerful.Those at the bottom are still not prosperous.",
                                       "The government should improve the distribution of\ndevelopment benefits.The government must ensure that\nthe benefits can be enjoyed by all Indonesians.",
-                                      "If the government can improve the distribution of\ndevelopment benefits,then all levels of society can thrive\nand improve their standard of living wherever they are.")))
-
-
-
+                                      "If the government can improve the distribution of\ndevelopment benefits, then all levels of society can thrive\nand improve their standard of living wherever they are.")))
 ```
 
 ``` {r plot_cb04_nar1, fig.height = 4.5, fig.width=10}
-diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+diverging_colors <- c(
+  "#f16913",  # strongly disagree
+  "#fdae6b",  # disagree
+  "#fee6ce",  # slightly disagree
+  "#c6dbef",  # slightly agree
+  "#9ecae1",
+  "#6baed6"
+)
 names(diverging_colors) <- 1:6
 
 p_cb04_nar1 <- ggplot(sum_cb04_nar1, aes(x = fct_relevel(sentence, rev(levels(sentence))), 
                           y = percent_div, 
                           fill = agree_level)) +
   geom_bar(stat = "identity", width = 0.7) +
-  scale_fill_manual(values = rev(diverging_colors), name = "",
-                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
-                                    "Strongly Agree", "Agree", "Slightly Agree")
-                    ) +
+  scale_fill_manual(
+    values = diverging_colors,
+    name = "",
+    breaks = c(1, 2, 3, 4, 5, 6),
+    labels = c(
+      "Strongly disagree",
+      "Disagree",
+      "Slightly disagree",
+      "Slightly agree",
+      "Agree",
+      "Strongly agree"
+    )
+  ) +
   coord_flip() +
   geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
             size = 3,
@@ -836,12 +849,12 @@ p_cb04_nar1 <- ggplot(sum_cb04_nar1, aes(x = fct_relevel(sentence, rev(levels(se
             position = position_stack(vjust = 0.5)
             ) +
   labs(
-    title = "Degree of Agreement (Stimulus 1, All Treatment Units)",
-    y = "",
+    title = "",
+    y = "All treatment units",
     x = ""
   ) +
   geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
-  scale_y_continuous(labels=NULL) +
+  scale_y_continuous(labels=NULL, position="top") +
   theme_minimal() +
   custom_theme() +
   theme(
@@ -903,22 +916,36 @@ sum_cb04_nar1_sub <- sum_cb04_nar1_sub %>%
                                       "All this time, the benefits of development have not\nreached all citizens.Those who enjoy it are the rich and\npowerful.Those at the bottom are still not prosperous.",
                                       "The government should improve the distribution of\ndevelopment benefits.The government must ensure that\nthe benefits can be enjoyed by all Indonesians.",
                                       "If the government can improve the distribution of\ndevelopment benefits,then all levels of society can thrive\nand improve their standard of living wherever they are.")))
-
-
-
 ```
 
 ``` {r plot_cb04_nar1_sub, fig.height = 4.5, fig.width=10}
-diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+diverging_colors <- c(
+  "#f16913",  # strongly disagree
+  "#fdae6b",  # disagree
+  "#fee6ce",  # slightly disagree
+  "#c6dbef",  # slightly agree
+  "#9ecae1",
+  "#6baed6"
+)
 names(diverging_colors) <- 1:6
 
 p_cb04_sub_nar1 <- ggplot(sum_cb04_nar1_sub, aes(x = fct_relevel(sentence, rev(levels(sentence))), 
                           y = percent_div, 
                           fill = agree_level)) +
   geom_bar(stat = "identity", width = 0.7) +
-  scale_fill_manual(values = rev(diverging_colors), name = "",
-                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
-                                    "Strongly Agree", "Agree", "Slightly Agree")) +
+  scale_fill_manual(
+      values = diverging_colors,
+      name = "",
+      breaks = c(1, 2, 3, 4, 5, 6),
+      labels = c(
+        "Strongly disagree",
+        "Disagree",
+        "Slightly disagree",
+        "Slightly agree",
+        "Agree",
+        "Strongly agree"
+        )
+      ) +
   coord_flip() +
   geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
             size = 3,
@@ -926,12 +953,12 @@ p_cb04_sub_nar1 <- ggplot(sum_cb04_nar1_sub, aes(x = fct_relevel(sentence, rev(l
             position = position_stack(vjust = 0.5)
             ) +
   labs(
-    title = "Degree of Agreement (Stimulus 1, Compliers)",
-    y = "",
+    title = "",
+    y = "Compliers only",
     x = ""
   ) +
   geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
-  scale_y_continuous(labels=NULL) +
+  scale_y_continuous(labels=NULL, position="top") +
   theme_minimal() +
   custom_theme() +
   theme(
@@ -965,8 +992,54 @@ ggsave(filename = file.path(fig, "paper_cb04_sub_stim1.png"),
        width = 10,
        height = 4.5,
        dpi = 100)
-
 ```
+
+```{r cb04_jointplot_stim1}
+# Text resizing
+textsize = 30
+resize_plot <- function(plot) {
+  idx <- which(sapply(plot$layers, function(x) inherits(x$geom, "GeomText")))
+  if (length(idx) > 0) {
+    plot$layers[[idx]]$aes_params$size <- 9
+  }
+    
+  plot +
+    theme(
+      text = element_text(size = textsize),
+      legend.text = element_text(size = textsize),
+      axis.text = element_text(size = textsize),
+      axis.text.y = element_text(
+        hjust = 0,
+        lineheight = 0.4
+      )
+      ) 
+}
+p_cb04_nar1_resized <- resize_plot(p_cb04_nar1) 
+p_cb04_sub_nar1_resized <- resize_plot(p_cb04_sub_nar1) 
+
+# Remove legend and y-axis from the second plot
+p_cb04_sub_nar1_resized_clean <- p_cb04_sub_nar1_resized +
+  theme(
+    legend.position = "none",
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank()
+  )
+
+# Build plot
+p_cb04_stim1 <- p_cb04_nar1_resized + p_cb04_sub_nar1_resized_clean +
+  plot_layout(guides = "collect") &
+  theme(
+    legend.position = "top"
+  )
+
+# Save plot
+ggsave(filename = file.path(fig, "cb04_treat1.png"),
+       plot = p_cb04_stim1,
+       width = 12.8,
+       height = 6.98,
+       dpi = 300)
+```
+
 
 
 ## 2.2 - NARRATIVE 2
@@ -1001,9 +1074,6 @@ sum_cb03_nar2 <- bind_rows(sum_cb03_correct_nar2, sum_cb03_all_nar2) %>%
                                       "We might be able to get good jobs if many \nfactories and mines are built by destroying forests. \nBut what good is it if we get sick from pollution? \nHow will our children fare in the future \nif there are frequent floods or landslides? \nAnd if someone else is evicted today, what \nguarantee that we won't be evicted too?",
                                       "The government should ensure that no one's life \nor the environment is sacrificed \nfor the sake of development."
                                       )))
-
-
-
 ```
 
 ``` {r plot_cb03b_correct, fig.width = 10, fig.height = 4.5}
@@ -1022,7 +1092,7 @@ p_cb03_nar2 <- ggplot(sum_cb03_nar2) +
         y = percent) +
     facet_wrap(~d_correct, nrow=1, strip.position="top",
                labeller = labeller(d_correct = label_counts)) +
-    geom_bar(stat = "identity", fill=plotplainblind[1]) +
+    geom_bar(aes(fill = sentence), stat = "identity") +
     geom_text(aes(label = paste(round(percent, 0),"%")),
       vjust = 0.5,
       hjust = -0.1,
@@ -1036,6 +1106,9 @@ p_cb03_nar2 <- ggplot(sum_cb03_nar2) +
       x = "",
       y = ""
     ) +
+  scale_fill_manual(
+    values = c("#999999", "#999999", "#999999", "#E69F00"
+               )) +
   custom_theme() +
   theme(
     legend.position = "none",
@@ -1051,8 +1124,6 @@ ggsave(filename = file.path(fig, "paper_cb03_stim2.png"),
        width = 10,
        height = 4.5,
        dpi = 100)
-
-
 ```
 
 
@@ -1088,16 +1159,33 @@ sum_cb04_nar2 <- sum_cb04_nar2 %>%
 ```
 
 ``` {r plot_cb04_nar2, fig.height = 5.5, fig.width=10}
-diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+diverging_colors <- c(
+  "#f16913",  # strongly disagree
+  "#fdae6b",  # disagree
+  "#fee6ce",  # slightly disagree
+  "#c6dbef",  # slightly agree
+  "#9ecae1",
+  "#6baed6"
+)
 names(diverging_colors) <- 1:6
 
 p_cb04_nar2 <- ggplot(sum_cb04_nar2, aes(x = fct_relevel(sentence, rev(levels(sentence))), 
                           y = percent_div, 
                           fill = agree_level)) +
   geom_bar(stat = "identity", width = 0.7) +
-  scale_fill_manual(values = rev(diverging_colors), name = "",
-                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
-                                    "Strongly Agree", "Agree", "Slightly Agree")) +
+  scale_fill_manual(
+      values = diverging_colors,
+      name = "",
+      breaks = c(1, 2, 3, 4, 5, 6),
+      labels = c(
+        "Strongly disagree",
+        "Disagree",
+        "Slightly disagree",
+        "Slightly agree",
+        "Agree",
+        "Strongly agree"
+        )
+      ) +
   coord_flip() +
   geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
             size = 3,
@@ -1105,12 +1193,12 @@ p_cb04_nar2 <- ggplot(sum_cb04_nar2, aes(x = fct_relevel(sentence, rev(levels(se
             position = position_stack(vjust = 0.5)
             ) +
   labs(
-    title = "Degree of Agreement (Stimulus 2, All Treatment Units)",
-    y = "",
+    title = "",
+    y = "All treatment units",
     x = ""
   ) +
   geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
-  scale_y_continuous(labels=NULL) +
+  scale_y_continuous(labels=NULL, position="top") +
   theme_minimal() +
   custom_theme() +
   theme(
@@ -1179,16 +1267,33 @@ sum_cb04_nar2_sub <- sum_cb04_nar2_sub %>%
 ```
 
 ``` {r plot_cb04_nar2_sub, fig.height = 5.5, fig.width=10}
-diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+diverging_colors <- c(
+  "#f16913",  # strongly disagree
+  "#fdae6b",  # disagree
+  "#fee6ce",  # slightly disagree
+  "#c6dbef",  # slightly agree
+  "#9ecae1",
+  "#6baed6"
+)
 names(diverging_colors) <- 1:6
 
 p_cb04_sub_nar2 <- ggplot(sum_cb04_nar2_sub, aes(x = fct_relevel(sentence, rev(levels(sentence))), 
                           y = percent_div, 
                           fill = agree_level)) +
   geom_bar(stat = "identity", width = 0.7) +
-  scale_fill_manual(values = rev(diverging_colors), name = "",
-                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
-                                    "Strongly Agree", "Agree", "Slightly Agree")) +
+  scale_fill_manual(
+      values = diverging_colors,
+      name = "",
+      breaks = c(1, 2, 3, 4, 5, 6),
+      labels = c(
+        "Strongly disagree",
+        "Disagree",
+        "Slightly disagree",
+        "Slightly agree",
+        "Agree",
+        "Strongly agree"
+        )
+      ) +
   coord_flip() +
   geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
             size = 3,
@@ -1196,12 +1301,12 @@ p_cb04_sub_nar2 <- ggplot(sum_cb04_nar2_sub, aes(x = fct_relevel(sentence, rev(l
             position = position_stack(vjust = 0.5)
             ) +
   labs(
-    title = "Degree of Agreement (Stimulus 2, Compliers)",
-    y = "",
+    title = "",
+    y = "Compliers only",
     x = ""
   ) +
   geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
-  scale_y_continuous(labels=NULL) +
+  scale_y_continuous(labels=NULL, position="top") +
   theme_minimal() +
   custom_theme() +
   theme(
@@ -1239,7 +1344,51 @@ ggsave(filename = file.path(fig, "paper_cb04_sub_stim2.png"),
 
 ```
 
+```{r cb04_jointplot_stim2}
+# Text resizing
+textsize = 30
+resize_plot <- function(plot) {
+  idx <- which(sapply(plot$layers, function(x) inherits(x$geom, "GeomText")))
+  if (length(idx) > 0) {
+    plot$layers[[idx]]$aes_params$size <- 9
+  }
+    
+  plot +
+    theme(
+      text = element_text(size = textsize),
+      legend.text = element_text(size = textsize),
+      axis.text = element_text(size = textsize),
+      axis.text.y = element_text(
+        hjust = 0,
+        lineheight = 0.4
+      )
+      ) 
+}
+p_cb04_nar2_resized <- resize_plot(p_cb04_nar2) 
+p_cb04_sub_nar2_resized <- resize_plot(p_cb04_sub_nar2) 
 
+# Remove legend and y-axis from the second plot
+p_cb04_sub_nar2_resized_clean <- p_cb04_sub_nar2_resized +
+  theme(
+    legend.position = "none",
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank()
+  )
+
+# Build plot
+p_cb04_stim2 <- p_cb04_nar2_resized + p_cb04_sub_nar2_resized_clean +
+  plot_layout(guides = "collect") &
+  theme(
+    legend.position = "top"
+  )
+
+# Save plot
+ggsave(filename = file.path(fig, "cb04_treat2.png"),
+       plot = p_cb04_stim2,
+       width = 12.8,
+       height = 6.98,
+       dpi = 300)
+```
 
 ## 2.3 - NARRATIVE 3
 
@@ -1273,7 +1422,6 @@ sum_cb03_nar3 <- bind_rows(sum_cb03_correct_nar3, sum_cb03_all_nar3) %>%
                                       "Qualified human resources have wider job opportunities. \nThey can also open jobs in many places. Meanwhile, \nthe benefits of flyovers and magnificent buildings \nare only enjoyed by people in big cities.",
                                       "The government should reduce waste in building \nphysical facilities to increase the budget \nfor education, research, and culture."
                                       )))
-
 ```
 
 ``` {r plot_cb03c_correct, fig.width = 10, fig.height = 3.5}
@@ -1292,7 +1440,7 @@ p_cb03_nar3 <- ggplot(sum_cb03_nar3) +
         y = percent) +
     facet_wrap(~d_correct, nrow=1, strip.position="top",
                labeller = labeller(d_correct = label_counts)) +
-    geom_bar(stat = "identity", fill=plotplainblind[1]) +
+    geom_bar(aes(fill = sentence), stat = "identity") +
     geom_text(aes(label = paste(round(percent, 0),"%")),
       vjust = 0.5,
       hjust = -0.1,
@@ -1306,6 +1454,9 @@ p_cb03_nar3 <- ggplot(sum_cb03_nar3) +
       x = "",
       y = ""
     ) +
+  scale_fill_manual(
+  values = c("#999999", "#999999", "#999999", "#E69F00"
+             )) +
   custom_theme() +
   theme(
     legend.position = "none",
@@ -1318,9 +1469,8 @@ print(p_cb03_nar3)
 ggsave(filename = file.path(fig, "paper_cb03_stim3.png"),
        plot = p_cb03_nar3,
        width = 10,
-       height = 3.5,
+       height = 4.5,
        dpi = 100)
-
 ```
 
 
@@ -1356,16 +1506,33 @@ sum_cb04_nar3 <- sum_cb04_nar3 %>%
 ```
 
 ``` {r plot_cb04_nar3, fig.height = 4.5, fig.width=10}
-diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+diverging_colors <- c(
+  "#f16913",  # strongly disagree
+  "#fdae6b",  # disagree
+  "#fee6ce",  # slightly disagree
+  "#c6dbef",  # slightly agree
+  "#9ecae1",
+  "#6baed6"
+)
 names(diverging_colors) <- 1:6
 
 p_cb04_nar3 <- ggplot(sum_cb04_nar3, aes(x = fct_relevel(sentence, rev(levels(sentence))),
                           y = percent_div, 
                           fill = agree_level)) +
   geom_bar(stat = "identity", width = 0.7) +
-  scale_fill_manual(values = rev(diverging_colors), name = "",
-                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
-                                    "Strongly Agree", "Agree", "Slightly Agree")) +
+  scale_fill_manual(
+      values = diverging_colors,
+      name = "",
+      breaks = c(1, 2, 3, 4, 5, 6),
+      labels = c(
+        "Strongly disagree",
+        "Disagree",
+        "Slightly disagree",
+        "Slightly agree",
+        "Agree",
+        "Strongly agree"
+        )
+      ) +
   coord_flip() +
   geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
             size = 3,
@@ -1373,12 +1540,12 @@ p_cb04_nar3 <- ggplot(sum_cb04_nar3, aes(x = fct_relevel(sentence, rev(levels(se
             position = position_stack(vjust = 0.5)
             ) +
   labs(
-    title = "Degree of Agreement (Stimulus 3, All Treatment Units)",
-    y = "",
+    title = "",
+    y = "All treatment units",
     x = ""
   ) +
   geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
-  scale_y_continuous(labels=NULL) +
+  scale_y_continuous(labels=NULL, position="top") +
   theme_minimal() +
   custom_theme() +
   theme(
@@ -1448,16 +1615,33 @@ sum_cb04_nar3_sub <- sum_cb04_nar3_sub %>%
 ```
 
 ``` {r plot_cb04_nar3_sub, fig.height = 4.5, fig.width=10}
-diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+diverging_colors <- c(
+  "#f16913",  # strongly disagree
+  "#fdae6b",  # disagree
+  "#fee6ce",  # slightly disagree
+  "#c6dbef",  # slightly agree
+  "#9ecae1",
+  "#6baed6"
+)
 names(diverging_colors) <- 1:6
 
 p_cb04_sub_nar3 <- ggplot(sum_cb04_nar3_sub, aes(x = fct_relevel(sentence, rev(levels(sentence))),
                           y = percent_div, 
                           fill = agree_level)) +
   geom_bar(stat = "identity", width = 0.7) +
-  scale_fill_manual(values = rev(diverging_colors), name = "",
-                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
-                                    "Strongly Agree", "Agree", "Slightly Agree")) +
+  scale_fill_manual(
+      values = diverging_colors,
+      name = "",
+      breaks = c(1, 2, 3, 4, 5, 6),
+      labels = c(
+        "Strongly disagree",
+        "Disagree",
+        "Slightly disagree",
+        "Slightly agree",
+        "Agree",
+        "Strongly agree"
+        )
+      ) +
   coord_flip() +
   geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
             size = 3,
@@ -1465,12 +1649,12 @@ p_cb04_sub_nar3 <- ggplot(sum_cb04_nar3_sub, aes(x = fct_relevel(sentence, rev(l
             position = position_stack(vjust = 0.5)
             ) +
   labs(
-    title = "Degree of Agreement (Stimulus 3, Compliers)",
-    y = "",
+    title = "",
+    y = "Compliers only",
     x = ""
   ) +
   geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
-  scale_y_continuous(labels=NULL) +
+  scale_y_continuous(labels=NULL, position="top") +
   theme_minimal() +
   custom_theme() +
   theme(
@@ -1508,6 +1692,52 @@ ggsave(filename = file.path(fig, "paper_cb04_sub_stim3.png"),
 
 ```
 
+```{r cb04_jointplot_stim3}
+# Text resizing
+textsize = 30
+resize_plot <- function(plot) {
+  idx <- which(sapply(plot$layers, function(x) inherits(x$geom, "GeomText")))
+  if (length(idx) > 0) {
+    plot$layers[[idx]]$aes_params$size <- 9
+  }
+    
+  plot +
+    theme(
+      text = element_text(size = textsize),
+      legend.text = element_text(size = textsize),
+      axis.text = element_text(size = textsize),
+      axis.text.y = element_text(
+        hjust = 0,
+        lineheight = 0.4
+      )
+      ) 
+}
+p_cb04_nar3_resized <- resize_plot(p_cb04_nar3) 
+p_cb04_sub_nar3_resized <- resize_plot(p_cb04_sub_nar3) 
+
+# Remove legend and y-axis from the second plot
+p_cb04_sub_nar3_resized_clean <- p_cb04_sub_nar3_resized +
+  theme(
+    legend.position = "none",
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank()
+  )
+
+# Build plot
+p_cb04_stim3 <- p_cb04_nar3_resized + p_cb04_sub_nar3_resized_clean +
+  plot_layout(guides = "collect") &
+  theme(
+    legend.position = "top"
+  )
+
+# Save plot
+ggsave(filename = file.path(fig, "cb04_treat3.png"),
+       plot = p_cb04_stim3,
+       width = 12.8,
+       height = 6.98,
+       dpi = 300)
+```
+
 
 ## 2.4 - NARRATIVE 4 (ADJ)
 
@@ -1541,7 +1771,6 @@ sum_cb03_nar5 <- bind_rows(sum_cb03_correct_nar5, sum_cb03_all_nar5) %>%
                                       "In contrast, children from a wealthy family are guaranteed \na good life from the womb. Their mothers are healthy, \ntheir neighborhoods are clean and safe, and they can go \nto school until they graduate. As adults, they can get good jobs \nso that their economic conditions can continue to improve.",
                                       "The government should improve the coverage and \nquality of health, education, and social services. So that \nchildren from rich and poor families can have \nequal opportunities to live prosperous lives."
                            )))
-
 ```
 
 ``` {r plot_cb03e_correct, fig.width = 10, fig.height = 4.5}
@@ -1560,7 +1789,7 @@ p_cb03_nar4 <- ggplot(sum_cb03_nar5) +
         y = percent) +
     facet_wrap(~d_correct, nrow=1, strip.position="top",
                labeller = labeller(d_correct = label_counts)) +
-    geom_bar(stat = "identity", fill=plotplainblind[1]) +
+    geom_bar(aes(fill = sentence), stat = "identity") +
     geom_text(aes(label = paste(round(percent, 0),"%")),
       vjust = 0.5,
       hjust = -0.1,
@@ -1574,6 +1803,9 @@ p_cb03_nar4 <- ggplot(sum_cb03_nar5) +
       x = "",
       y = ""
     ) +
+  scale_fill_manual(
+  values = c("#999999", "#E69F00", "#E69F00", "#999999"
+             )) +
   custom_theme() +
   theme(
     legend.position = "none",
@@ -1618,23 +1850,36 @@ sum_cb04_nar5 <- sum_cb04_nar5 %>%
                                       "In contrast, children from a wealthy family are guaranteed \na good life from the womb. Their mothers are healthy, \ntheir neighborhoods are clean and safe, and they can go \nto school until they graduate. As adults, they can get good jobs \nso that their economic conditions can continue to improve.",
                                       "The government should improve the coverage and \nquality of health, education, and social services. So that \nchildren from rich and poor families can have \nequal opportunities to live prosperous lives."
                            )))
-
-
-
-
 ```
 
 ``` {r plot_cb04_nar4adj, fig.height = 5.5, fig.width=10}
-diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+diverging_colors <- c(
+  "#f16913",  # strongly disagree
+  "#fdae6b",  # disagree
+  "#fee6ce",  # slightly disagree
+  "#c6dbef",  # slightly agree
+  "#9ecae1",
+  "#6baed6"
+)
 names(diverging_colors) <- 1:6
 
 p_cb04_nar4 <- ggplot(sum_cb04_nar5, aes(x = fct_relevel(sentence, rev(levels(sentence))), 
                           y = percent_div, 
                           fill = agree_level)) +
   geom_bar(stat = "identity", width = 0.7) +
-  scale_fill_manual(values = rev(diverging_colors), name = "",
-                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
-                                    "Strongly Agree", "Agree", "Slightly Agree")) +
+  scale_fill_manual(
+      values = diverging_colors,
+      name = "",
+      breaks = c(1, 2, 3, 4, 5, 6),
+      labels = c(
+        "Strongly disagree",
+        "Disagree",
+        "Slightly disagree",
+        "Slightly agree",
+        "Agree",
+        "Strongly agree"
+        )
+      ) +
   coord_flip() +
   geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
             size = 3,
@@ -1642,12 +1887,12 @@ p_cb04_nar4 <- ggplot(sum_cb04_nar5, aes(x = fct_relevel(sentence, rev(levels(se
             position = position_stack(vjust = 0.5)
             ) +
   labs(
-    title = "Degree of Agreement (Stimulus 4, All Treatment Units)",
-    y = "",
+    title = "",
+    y = "All treatment units",
     x = ""
   ) +
   geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
-  scale_y_continuous(labels=NULL) +
+  scale_y_continuous(labels=NULL, position="top") +
   theme_minimal() +
     custom_theme() +
   theme(
@@ -1711,23 +1956,36 @@ sum_cb04_sub_nar5 <- sum_cb04_sub_nar5 %>%
                                       "In contrast, children from a wealthy family are guaranteed \na good life from the womb. Their mothers are healthy, \ntheir neighborhoods are clean and safe, and they can go \nto school until they graduate. As adults, they can get good jobs \nso that their economic conditions can continue to improve.",
                                       "The government should improve the coverage and \nquality of health, education, and social services. So that \nchildren from rich and poor families can have \nequal opportunities to live prosperous lives."
                            )))
-
-
-
-
 ```
 
 ``` {r plot_cb04_nar4adj_sub, fig.height = 5.5, fig.width=10}
-diverging_colors <- c("#fdae6b", "#fee6ce", "#f0f0f0", "#c6dbef", "#9ecae1","#6baed6")
+diverging_colors <- c(
+  "#f16913",  # strongly disagree
+  "#fdae6b",  # disagree
+  "#fee6ce",  # slightly disagree
+  "#c6dbef",  # slightly agree
+  "#9ecae1",
+  "#6baed6"
+)
 names(diverging_colors) <- 1:6
 
 p_cb04_sub_nar4 <- ggplot(sum_cb04_sub_nar5, aes(x = fct_relevel(sentence, rev(levels(sentence))), 
                           y = percent_div, 
                           fill = agree_level)) +
   geom_bar(stat = "identity", width = 0.7) +
-  scale_fill_manual(values = rev(diverging_colors), name = "",
-                     labels = c("Strongly Disagree", "Disagree", "Slightly Disagree",
-                                    "Strongly Agree", "Agree", "Slightly Agree")) +
+  scale_fill_manual(
+      values = diverging_colors,
+      name = "",
+      breaks = c(1, 2, 3, 4, 5, 6),
+      labels = c(
+        "Strongly disagree",
+        "Disagree",
+        "Slightly disagree",
+        "Slightly agree",
+        "Agree",
+        "Strongly agree"
+        )
+      ) +
   coord_flip() +
   geom_text(aes(label = ifelse( percent > 5, paste0(round(percent),"%"),"")), 
             size = 3,
@@ -1735,12 +1993,12 @@ p_cb04_sub_nar4 <- ggplot(sum_cb04_sub_nar5, aes(x = fct_relevel(sentence, rev(l
             position = position_stack(vjust = 0.5)
             ) +
   labs(
-    title = "Degree of Agreement (Stimulus 4, Compliers)",
-    y = "",
+    title = "",
+    y = "Compliers only",
     x = ""
   ) +
   geom_hline(yintercept = 0, linetype = "dashed", color = plotplainblind[1]) +
-  scale_y_continuous(labels=NULL) +
+  scale_y_continuous(labels=NULL, position="top") +
   theme_minimal() +
   custom_theme() +
   theme(
@@ -1777,6 +2035,51 @@ ggsave(filename = file.path(fig, "paper_cb04_sub_stim4.png"),
 
 ```
 
+```{r cb04_jointplot_stim4}
+# Text resizing
+textsize = 30
+resize_plot <- function(plot) {
+  idx <- which(sapply(plot$layers, function(x) inherits(x$geom, "GeomText")))
+  if (length(idx) > 0) {
+    plot$layers[[idx]]$aes_params$size <- 9
+  }
+    
+  plot +
+    theme(
+      text = element_text(size = textsize),
+      legend.text = element_text(size = textsize),
+      axis.text = element_text(size = textsize),
+      axis.text.y = element_text(
+        hjust = 0,
+        lineheight = 0.4
+      )
+      ) 
+}
+p_cb04_nar4_resized <- resize_plot(p_cb04_nar4) 
+p_cb04_sub_nar4_resized <- resize_plot(p_cb04_sub_nar4) 
+
+# Remove legend and y-axis from the second plot
+p_cb04_sub_nar4_resized_clean <- p_cb04_sub_nar4_resized +
+  theme(
+    legend.position = "none",
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank()
+  )
+
+# Build plot
+p_cb04_stim4 <- p_cb04_nar4_resized + p_cb04_sub_nar4_resized_clean +
+  plot_layout(guides = "collect") &
+  theme(
+    legend.position = "top"
+  )
+
+# Save plot
+ggsave(filename = file.path(fig, "cb04_treat4.png"),
+       plot = p_cb04_stim4,
+       width = 12.8,
+       height = 6.98,
+       dpi = 300)
+```
 
 ## 2.4 - NARRATIVE 5 (ADJ)
 
@@ -2322,13 +2625,10 @@ prefixes <- c("CB02Ar", "CB02Br", "CB02Cr", "CB02Dr", "CB02Er")
 sum_emotion_subsample <- map2_dfr(1:5, prefixes, process_narrative_sub)
 ```
 
-
-
 ``` {r heatmap_emotion_all_sample_exc5}
 
 breaks_val <- c(0, 20, 40, 60, 80)
-#colors_val <- c("white", "#D3D3D3", "#808080", "#595959", "#363636")
-colors_val <- c("#FFFFFF", "#E8E8EC", "#D1D1D6", "#A1A3AB", "#808080")
+colors_val <- c("#FFF8E6", "#FFE3A3", "#F7C65A", "#E69F00", "#FF8C00")
 
 obs_counts <- cb02_data %>%
   group_by(narrative = factor(ifelse(lfCB == 1, 1,
@@ -2355,12 +2655,16 @@ heatmap_emo <- ggplot(sum_emotion_all, aes(x = factor(stimulus),
                                            y = emotion, 
                                            fill = percent)) +
   geom_tile() +
-  scale_fill_gradientn(colors = colors_val, breaks = breaks_val, limits = c(0, 80)) +
+  scale_fill_stepsn(
+    colors = colors_val,
+    breaks = breaks_val,
+    limits = c(0, 80)
+  ) +
   geom_text(aes(label = round(percent, 2)), color = "black", size = 3) +
   #facet_wrap(~ Foundation, scales = "free") +
-  labs(title = "Emotions evoked for all treatment units (%)",
+  labs(title = "All treatment units",
        #subtitle = subtitle,
-       x = "Stimulus",
+       x = "",
        y = "",
        fill = "Percentage") +
   theme_minimal() +
@@ -2384,8 +2688,7 @@ ggsave(filename = file.path(fig, "paper_heatmap_emo_all_exc5.png"),
 ``` {r heatmap_emotion_all_subsample_exc5}
 
 breaks_val <- c(0, 20, 40, 60, 80)
-#colors_val <- c("white", "#D3D3D3", "#808080", "#595959", "#363636")
-colors_val <- c("#FFFFFF", "#E8E8EC", "#D1D1D6", "#A1A3AB", "#808080")
+colors_val <- c("#FFF8E6", "#FFE3A3", "#F7C65A", "#E69F00", "#FF8C00")
 
 obs_counts_sub <- cb02_data_sub %>%
   group_by(narrative = factor(ifelse(lfCB == 1, 1,
@@ -2411,12 +2714,16 @@ label_nar_sub <- paste0(levels(factor(sum_emotion_subsample$stimulus)),
 heatmap_emo_sub <- ggplot(sum_emotion_subsample, aes(x = factor(stimulus), 
                                                      y = emotion, fill = percent)) +
   geom_tile() +
-  scale_fill_gradientn(colors = colors_val, breaks = breaks_val, limits = c(0, 80)) +
+  scale_fill_stepsn(
+    colors = colors_val,
+    breaks = breaks_val,
+    limits = c(0, 80)
+  ) +
   geom_text(aes(label = round(percent, 2)), color = "black", size = 3) +
   #facet_wrap(~ Foundation, scales = "free") +
-  labs(title = "Emotions evoked for treatment with correct interpretation (%)",
+  labs(title = "Compliers only",
        #subtitle = subtitle,
-       x = "Stimulus",
+       x = "",
        y = "",
        fill = "Percentage") +
   theme_minimal() +
@@ -2434,6 +2741,50 @@ ggsave(filename = file.path(fig, "paper_heatmap_emo_sub_exc5.png"),
        width = 7.5,
        height = 4.25,
        dpi = 100)
+```
+
+```{r heatmap_emotion_joined}
+# Text resizing
+textsize = 28
+resize_plot <- function(plot) {
+
+  # change size of existing geom_text layer
+  for (i in seq_along(plot$layers)) {
+    if (inherits(plot$layers[[i]]$geom, "GeomText")) {
+      plot$layers[[i]]$aes_params$size <- 9
+    }
+  }
+
+  plot +
+    theme(
+      text = element_text(size = textsize),
+      legend.text = element_text(size = textsize),
+      axis.text = element_text(size = textsize),
+      axis.text.x = element_text(size = textsize,
+                                 lineheight = 0.4)
+    )
+}
+heatmap_emo_resized <- resize_plot(heatmap_emo) 
+heatmap_emo_sub_resized <- resize_plot(heatmap_emo_sub) 
+
+# Remove legend and y-axis from the second plot
+heatmap_emo_sub_resized_clean <- heatmap_emo_sub_resized +
+  theme(
+    legend.position = "none",
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank()
+  )
+
+# Build joint plot
+heatmap_emo_join <- heatmap_emo_resized + heatmap_emo_sub_resized_clean +
+  plot_layout(guides = "collect")
+
+# Save plot
+ggsave(filename = file.path(fig, "heatmap_emo_joint.png"),
+       plot = heatmap_emo_join,
+       width = 12.8,
+       height = 6.98,
+       dpi = 300)
 ```
 
 
