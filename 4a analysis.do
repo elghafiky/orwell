@@ -2473,13 +2473,12 @@ reg support5 i.CB03A if crt_intrpt_msg==1, ro
 est store compliers
 
 coefplot all compliers, drop(_cons) xline(0) legend(pos(12) row(1) label(2 "All treatment units") label(4 "Compliers only") size(vsmall)) ///
-xtitle("Probability of supporting subsidy for energy-efficient homes and buildings relative to the first statement", size(vsmall)) ///
+xtitle("Probability of supporting subsidy for energy-efficient homes and buildings relative to the first paragraph", size(vsmall)) ///
 coeflabels(	2.CB03A="All this time, the benefits of development have not reached all citizens. Those who enjoy it are the rich and powerful. Those at the bottom are still not prosperous." ///
 			3.CB03A="The government should improve the distribution of development benefits. The government must ensure that the benefits can be enjoyed by all Indonesians." ///
 			4.CB03A="If the government can improve the distribution of development benefits, then all levels of society can thrive and improve their standard of living wherever they are.", ///
 			wrap(40) labsize(vsmall))
 gr export "$fig\M1.png", replace 
-
 
 * stim3
 setupdataDK
@@ -2488,7 +2487,7 @@ keep if lfCB==3
 keep record CB03C support* QDKr* crt_intrpt_msg
 drop QDKr_*
 reshape long support QDKr, i(record) j(polnum) 
-keep if inlist(polnum,2,3,5)
+keep if inlist(polnum,2,5)
 
 est clear
 reg support i.CB03C, cluster(record)
@@ -2497,7 +2496,7 @@ reg support i.CB03C if crt_intrpt_msg==1, cluster(record)
 est store compliers
 
 coefplot all compliers, drop(_cons) xline(0) legend(pos(12) row(1) label(2 "All treatment units") label(4 "Compliers only") size(vsmall)) ///
-xtitle("Probability of supporting selected policies related to energy transition relative to the first statement", size(vsmall)) ///
+xtitle("Probability of supporting selected energy transition policies relative to the first paragraph", size(vsmall)) ///
 coeflabels(	2.CB03C="The quality of human resources improves if the quality of our education improves. Consequently, school graduates are able to solve problems and make innovations, have discipline, and can work with others." ///
 			3.CB03C="Qualified human resources have wider job opportunities. They can also open jobs in many places. Meanwhile, the benefits of flyovers and magnificent buildings are only enjoyed by people in big cities." ///
 			4.CB03C="The government should reduce waste in building physical facilities to increase the budget for education, research, and culture.", ///
@@ -2515,7 +2514,7 @@ reg CB05r9 i.CB03E if crt_intrpt_msg==1, ro
 est store compliers
 
 coefplot all compliers, drop(_cons) xline(0) legend(pos(12) row(1) label(2 "All treatment units") label(4 "Compliers only") size(vsmall)) ///
-xtitle("Probability of prioritizing advancing underdeveloped region relative to the first statement", size(vsmall)) ///
+xtitle("Probability of prioritizing advancing underdeveloped region relative to the first paragraph", size(vsmall)) ///
 coeflabels(	2.CB03E="From the womb, children from poor families are left behind. During pregnancy, mothers do not receive good health and nutrition services. When the children grow up, the family cannot afford to send them to a good school. They also tend to drop out of school. As adults, they cannot get a decent job, so they and their descendants remain poor." ///
 			3.CB03E="In contrast, children from a wealthy family are guaranteed a good life from the womb. Their mothers are healthy, their neighborhoods are clean and safe, and they can go to school until they graduate. As adults, they can get good jobs so that their economic conditions can continue to improve." ///
 			4.CB03E="The government should improve the coverage and quality of health, education, and social services. So that children from rich and poor families can have equal opportunities to live prosperous lives.", ///
