@@ -17,8 +17,8 @@ current_user <- Sys.info()[["user"]]
 
 # Check if the username matches and set the working directory accordingly
 if (current_user == "elgha") {
-  base_dir <- "G:/" # laptop
-  #base_dir <- "H:/" # computer
+  # base_dir <- "G:/" # laptop
+  base_dir <- "H:/" # computer
 }
 
 # Set directory
