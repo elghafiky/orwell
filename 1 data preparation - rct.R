@@ -63,8 +63,15 @@ df <- df %>%
     region_wit  = ifelse(`ID05 Provinsi` %in% c(17,21), 1, 0)
   )
 
+# --- 6. RENAME OUTCOME VARIABLES ---
+df <- df %>%
+  rename(
+    EK01 = `EK01 Apakah Anda bersedia menyumbangkan kompensasi survei yang Anda terima kepada New Energy Nexus?`,
+    EK02 = `EK02 Berapa besar nominal yang bersedia Anda donasikan untuk New Energy Nexus?`,
+    EK03 = `EK03 Apakan Anda bersedia menandatangani petisi tersebut?`,
+    EK05 = `EK05 Apakah Anda bersedia mendapatkan informasi lebih lanjut mengenai transisi energi setelah mengikuti survei ini?`
+  )
 
-
-# --- 6. SAVE CLEAN DATASET ---
+# --- 7. SAVE CLEAN DATASET ---
 saveRDS(df, file.path(output, "gb_rct_clean.rds"))
 write_xlsx(df, file.path(output, "gb_rct_clean.xlsx"))
