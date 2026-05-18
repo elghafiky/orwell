@@ -196,9 +196,11 @@ plot_coef <- function(data, outcome_var, title) {
   
   plot_data <- data %>%
     filter(outcome == outcome_var) %>%
+    filter(!(term == "Pooled_T" & comparison == "T1 T2 vs Control")) %>%
+    filter(!(term %in% c("T1", "T2") & comparison == "Pooled vs Control")) %>%
     mutate(
       label = paste0(term, " ", stars),
-      term = factor(term, levels = c("Pooled_T", "T1", "T2"))
+      term = factor(term, levels = c("Pooled_T", "T1", "T2"), exclude = NULL)
     )
   
   ggplot(plot_data, aes(x = estimate, y = term, color = model)) +
@@ -214,15 +216,21 @@ plot_coef <- function(data, outcome_var, title) {
       position = position_dodge(0.5),
       hjust = 0, size = 4
     ) +
-    facet_wrap(~comparison, ncol = 1) +
+    facet_wrap(~comparison, ncol = 1, scales = "free_y") +
     labs(
       title = title,
       x = "Treatment Effect (OLS coefficient)",
       y = "",
-      color = "Model"
+      color = "Model",
+      caption = "* q < 0.10   ** q < 0.05   *** q < 0.01\nBars show 95% confidence intervals. Stars based on Anderson sharpened q-values."
     ) +
     theme_minimal() +
-    theme(legend.position = "bottom")
+    scale_y_discrete(drop = TRUE) +
+    theme(
+      legend.position = "top",
+      legend.justification = "left",
+      plot.caption = element_text(hjust = 0, size = 9, color = "gray40")
+    )
 }
 
 # --- 15. GENERATE FIGURES ---
@@ -232,10 +240,10 @@ fig_EK03 <- plot_coef(all_results, "EK03", "Petition Signing (EK03)")
 fig_EK05 <- plot_coef(all_results, "EK05", "Information Seeking (EK05)")
 
 # save figures
-ggsave(file.path(fig, "fig_EK01.png"), fig_EK01, width = 10, height = 8, dpi = 300)
-ggsave(file.path(fig, "fig_EK02.png"), fig_EK02, width = 10, height = 8, dpi = 300)
-ggsave(file.path(fig, "fig_EK03.png"), fig_EK03, width = 10, height = 8, dpi = 300)
-ggsave(file.path(fig, "fig_EK05.png"), fig_EK05, width = 10, height = 8, dpi = 300)
+ggsave(file.path(fig, "fig_EK01_3.png"), fig_EK01, width = 10, height = 8, dpi = 300)
+ggsave(file.path(fig, "fig_EK02_3.png"), fig_EK02, width = 10, height = 8, dpi = 300)
+ggsave(file.path(fig, "fig_EK03_3.png"), fig_EK03, width = 10, height = 8, dpi = 300)
+ggsave(file.path(fig, "fig_EK05_3.png"), fig_EK05, width = 10, height = 8, dpi = 300)
 
 #########THIS IS THE END##################
 
