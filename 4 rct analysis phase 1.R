@@ -233,6 +233,7 @@ plot_coef <- function(data, outcome_var, title) {
     )
 }
 
+
 # --- 15. GENERATE FIGURES ---
 fig_EK01 <- plot_coef(all_results, "EK01", "Donation Willingness (EK01)")
 fig_EK02 <- plot_coef(all_results, "EK02", "Donation Amount (EK02)")
@@ -244,6 +245,69 @@ ggsave(file.path(fig, "fig_EK01_3.png"), fig_EK01, width = 10, height = 8, dpi =
 ggsave(file.path(fig, "fig_EK02_3.png"), fig_EK02, width = 10, height = 8, dpi = 300)
 ggsave(file.path(fig, "fig_EK03_3.png"), fig_EK03, width = 10, height = 8, dpi = 300)
 ggsave(file.path(fig, "fig_EK05_3.png"), fig_EK05, width = 10, height = 8, dpi = 300)
+
+# --- SWAYABLE STYLE PLOT ---
+library(forcats)
+
+# define significance colors and shapes (same as swayable)
+sig_colors <- c("***" = "#d7191c", "**" = "#fdae61", "*" = "#2b83ba", "ns" = "grey70")
+sig_shapes <- c("***" = 18, "**" = 17, "*" = 16, "ns" = 4)
+
+# prep plot data
+swayable_plot_data <- all_results %>%
+  mutate(
+    significance = case_when(
+      q_value < 0.01 ~ "***",
+      q_value < 0.05 ~ "**",
+      q_value < 0.10 ~ "*",
+      TRUE ~ "ns"
+    ),
+    outcome = factor(outcome, levels = c("EK01", "EK02", "EK03", "EK05")),
+    label = paste(outcome, "|", comparison, "|", term, "|", model)
+  ) %>%
+  arrange(outcome, term, model) %>%
+  group_by(outcome) %>%
+  mutate(row_id = row_number()) %>%
+  ungroup() %>%
+  mutate(
+    outcome_id = as.numeric(outcome),
+    y_position = (outcome_id - 1) * 10 + row_id
+  )
+
+sep_positions <- unique(swayable_plot_data$outcome_id * 10)
+
+p_swayable <- ggplot(swayable_plot_data,
+                     aes(x = estimate, y = y_position,
+                         color = significance, shape = significance)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", alpha = 0.6) +
+  geom_errorbar(aes(xmin = conf.low, xmax = conf.high), height = 0.2, linewidth = 0.7) +
+  geom_point(size = 3) +
+  geom_hline(yintercept = sep_positions, color = "grey85", linewidth = 0.6) +
+  scale_color_manual(values = sig_colors, name = "Anderson q-value") +
+  scale_shape_manual(values = sig_shapes, name = "Anderson q-value") +
+  scale_y_continuous(
+    breaks = swayable_plot_data$y_position,
+    labels = swayable_plot_data$label
+  ) +
+  theme_minimal() +
+  labs(
+    title    = "GB RCT Phase 1 — Main Treatment Effects",
+    subtitle = "Error bars = 95% CI. Color/shape = Anderson sharpened q-value significance.",
+    x        = "Treatment Effect Estimate (95% CI)",
+    y        = NULL,
+    caption  = "* q < 0.10   ** q < 0.05   *** q < 0.01"
+  ) +
+  theme(
+    axis.text.y      = element_text(size = 8),
+    legend.position  = "bottom",
+    panel.grid.minor = element_blank()
+  )
+
+calc_height <- (max(swayable_plot_data$y_position) * 0.32) + 2
+
+ggsave(file.path(fig, "fig_swayable_style.png"),
+       plot = p_swayable, width = 12, height = calc_height,
+       units = "in", limitsize = FALSE)
 
 #########THIS IS THE END##################
 
