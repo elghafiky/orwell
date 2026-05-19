@@ -25,15 +25,40 @@ if (!dir.exists(tbl)) dir.create(tbl, recursive = TRUE)
 # --- 2. LOAD RAW DATA ---
 clean_data <- readRDS(file.path(opt, "gb_rct_clean.rds"))
 
+# --- 2.5 BUILD ANDERSON SUMMARY INDEX ---
+# Goal: Standardize using Control Group mean/SD and average components
 
-#--- 3. DEFINE FUNCTIONS ---
+# 1. Isolate the control group to get the baseline mean and SD
+control_data <- clean_data %>% filter(Pooled_T == 0)
+
+# 2. Define the components of the Behavioral Engagement Index
+# Note: Ensure these are already coded so higher values = pro-environmental
+index_vars <- c("EK01", "EK02", "EK03", "EK05")
+
+# 3. Create Z-scores for each variable using Control Mean & SD
+for (var in index_vars) {
+  # Calculate control mean and sd for this specific variable
+  c_mean <- mean(control_data[[var]], na.rm = TRUE)
+  c_sd <- sd(control_data[[var]], na.rm = TRUE)
+  
+  # Create a new column with the Z-score for the entire dataset
+  z_col_name <- paste0(var, "_Z")
+  clean_data[[z_col_name]] <- (clean_data[[var]] - c_mean) / c_sd
+}
+
+# 4. Average the Z-scores to create the final index
+z_cols <- paste0(index_vars, "_Z")
+clean_data <- clean_data %>%
+  mutate(Behavioral_Index = rowMeans(select(., all_of(z_cols)), na.rm = TRUE))
+
+# --- 3. DEFINE FUNCTIONS & OUTCOMES ---
 model_1 <- function(clean_data, outcome, treatment_vars) {
   formula <- as.formula(paste(outcome, "~", paste(treatment_vars, collapse = "+")))
   result <- lm_robust(formula, data = clean_data, se_type = "HC2")
   return(tidy(result))
 }
 
-outcomes <- c("EK01", "EK02", "EK03", "EK05")
+outcomes <- c("EK01", "EK02", "EK02b", "EK03", "EK04", "EK05", "Behavioral_Index")
 
 # --- 4A. RUN MODEL 1 - POOLED T VS CONTROL ---
 results_pooled_m1 <- map_dfr(outcomes, function(y) {
