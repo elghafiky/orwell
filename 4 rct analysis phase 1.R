@@ -1,3 +1,258 @@
+##### ORWELL 2 — GREEN BAROMETER - PHASE 1 MODEL 1 & 2 ITT ####
+# Goal: Main treatment effect (ITT, OLS) 
+
+############## JOINT REGRESSION
+
+graphics.off(); rm(list=ls()); cat("\014");
+pacman::p_load(tidyverse, data.table, estimatr, broom, glmnet, purrr, writexl, car, sandwich)
+
+# --- 1. SETUP DIRECTORIES ---
+base_dir <- "G:/"
+master <- file.path(base_dir, "Shared drives", "Projects", "2026", "Orwell 2", 
+                    "Breadcrumbs", "4. Green Barometer", "10 Data RCT")
+
+setwd(master)
+opt = file.path(getwd(), "1c output")
+tbl = file.path(getwd(), "4 tables")
+if (!dir.exists(tbl)) dir.create(tbl, recursive = TRUE)
+
+# --- 2. LOAD RAW DATA & RENAME VARIABLES ---
+clean_data <- readRDS(file.path(opt, "gb_rct_clean.rds"))
+
+# Merapikan nama kolom yang terlalu panjang
+clean_data <- clean_data %>%
+  rename(
+    EK02a = `EK02a Apakah Anda mau mencantumkan nama Anda sebagai salah satu donatur?`,
+    EK02b = `EK02b Apakah Anda bersedia dihubungi kembali untuk dikirimkan bukti donasi?`,
+    EK04  = `EK04 Apakah Anda mencantumkan identitas Anda pada petisi tersebut?`
+  )
+
+# --- 2.5 BUILD ANDERSON SUMMARY INDEX ---
+# Goal: Standardize using Control Group mean/SD and average components
+
+# 1. Isolate the control group to get the baseline mean and SD
+control_data <- clean_data %>% filter(Pooled_T == 0)
+
+# 2. Define the components of the Behavioral Engagement Index
+index_vars <- c("EK01", "EK02", "EK02a", "EK02b", "EK03", "EK04", "EK05")
+
+# 3. Create Z-scores for each variable using Control Mean & SD
+for (var in index_vars) {
+  # Calculate control mean and sd for this specific variable
+  c_mean <- mean(control_data[[var]], na.rm = TRUE)
+  c_sd <- sd(control_data[[var]], na.rm = TRUE)
+  
+  # Create a new column with the Z-score for the entire dataset
+  z_col_name <- paste0(var, "_Z")
+  clean_data[[z_col_name]] <- (clean_data[[var]] - c_mean) / c_sd
+}
+
+# 4. Average the Z-scores to create the final index
+z_cols <- paste0(index_vars, "_Z")
+clean_data <- clean_data %>%
+  mutate(Behavioral_Index = rowMeans(select(., all_of(z_cols)), na.rm = TRUE))
+
+
+# --- 3. DEFINE FUNCTIONS & OUTCOMES ---
+model_1 <- function(clean_data, outcome, treatment_vars) {
+  formula <- as.formula(paste(outcome, "~", paste(treatment_vars, collapse = "+")))
+  result <- lm_robust(formula, data = clean_data, se_type = "HC2")
+  return(tidy(result))
+}
+
+outcomes <- c("EK01", "EK02", "EK02a", "EK02b", "EK03", "EK04", "EK05", "Behavioral_Index")
+
+
+# --- 4A. RUN MODEL 1 - POOLED T VS CONTROL ---
+results_pooled_m1 <- map_dfr(outcomes, function(y) {
+  model_1(clean_data, y, "Pooled_T") %>%
+    mutate(outcome = y, comparison = "Pooled vs Control", model = "Model 1")
+})
+
+# --- 4B. RUN MODEL 1 - JOINED T VS CONTROL & T1 VS T2 ---
+results_joint_m1 <- map_dfr(outcomes, function(y) {
+  
+  # 1. Run standard joint model
+  res_tidy <- model_1(clean_data, y, c("T1", "T2")) %>%
+    mutate(outcome = y, comparison = "T1 T2 vs Control", model = "Model 1")
+  
+  # 2. Run T1 vs T2 linear hypothesis using base lm for car::linearHypothesis
+  fit <- lm(as.formula(paste(y, "~ T1 + T2")), data = clean_data)
+  vcv <- vcovHC(fit, type = "HC2")
+  ht <- linearHypothesis(fit, "T1 = T2", vcov = vcv)
+  
+  # 3. Create a row for the T1 vs T2 test
+  t1_t2_row <- tibble(
+    term = "T1_vs_T2",
+    estimate = coef(fit)["T1"] - coef(fit)["T2"], 
+    std.error = NA, statistic = NA, 
+    p.value = ht[2, "Pr(>F)"],
+    conf.low = NA, conf.high = NA, df = NA,
+    outcome = y, comparison = "T1 vs T2", model = "Model 1"
+  )
+  
+  bind_rows(res_tidy, t1_t2_row)
+})
+
+
+# --- 5. DEFINE COVARIATES ---
+demo_vars <- c("age_18_40", "male", "hsgrad", 
+               "working", "studying", "housekeeping", 
+               "jobseeking", "unemployed", "retired",
+               "low_expenditure", "climate_aware", 
+               "energy_transition_aware", "urban",
+               "region_wib", "region_wita", "region_wit")
+
+
+# --- 6. LASSO VARIABLE SELECTION (UPDATED) ---
+select_lasso_vars <- function(data, outcome, treatment_vars, covariates) {
+  
+  dsub <- data %>% 
+    select(all_of(c(outcome, treatment_vars, covariates))) %>% 
+    drop_na() %>% 
+    as.data.frame()
+  
+  y <- as.numeric(dsub[[outcome]])
+  X <- model.matrix(as.formula(paste("~", paste(covariates, collapse = "+"), "-1")), data = dsub)
+  
+  fit_y <- cv.glmnet(X, y, alpha = 1)
+  sel_y <- rownames(coef(fit_y, s = "lambda.1se"))[as.vector(coef(fit_y, s = "lambda.1se") != 0)]
+  
+  sel_d <- c()
+  for (t_var in treatment_vars) {
+    d <- as.numeric(dsub[[t_var]])
+    fit_d <- cv.glmnet(X, d, alpha = 1)
+    sel_temp <- rownames(coef(fit_d, s = "lambda.1se"))[as.vector(coef(fit_d, s = "lambda.1se") != 0)]
+    sel_d <- c(sel_d, sel_temp)
+  }
+  
+  selected <- setdiff(union(sel_y, unique(sel_d)), "(Intercept)")
+  return(selected)
+}
+
+model_2 <- function(clean_data, outcome, treatment_vars, covariates) {
+  
+  selected_vars <- select_lasso_vars(clean_data, outcome, treatment_vars, covariates)
+  all_vars <- c(treatment_vars, selected_vars)
+  formula <- as.formula(paste(outcome, "~", paste(all_vars, collapse = "+")))
+  result <- lm_robust(formula, data = clean_data, se_type = "HC2")
+  return(tidy(result))
+}
+
+
+# --- 7. RUN MODEL 2 - POOLED T VS CONTROL & JOINED T VS CONTROL ---
+results_pooled_m2 <- map_dfr(outcomes, function(y) {
+  model_2(clean_data, y, "Pooled_T", demo_vars) %>%
+    mutate(outcome = y, comparison = "Pooled vs Control", model = "Model 2")
+})
+
+results_joint_m2 <- map_dfr(outcomes, function(y) {
+  
+  selected_vars <- select_lasso_vars(clean_data, y, c("T1", "T2"), demo_vars)
+  all_vars <- c("T1", "T2", selected_vars)
+  formula_str <- paste(y, "~", paste(all_vars, collapse = "+"))
+  
+  res_tidy <- lm_robust(as.formula(formula_str), data = clean_data, se_type = "HC2") %>%
+    tidy() %>%
+    mutate(outcome = y, comparison = "T1 T2 vs Control", model = "Model 2")
+  
+  fit <- lm(as.formula(formula_str), data = clean_data)
+  vcv <- vcovHC(fit, type = "HC2")
+  ht <- linearHypothesis(fit, "T1 = T2", vcov = vcv)
+  
+  t1_t2_row <- tibble(
+    term = "T1_vs_T2",
+    estimate = coef(fit)["T1"] - coef(fit)["T2"],
+    std.error = NA, statistic = NA, 
+    p.value = ht[2, "Pr(>F)"],
+    conf.low = NA, conf.high = NA, df = NA,
+    outcome = y, comparison = "T1 vs T2", model = "Model 2"
+  )
+  
+  bind_rows(res_tidy, t1_t2_row)
+})
+
+
+# --- 8. COMBINE ALL RESULTS ---
+all_results <- bind_rows(
+  results_pooled_m1,
+  results_pooled_m2,
+  results_joint_m1,
+  results_joint_m2
+) %>%
+  filter(term %in% c("Pooled_T", "T1", "T2", "T1_vs_T2"))
+
+
+# --- 9. OFFICIAL ANDERSON SHARPENED Q-VALUES (BKY 2006) ---
+anderson_qvalue <- function(pval) {
+  valid_idx <- !is.na(pval)
+  p_valid <- pval[valid_idx]
+  
+  if (length(p_valid) <= 1) return(pval)
+  
+  totalpvals <- length(p_valid)
+  rank_val <- rank(p_valid)
+  
+  qval <- 1
+  bky06_qval <- rep(1, totalpvals)
+  
+  while (qval > 0) {
+    qval_adj <- qval / (1 + qval)
+    fdr_temp1 <- qval_adj * rank_val / totalpvals
+    reject_temp1 <- ifelse(fdr_temp1 >= p_valid, 1, 0)
+    reject_rank1 <- reject_temp1 * rank_val
+    total_rejected1 <- max(reject_rank1, na.rm = TRUE)
+    
+    qval_2st <- qval_adj * (totalpvals / (totalpvals - total_rejected1))
+    fdr_temp2 <- qval_2st * rank_val / totalpvals
+    reject_temp2 <- ifelse(fdr_temp2 >= p_valid, 1, 0)
+    reject_rank2 <- reject_temp2 * rank_val
+    total_rejected2 <- max(reject_rank2, na.rm = TRUE)
+    
+    bky06_qval[rank_val <= total_rejected2] <- qval
+    
+    qval <- qval - 0.001
+  }
+  
+  out <- rep(NA_real_, length(pval))
+  out[valid_idx] <- bky06_qval
+  return(out)
+}
+
+
+# --- 10. APPLY Q-VALUES WITHIN FAMILIES ---
+all_results <- all_results %>%
+  mutate(family = case_when(
+    outcome %in% c("EK01", "EK02", "EK02a", "EK02b") ~ "Donation amount",
+    outcome %in% c("EK03", "EK04")                   ~ "Petition signing",
+    outcome == "EK05"                                ~ "Information seeking",
+    outcome == "Behavioral_Index"                    ~ "Behavioral engagement index",
+    TRUE ~ "Other"
+  )) %>%
+  group_by(family, term, model) %>%
+  mutate(q_value = anderson_qvalue(p.value)) %>%
+  ungroup()
+
+
+# --- 11. ADD SIGNIFICANCE STARS ---
+all_results <- all_results %>%
+  mutate(stars = case_when(
+    q_value < 0.01 ~ "***",
+    q_value < 0.05 ~ "**",
+    q_value < 0.10 ~ "*",
+    TRUE ~ ""
+  ))
+
+# --- 12. EXPORT FINAL RESULTS ---
+write_xlsx(all_results, file.path(tbl, "gb_rct_phase1_results.xlsx"))
+
+View(all_results)
+
+
+
+###THE END##############
+
+
 ##### ORWELL 2 — GREEN BAROMETER - PHASE 1 MODEL 1 ITT ####
 # Goal: Main treatment effect (ITT, OLS) 
 
@@ -68,14 +323,31 @@ results_pooled_m1 <- map_dfr(outcomes, function(y) {
 
 View(results_pooled_m1)
 
-# --- 4B. RUN MODEL 1 - JOINED T VS CONTROL ---
-
+# --- 4B. RUN MODEL 1 - JOINED T VS CONTROL & T1 VS T2 ---
 results_joint_m1 <- map_dfr(outcomes, function(y) {
-  model_1(clean_data, y, c("T1", "T2")) %>%
+  
+  # 1. Run standard joint model
+  res_tidy <- model_1(clean_data, y, c("T1", "T2")) %>%
     mutate(outcome = y, comparison = "T1 T2 vs Control", model = "Model 1")
+  
+  # 2. Run T1 vs T2 linear hypothesis using base lm for car::linearHypothesis
+  fit <- lm(as.formula(paste(y, "~ T1 + T2")), data = clean_data)
+  vcv <- vcovHC(fit, type = "HC2")
+  ht <- linearHypothesis(fit, "T1 = T2", vcov = vcv)
+  
+  # 3. Create a row for the T1 vs T2 test
+  t1_t2_row <- tibble(
+    term = "T1_vs_T2",
+    estimate = coef(fit)["T1"] - coef(fit)["T2"], # Difference in coefficients
+    std.error = NA, statistic = NA, 
+    p.value = ht[2, "Pr(>F)"],
+    conf.low = NA, conf.high = NA, df = NA,
+    outcome = y, comparison = "T1 vs T2", model = "Model 1"
+  )
+  
+  # Bind them together
+  bind_rows(res_tidy, t1_t2_row)
 })
-
-View(results_joint_m1)
 
 # --- 5. DEFINE COVARIATES ---
 demo_vars <- c("age_18_40", "male", "hsgrad", 
