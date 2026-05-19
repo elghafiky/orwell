@@ -81,15 +81,25 @@ results_joint_m1 <- map_dfr(outcomes, function(y) {
   vcv <- vcovHC(fit, type = "HC2")
   ht <- linearHypothesis(fit, "T1 = T2", vcov = vcv)
   
+ 
+  # Hitung SE dan 95% CI yang presisi untuk selisih T1 - T2
+  vcv <- vcovHC(fit, type = "HC2")
+  se_diff <- sqrt(vcv["T1", "T1"] + vcv["T2", "T2"] - 2 * vcv["T1", "T2"])
+  est_diff <- coef(fit)["T1"] - coef(fit)["T2"]
+  
   # 3. Create a row for the T1 vs T2 test
   t1_t2_row <- tibble(
     term = "T1_vs_T2",
-    estimate = coef(fit)["T1"] - coef(fit)["T2"], 
-    std.error = NA, statistic = NA, 
+    estimate = est_diff,
+    std.error = se_diff, 
+    statistic = ht[2, "F"], 
     p.value = ht[2, "Pr(>F)"],
-    conf.low = NA, conf.high = NA, df = NA,
-    outcome = y, comparison = "T1 vs T2", model = "Model 1"
+    conf.low = est_diff - 1.96 * se_diff, 
+    conf.high = est_diff + 1.96 * se_diff, 
+    df = ht[2, "Df"],
+    outcome = y, comparison = "T1 vs T2", model = "Model 1" 
   )
+  
   
   bind_rows(res_tidy, t1_t2_row)
 })
@@ -148,30 +158,40 @@ results_pooled_m2 <- map_dfr(outcomes, function(y) {
 
 results_joint_m2 <- map_dfr(outcomes, function(y) {
   
+  # 1. Pilih variabel kontrol via LASSO menggunakan kedua treatment sekaligus
   selected_vars <- select_lasso_vars(clean_data, y, c("T1", "T2"), demo_vars)
   all_vars <- c("T1", "T2", selected_vars)
   formula_str <- paste(y, "~", paste(all_vars, collapse = "+"))
   
+  # 2. Jalankan regresi utama Model 2 (Joint)
   res_tidy <- lm_robust(as.formula(formula_str), data = clean_data, se_type = "HC2") %>%
     tidy() %>%
     mutate(outcome = y, comparison = "T1 T2 vs Control", model = "Model 2")
   
+  # 3. Hitung uji hipotesis T1 = T2 menggunakan basic lm untuk car::linearHypothesis
   fit <- lm(as.formula(formula_str), data = clean_data)
   vcv <- vcovHC(fit, type = "HC2")
   ht <- linearHypothesis(fit, "T1 = T2", vcov = vcv)
   
+  # 4. Hitung SE dan 95% CI yang presisi untuk selisih T1 - T2 (HC2 Standard Error)
+  se_diff <- sqrt(vcv["T1", "T1"] + vcv["T2", "T2"] - 2 * vcv["T1", "T2"])
+  est_diff <- coef(fit)["T1"] - coef(fit)["T2"]
+  
+  # 5. Buat baris data komplit dengan label "Model 2" 
   t1_t2_row <- tibble(
     term = "T1_vs_T2",
-    estimate = coef(fit)["T1"] - coef(fit)["T2"],
-    std.error = NA, statistic = NA, 
+    estimate = est_diff,
+    std.error = se_diff, 
+    statistic = ht[2, "F"], 
     p.value = ht[2, "Pr(>F)"],
-    conf.low = NA, conf.high = NA, df = NA,
-    outcome = y, comparison = "T1 vs T2", model = "Model 2"
+    conf.low = est_diff - 1.96 * se_diff, 
+    conf.high = est_diff + 1.96 * se_diff, 
+    df = ht[2, "Df"],
+    outcome = y, comparison = "T1 vs T2", model = "Model 2" 
   )
   
   bind_rows(res_tidy, t1_t2_row)
 })
-
 
 # --- 8. COMBINE ALL RESULTS ---
 all_results <- bind_rows(
@@ -248,6 +268,90 @@ write_xlsx(all_results, file.path(tbl, "gb_rct_phase1_results.xlsx"))
 
 View(all_results)
 
+
+# --- 13. INDIVIDUAL OUTCOME PLOT FUNCTION ---
+plot_outcome_results <- function(data, outcome_var, title_text) {
+  
+  # Filter dan rapikan label visualisasi
+  plot_data <- data %>%
+    filter(outcome == outcome_var) %>%
+    mutate(
+      plot_label = case_when(
+        term == "Pooled_T" ~ "Pooled vs Control",
+        term == "T1"       ~ "T1 (State) vs Control",
+        term == "T2"       ~ "T2 (Self) vs Control",
+        term == "T1_vs_T2" ~ "T1 vs T2 (Direct Comparison)"
+      ),
+      plot_label = factor(plot_label, levels = c(
+        "T1 vs T2 (Direct Comparison)",
+        "T2 (Self) vs Control",
+        "T1 (State) vs Control",
+        "Pooled vs Control"
+      ))
+    )
+  
+  ggplot(plot_data, aes(x = estimate, y = plot_label, color = model, group = model)) +
+    # Garis bantu vertikal di titik nol (no effect)
+    geom_vline(xintercept = 0, linetype = "dashed", color = "gray40", alpha = 0.8) +
+    # Menampilkan 95% Confidence Interval horisontal
+    geom_errorbarh(
+      aes(xmin = conf.low, xmax = conf.high),
+      position = position_dodge(0.4),
+      height = 0.15,
+      linewidth = 0.8
+    ) +
+    # Menampilkan titik koefisien estimate
+    geom_point(position = position_dodge(0.4), size = 3.5) +
+    # Menampilkan bintang signifikansi Anderson q-value di ujung kanan garis error
+    geom_text(
+      aes(label = stars, x = ifelse(is.na(conf.high), estimate, conf.high)),
+      position = position_dodge(0.4),
+      hjust = -0.3,
+      vjust = 0.3,
+      color = "black",
+      size = 5,
+      show.legend = FALSE
+    ) +
+    labs(
+      title = title_text,
+      subtitle = paste("Outcome Variable Code:", outcome_var),
+      x = "Effect Size (OLS Coefficient Estimate with 95% CIs)",
+      y = NULL,
+      color = "Specification",
+      caption = "* q < 0.10, ** q < 0.05, *** q < 0.01\nNote: Significance stars are strictly adjusted using the Anderson (2008) sharpened q-value procedure within family."
+    ) +
+    theme_minimal(base_size = 13) +
+    theme(
+      legend.position = "top",
+      legend.justification = "left",
+      panel.grid.minor = element_blank(),
+      plot.title = element_text(face = "bold", size = 15),
+      plot.caption = element_text(hjust = 0, color = "gray30", size = 9, lineheight = 1.2),
+      axis.text.y = element_text(face = "bold", color = "black")
+    ) +
+    scale_color_manual(values = c("Model 1" = "#1f77b4", "Model 2" = "#ff7f0e"))
+}
+
+# --- 14. DICTIONARY TITLE DAN AUTOMATIC EXPORT ---
+outcome_titles <- c(
+  "EK01"             = "Willingness to Donate",
+  "EK02"             = "Donation Amount (Continuous)",
+  "EK02a"            = "Willingness to Disclose Name as Donator",
+  "EK02b"            = "Willingness to be Re-contacted for Receipt",
+  "EK03"             = "Willingness to Sign Energy Transition Petition",
+  "EK04"             = "Willingness to Disclose Identity on Petition",
+  "EK05"             = "Information Seeking Behavior (Link Clicks)",
+  "Behavioral_Index" = "Overall Behavioral Engagement Index (Summary Index)"
+)
+
+# Jalankan looping untuk membuat dan menyimpan ke-8 grafik secara otomatis
+for (out in names(outcome_titles)) {
+  p <- plot_outcome_results(all_results, out, outcome_titles[out])
+  
+  # Menyimpan ke direktori figur dengan resolusi tinggi (300 DPI) siap cetak/presentasi
+  ggsave(file.path(fig, paste0("plot_phase1_", out, ".png")), 
+         plot = p, width = 9, height = 5.5, dpi = 300)
+}
 
 
 ###THE END##############
