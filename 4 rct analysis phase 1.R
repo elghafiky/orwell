@@ -14,18 +14,12 @@ master <- file.path(base_dir, "Shared drives", "Projects", "2026", "Orwell 2",
 setwd(master)
 opt = file.path(getwd(), "1c output")
 tbl = file.path(getwd(), "4 tables")
+fig = file.path(master, "3 figures") 
 if (!dir.exists(tbl)) dir.create(tbl, recursive = TRUE)
 
 # --- 2. LOAD RAW DATA & RENAME VARIABLES ---
-clean_data <- readRDS(file.path(opt, "gb_rct_clean.rds"))
+clean_data <- readRDS(file.path(opt, "gb_rct_clean_new.rds"))
 
-# Merapikan nama kolom yang terlalu panjang
-clean_data <- clean_data %>%
-  rename(
-    EK02a = `EK02a Apakah Anda mau mencantumkan nama Anda sebagai salah satu donatur?`,
-    EK02b = `EK02b Apakah Anda bersedia dihubungi kembali untuk dikirimkan bukti donasi?`,
-    EK04  = `EK04 Apakah Anda mencantumkan identitas Anda pada petisi tersebut?`
-  )
 
 # --- 2.5 BUILD ANDERSON SUMMARY INDEX ---
 # Goal: Standardize using Control Group mean/SD and average components
@@ -33,24 +27,36 @@ clean_data <- clean_data %>%
 # 1. Isolate the control group to get the baseline mean and SD
 control_data <- clean_data %>% filter(Pooled_T == 0)
 
-# 2. Define the components of the Behavioral Engagement Index
-index_vars <- c("EK01", "EK02", "EK02a", "EK02b", "EK03", "EK04", "EK05")
+# 2. Define the components of the Behavioral Engagement Index (Sesuai PAP: EK01-EK05)
+index_vars <- c("EK01", "EK02", "EK03", "EK04", "EK05")
 
 # 3. Create Z-scores for each variable using Control Mean & SD
 for (var in index_vars) {
+  
+  # Ambil data mentah komponen
+  raw_vector <- clean_data[[var]]
+  control_vector <- control_data[[var]]
+  
+  # FIX LOGIKA INDEKS: Khusus untuk EK04, jika bernilai NA (karena skip-logic), 
+  # recode menjadi 0 untuk kebutuhan kalkulasi indeks agar rata-rata pembaginya adil (5 komponen).
+  if (var == "EK04") {
+    raw_vector[is.na(raw_vector)] <- 0
+    control_vector[is.na(control_vector)] <- 0
+  }
+  
   # Calculate control mean and sd for this specific variable
-  c_mean <- mean(control_data[[var]], na.rm = TRUE)
-  c_sd <- sd(control_data[[var]], na.rm = TRUE)
+  c_mean <- mean(control_vector, na.rm = TRUE)
+  c_sd   <- sd(control_vector, na.rm = TRUE)
   
   # Create a new column with the Z-score for the entire dataset
   z_col_name <- paste0(var, "_Z")
-  clean_data[[z_col_name]] <- (clean_data[[var]] - c_mean) / c_sd
+  clean_data[[z_col_name]] <- (raw_vector - c_mean) / c_sd
 }
 
 # 4. Average the Z-scores to create the final index
 z_cols <- paste0(index_vars, "_Z")
 clean_data <- clean_data %>%
-  mutate(Behavioral_Index = rowMeans(select(., all_of(z_cols)), na.rm = TRUE))
+  mutate(Behavioral_Index = rowMeans(select(., all_of(z_cols)), na.rm = FALSE)) # FIX: na.rm = FALSE karena semua baris sekarang punya 5 komponen lengkap
 
 
 # --- 3. DEFINE FUNCTIONS & OUTCOMES ---
@@ -60,7 +66,7 @@ model_1 <- function(clean_data, outcome, treatment_vars) {
   return(tidy(result))
 }
 
-outcomes <- c("EK01", "EK02", "EK02a", "EK02b", "EK03", "EK04", "EK05", "Behavioral_Index")
+outcomes <- c("EK01", "EK02", "EK03", "EK04", "EK05", "Behavioral_Index")
 
 
 # --- 4A. RUN MODEL 1 - POOLED T VS CONTROL ---
@@ -264,7 +270,7 @@ all_results <- all_results %>%
   ))
 
 # --- 12. EXPORT FINAL RESULTS ---
-write_xlsx(all_results, file.path(tbl, "gb_rct_phase1_results.xlsx"))
+write_xlsx(all_results, file.path(tbl, "gb_rct_phase1_results_final.xlsx"))
 
 View(all_results)
 
@@ -335,9 +341,7 @@ plot_outcome_results <- function(data, outcome_var, title_text) {
 # --- 14. DICTIONARY TITLE DAN AUTOMATIC EXPORT ---
 outcome_titles <- c(
   "EK01"             = "Willingness to Donate",
-  "EK02"             = "Donation Amount (Continuous)",
-  "EK02a"            = "Willingness to Disclose Name as Donator",
-  "EK02b"            = "Willingness to be Re-contacted for Receipt",
+  "EK02"             = "High Donator Dummy (>= IDR 15000)",
   "EK03"             = "Willingness to Sign Energy Transition Petition",
   "EK04"             = "Willingness to Disclose Identity on Petition",
   "EK05"             = "Information Seeking Behavior (Link Clicks)",
