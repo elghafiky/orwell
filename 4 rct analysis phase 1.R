@@ -286,10 +286,10 @@ plot_outcome_results <- function(data, outcome_var, title_text) {
         term == "Pooled_T" ~ "Pooled vs Control",
         term == "T1"       ~ "T1 (State) vs Control",
         term == "T2"       ~ "T2 (Self) vs Control",
-        term == "T1_vs_T2" ~ "T1 vs T2 (Direct Comparison)"
+        term == "T1_vs_T2" ~ "T1 vs T2 (Equality Test)"
       ),
       plot_label = factor(plot_label, levels = c(
-        "T1 vs T2 (Direct Comparison)",
+        "T1 vs T2 (Equality Test)",
         "T2 (Self) vs Control",
         "T1 (State) vs Control",
         "Pooled vs Control"
