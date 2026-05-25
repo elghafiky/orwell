@@ -9,8 +9,8 @@ set more off
 
 * directory
 if "`c(username)'"=="elgha" {
-	gl basedir "G:" // laptop
-	// gl basedir "H:" // computer
+// 	gl basedir "G:" // laptop
+	gl basedir "H:" // computer
 }
 
 * globals
