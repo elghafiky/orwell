@@ -35,8 +35,8 @@ current_user <- Sys.info()[["user"]]
 
 # Check if the username matches and set the working directory accordingly
 if (current_user == "elgha") {
-  # base_dir <- "G:/" # laptop
-  base_dir <- "H:/" # computer
+  base_dir <- "G:/" # laptop
+  # base_dir <- "H:/" # computer
 }
 
 # Set directory (mirrors 4b main analysis.R)
@@ -130,7 +130,7 @@ compute_layout <- function(n_outs) {
   panel_w  <- 3.4
   panel_h  <- 2.6
   pad_w    <- 1.0   # axes + side margins
-  pad_h    <- 1.8   # title + legend + axis + margins
+  pad_h    <- 1.4   # title + legend + axis + margins
 
   list(
     ncol   = ncol,
@@ -203,7 +203,7 @@ generate_treatment_plot <- function(data,
     scale_y_discrete(limits = rev) +
     geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
     labs(
-      title = treatment_name,
+#      title = treatment_name,
       x     = xlab,
       y     = NULL,
       color = "Significance (Westfall-Young p-values)",
@@ -211,7 +211,7 @@ generate_treatment_plot <- function(data,
     ) +
     theme_minimal() +
     theme(
-      plot.title       = element_text(face = "bold", size = 14, hjust = 0),
+#      plot.title       = element_text(face = "bold", size = 14, hjust = 0),
       legend.position  = "top",
       legend.direction = "horizontal",
       axis.title.x     = element_text(size = 10),
@@ -240,12 +240,12 @@ outcome_configs <- list(
   CB05 = list(
     data   = data_CB05,
     labels = CB05_labels,
-    xlab   = "Probability of prioritizing development goal relative to control"
+    xlab   = "Change in probability of prioritizing development goal"
   ),
   DK = list(
     data   = data_DK,
     labels = DK_labels,
-    xlab   = "Probability of supporting policy relative to control"
+    xlab   = "Change in probability of supporting policy"
   )
 )
 

@@ -380,7 +380,7 @@ uncond_data <- data_list$`DK linear uncond`
 cond_data <- data_list$`DK linear cond`
 
 # Set x-axis label
-xlabel <- "Probability of supporting policy relative to control"
+xlabel <- "Change in probability of supporting policy"
 
 # List plot configs (new)
 plot_configs_DK <- list(
@@ -429,7 +429,7 @@ uncond_data <- data_list$`CB05 linear uncond`
 cond_data <- data_list$`CB05 linear cond`
 
 # Set x-axis label
-xlabel <- "Probability of prioritizing development goal relative to control"
+xlabel <- "Change in probability of prioritizing development goal"
 
 # List plot configs
 plot_configs_CB05 <- list(
@@ -456,7 +456,7 @@ uncond_data <- data_list$`CB06 linear uncond`
 cond_data <- data_list$`CB06 linear cond`
 
 # Set x-axis label
-xlabel <- "Probability of being in top three priority relative to control"
+xlabel <- "Change in probability of being in top three priority"
 
 # List plot configs
 plot_configs_CB06 <- list(
@@ -483,7 +483,7 @@ uncond_data <- data_list$`CB07 linear uncond`
 cond_data <- data_list$`CB07 linear cond`
 
 # Set x-axis label
-xlabel <- "Probability of agreeing to statement relative to control"
+xlabel <- "Change in probability of agreeing to statement"
 
 # List plot configs
 plot_configs_CB07 <- list(
@@ -510,7 +510,7 @@ uncond_data <- data_list$`CB08 linear uncond`
 cond_data <- data_list$`CB08 linear cond`
 
 # Set x-axis label
-xlabel <- "Probability of agreeing to supposed government role relative to control"
+xlabel <- "Change in probability of agreeing to supposed government role"
 
 # List plot configs
 plot_configs_CB08 <- list(
@@ -530,7 +530,7 @@ uncond_data <- data_list$`CB11 linear uncond`
 cond_data <- data_list$`CB11 linear cond`
 
 # Set x-axis label
-xlabel <- "Probability of believing a large role relative to control"
+xlabel <- "Change in probability of believing a large role"
 
 # List plot configs
 plot_configs_CB11 <- list(
@@ -550,7 +550,7 @@ uncond_data <- data_list$`TD linear uncond`
 cond_data <- data_list$`TD linear cond`
 
 # Set x-axis label
-xlabel <- "Probability of a higher personal efficacy relative to control"
+xlabel <- "Change in probability of a higher personal efficacy"
 
 # List plot configs
 plot_configs_TD <- list(
@@ -787,7 +787,7 @@ model_levels_2sls <- c("2SLS","+PDS Lasso")
 ivdata <- data_list$DK
 
 # Set x-axis label
-xlabel <- "Probability of supporting policy relative to control"
+xlabel <- "Change in probability of supporting policy"
 
 # List plot configs (new)
 plot_configs_DK <- list(
@@ -835,7 +835,7 @@ plot_configs_DK <- list(
 ivdata <- data_list$CB05
 
 # Set x-axis label
-xlabel <- "Probability of prioritizing development goal relative to control"
+xlabel <- "Change in probability of prioritizing development goal"
 
 # List plot configs
 plot_configs_CB05 <- list(
@@ -861,7 +861,7 @@ plot_configs_CB05 <- list(
 ivdata <- data_list$CB06
 
 # Set x-axis label
-xlabel <- "Probability of being in top three priority relative to control"
+xlabel <- "Change in probability of being in top three priority"
 
 # List plot configs
 plot_configs_CB06 <- list(
@@ -887,7 +887,7 @@ plot_configs_CB06 <- list(
 ivdata <- data_list$CB07
 
 # Set x-axis label
-xlabel <- "Probability of agreeing to statement relative to control"
+xlabel <- "Change in probability of agreeing to statement"
 
 # List plot configs
 plot_configs_CB07 <- list(
@@ -913,7 +913,7 @@ plot_configs_CB07 <- list(
 ivdata <- data_list$CB08
 
 # Set x-axis label
-xlabel <- "Probability of agreeing to supposed government role relative to control"
+xlabel <- "Change in probability of agreeing to supposed government role"
 
 # List plot configs
 plot_configs_CB08 <- list(
@@ -932,7 +932,7 @@ plot_configs_CB08 <- list(
 ivdata <- data_list$CB11
 
 # Set x-axis label
-xlabel <- "Probability of believing a large role relative to control"
+xlabel <- "Change in probability of believing a large role"
 
 # List plot configs
 plot_configs_CB11 <- list(
@@ -951,7 +951,7 @@ plot_configs_CB11 <- list(
 ivdata <- data_list$TD
 
 # Set x-axis label
-xlabel <- "Probability of a higher personal efficacy relative to control"
+xlabel <- "Change in probability of a higher personal efficacy"
 
 # List plot configs
 plot_configs_TD <- list(
@@ -1379,7 +1379,7 @@ plotnsave <- function(modres, filepath) {
                labeller = labeller(model = model_labels)) +
     labs(
       y = NULL,
-      x = "Probability of choosing a development scenario relative to base option",
+      x = "Change in probability of choosing a development scenario relative to base option",
       color = "Significance (Holm p-values)",
       shape = "Significance (Holm p-values)"
     ) +
@@ -1674,7 +1674,7 @@ plot_iv_interactions <- function(modres, filepath) {
     ) +
     labs(
       y = NULL,
-      x = "Probability of choosing a development scenario relative to base option",
+      x = "Change in probability of choosing a development scenario relative to base option",
       color = "Significance (Holm-adjusted)",
       shape = "Significance (Holm-adjusted)"
     ) +
