@@ -410,4 +410,99 @@ all_results <- all_results %>%
 write_xlsx(all_results, file.path(tbl, "gb_rct_phase2_sa_results.xlsx"))
 View(all_results)
 
+# --- 12. PLOT FUNCTION ---
+plot_outcome_results <- function(data, outcome_var, sample_label, title_text) {
+  
+  plot_data <- data %>%
+    filter(outcome == outcome_var, sample == sample_label) %>%
+    mutate(
+      plot_label = case_when(
+        term == "Pooled_T"  ~ "Pooled vs Control",
+        term == "T1"        ~ "T1 (State) vs Control",
+        term == "T2"        ~ "T2 (Self) vs Control",
+        term == "T1_vs_T2"  ~ "T1 vs T2 (Equality Test)"
+      ),
+      plot_label = factor(plot_label, levels = c(
+        "T1 vs T2 (Equality Test)",
+        "T2 (Self) vs Control",
+        "T1 (State) vs Control",
+        "Pooled vs Control"
+      ))
+    )
+  
+  ggplot(plot_data, aes(x = estimate, y = plot_label, color = model, group = model)) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "gray40", alpha = 0.8) +
+    geom_errorbarh(
+      aes(xmin = conf.low, xmax = conf.high),
+      position = position_dodge(0.4), height = 0.15, linewidth = 0.8
+    ) +
+    geom_point(position = position_dodge(0.4), size = 3.5) +
+    geom_text(
+      aes(label = stars, x = ifelse(is.na(conf.high), estimate, conf.high)),
+      position = position_dodge(0.4),
+      hjust = -0.3, vjust = 0.3, color = "black", size = 5, show.legend = FALSE
+    ) +
+    labs(
+      title    = title_text,
+      subtitle = paste(sample_label, "| Outcome:", outcome_var),
+      x        = "Effect Size (OLS Coefficient Estimate with 95% CIs)",
+      y        = NULL,
+      color    = "Specification",
+      caption  = paste0(
+        "* q < 0.10, ** q < 0.05, *** q < 0.01\n",
+        "Anderson (2008) sharpened q-values applied within each SA outcome family, grouped by equation x model x sample.\n",
+        "Indexes (ff_attribution_index, policy_support_index) reported with unadjusted p-values.\n",
+        "Model 1: treatment dummies only. Model 2: double LASSO covariate-adjusted."
+      )
+    ) +
+    theme_minimal(base_size = 13) +
+    theme(
+      legend.position      = "top",
+      legend.justification = "left",
+      panel.grid.minor     = element_blank(),
+      plot.title           = element_text(face = "bold", size = 15),
+      plot.caption         = element_text(hjust = 0, color = "gray30", size = 9, lineheight = 1.2),
+      axis.text.y          = element_text(face = "bold", color = "black")
+    ) +
+    scale_color_manual(values = c("Model 1" = "#1f77b4", "Model 2" = "#ff7f0e"))
+}
+
+
+# --- 13. OUTCOME TITLES & EXPORT PLOTS ---
+outcome_titles <- c(
+  # KEA01: Fossil fuel attribution components
+  "ff_attribution1_Z" = "Fossil Fuel Attribution: Climate Change (KEA01_1)",
+  "ff_attribution2_Z" = "Fossil Fuel Attribution: Pollution (KEA01_2)",
+  "ff_attribution3_Z" = "Fossil Fuel Attribution: Energy Scarcity (KEA01_3)",
+  "ff_attribution4_Z" = "Fossil Fuel Attribution: Natural Disasters (KEA01_4)",
+  "ff_attribution5_Z" = "Fossil Fuel Attribution: Environmental Damage (KEA01_5)",
+  "ff_attribution6_Z" = "Fossil Fuel Attribution: Disease Outbreaks (KEA01_6)",
+  "ff_attribution7_Z" = "Fossil Fuel Attribution: Economic Crisis (KEA01_7)",
+  "ff_attribution8_Z" = "Fossil Fuel Attribution: Foreign Dependency (KEA01_8)",
+  "ff_attribution_index" = "Fossil Fuel Attribution Index (KEA01, all items)",
+  # KEA03: Transition urgency
+  "transition_urgency"   = "Transition Urgency: Right Now vs Later (KEA03)",
+  # PP01: Policy support components
+  "policy_support1_Z" = "Policy Support: Government Capacity (PP01_1)",
+  "policy_support2_Z" = "Policy Support: Fuel Subsidy Reduction (PP01_2)",
+  "policy_support3_Z" = "Policy Support: Renewable Energy Priority (PP01_3)",
+  "policy_support4_Z" = "Policy Support: Social Protection Trust (PP01_4)",
+  "policy_support_index" = "Policy Support Index (PP01, all items)"
+)
+
+sample_labels <- c("Full sample", "Attentive only")
+
+for (s in sample_labels) {
+  for (out in names(outcome_titles)) {
+    p <- plot_outcome_results(all_results, out, s, outcome_titles[out])
+    clean_s   <- gsub(" ", "_", tolower(s))
+    clean_out <- gsub("_Z", "", out)
+    ggsave(
+      file.path(fig, paste0("plot_sa_", clean_out, "_", clean_s, ".png")),
+      plot = p, width = 9, height = 5.5, dpi = 300
+    )
+  }
+}
+
+
 ### THE END ###
