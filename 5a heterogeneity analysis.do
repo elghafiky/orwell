@@ -38,7 +38,7 @@ pro setupdatagen
 	g colgrad=edlvl==4
 	qui sum sdbi, d
 	g sdbi_high=sdbi>`r(p50)'
-	gl hetvars west urban male colgrad nosocast sbdi_high
+	gl hetvars west urban male colgrad nosocast sdbi_high
 end
 
 *** SETUP DATA FOR DK ANALYSIS
@@ -83,7 +83,7 @@ pro setupdataDK
 	
 	*** SET EQUATIONS
 	foreach y in $hetvars {
-		foreach x in treat complytreat {
+		foreach x in treat {
 			gl `y'`x'comb1 `y'##`x'1 `y'##`x'2 `y'##`x'5
 			gl `y'`x'comb2 `y'##`x'2 `y'##`x'3 
 			gl `y'`x'comb3 `y'##`x'1 `y'##`x'2 `y'##`x'3 
@@ -91,11 +91,18 @@ pro setupdataDK
 			gl `y'`x'comb5 `y'##`x'1 `y'##`x'2  
 			gl `y'`x'comb6 `y'##`x'1 `y'##`x'3 `y'##`x'5  
 			gl `y'`x'comb7 `y'##`x'1 `y'##`x'3 
+
+			gl `y'`x'intr1 1.`y'#1.`x'1 1.`y'#1.`x'2 1.`y'#1.`x'5
+			gl `y'`x'intr2 1.`y'#1.`x'2 1.`y'#1.`x'3 
+			gl `y'`x'intr3 1.`y'#1.`x'1 1.`y'#1.`x'2 1.`y'#1.`x'3 
+			gl `y'`x'intr4 1.`y'#1.`x'1 1.`y'#1.`x'5 
+			gl `y'`x'intr5 1.`y'#1.`x'1 1.`y'#1.`x'2  
+			gl `y'`x'intr6 1.`y'#1.`x'1 1.`y'#1.`x'3 1.`y'#1.`x'5  
+			gl `y'`x'intr7 1.`y'#1.`x'1 1.`y'#1.`x'3 
 		}
 		
 		gl linoutcome support
-		gl proboutcome `varprefix'_cloned
-		foreach x in lin prob {
+		foreach x in lin {
 			gl `y'`x'eq1 ${`x'outcome}1 ${`y'treatcomb1}
 			gl `y'`x'eq2 ${`x'outcome}2 ${`y'treatcomb6}
 			gl `y'`x'eq3 ${`x'outcome}3 ${`y'treatcomb2}
@@ -109,6 +116,68 @@ pro setupdataDK
 			gl `y'`x'eq11 ${`x'outcome}11 ${`y'treatcomb5}
 			gl `y'`x'eq12 ${`x'outcome}12 ${`y'treatcomb2}
 			gl `y'`x'eq13 ${`x'outcome}13 ${`y'treatcomb2}
+		}
+	}
+end
+
+*** SETUP DATA FOR CB05 ANALYSIS
+pro setupdataCB05
+	setupdatagen
+	drop if lfCB==4
+	
+	loc varnm CB05 
+	loc varprefix `varnm'r
+	qui ds `varprefix'*
+	gl varnumlist 3 5 6 7 8 9 10 11 12 
+	foreach i of numlist $varnumlist {
+		* recode and clone
+		clonevar `varprefix'_cloned`i'=`varprefix'`i'
+	}
+	
+	* matching outcome with treatment
+	foreach x in `varprefix'_cloned {
+		replace `x'3=. if inrange(lfCB,2,4) // c
+		replace `x'5=. if inlist(lfCB,1,2,4) // e
+		replace `x'6=. if inlist(lfCB,1,3,5) // f
+		replace `x'7=. if inlist(lfCB,2,4) // g
+		replace `x'8=. if inlist(lfCB,2,4) // h
+		replace `x'9=. if inlist(lfCB,2,4) // i
+		replace `x'10=. if inlist(lfCB,1,2,4) // j
+		replace `x'11=. if inlist(lfCB,1,3) // k
+		replace `x'12=. if inlist(lfCB,1,4) // l
+	}
+	
+	*** SET EQUATIONS
+	foreach y in $hetvars {
+		foreach x in treat  {
+			gl `y'`x'comb1 `y'##`x'1 `y'##`x'5
+			gl `y'`x'comb2 `y'##`x'3 `y'##`x'5 
+			gl `y'`x'comb3 `y'##`x'2 
+			gl `y'`x'comb4 `y'##`x'1 `y'##`x'3 `y'##`x'5  
+			gl `y'`x'comb5 `y'##`x'3 `y'##`x'5 
+			gl `y'`x'comb6 `y'##`x'2 `y'##`x'5 
+			gl `y'`x'comb7 `y'##`x'2 `y'##`x'3 `y'##`x'5 
+
+			gl `y'`x'intr1 1.`y'#1.`x'1 1.`y'#1.`x'5
+			gl `y'`x'intr2 1.`y'#1.`x'3 1.`y'#1.`x'5 
+			gl `y'`x'intr3 1.`y'#1.`x'2 
+			gl `y'`x'intr4 1.`y'#1.`x'1 1.`y'#1.`x'3 1.`y'#1.`x'5  
+			gl `y'`x'intr5 1.`y'#1.`x'3 1.`y'#1.`x'5 
+			gl `y'`x'intr6 1.`y'#1.`x'2 1.`y'#1.`x'5 
+			gl `y'`x'intr7 1.`y'#1.`x'2 1.`y'#1.`x'3 1.`y'#1.`x'5 
+		}
+		
+		gl linoutcome `varprefix'_cloned
+		foreach x in lin {
+			gl `y'`x'eq3 ${`x'outcome}3 ${`y'treatcomb1} // c 
+			gl `y'`x'eq5 ${`x'outcome}5 ${`y'treatcomb2} // e
+			gl `y'`x'eq6 ${`x'outcome}6 ${`y'treatcomb3} // f
+			gl `y'`x'eq7 ${`x'outcome}7 ${`y'treatcomb4} // g
+			gl `y'`x'eq8 ${`x'outcome}8 ${`y'treatcomb4} // h
+			gl `y'`x'eq9 ${`x'outcome}9 ${`y'treatcomb4} // i
+			gl `y'`x'eq10 ${`x'outcome}10 ${`y'treatcomb5} // j
+			gl `y'`x'eq11 ${`x'outcome}11 ${`y'treatcomb6} // k
+			gl `y'`x'eq12 ${`x'outcome}12 ${`y'treatcomb7} // l
 		}
 	}
 end
@@ -145,81 +214,152 @@ end
 
 * ==== POLICY SUPPORT: WESTFALL YOUNG ==== *
 foreach sampresc in uncond {
-	*** OLS AND PD LASSO
+	foreach het in $hetvars {		
 
-	** model 1
-	* open data
-	setupdataDK
-	est clear
+		*** OLS AND PD LASSO
+		* open data
+		setupdataDK
+		est clear
+	
+		* conduct simple linear regressions to obtain df per outcome
+		forval i = 1/$numvar {
+			qui reg ${`het'lineq`i'} ${`sampresc'}, $seest
+			loc df`i'=`e(df_r)'
+		}
 
-	* conduct simple linear regressions to obtain df per outcome
-	forval i = 1/$numvar {
-		qui reg ${lineq`i'} ${`sampresc'}, $seest
-		loc df`i'=`e(df_r)'
+		* wyoung procedure 
+		wyoung, cmd ("reg ${`het'lineq1} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq1} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq1} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq2} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq2} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq2} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq3} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq3} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq4} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq4} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq4} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq5} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq5} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq6} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq6} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq7} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq7} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq8} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq8} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq9} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq9} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq10} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq10} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq11} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq11} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq12} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq12} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq13} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq13} ${`sampresc'}, $seest") ///
+		familyp(${`het'treatintr1} /// pol1
+		${`het'treatintr6} /// pol2 
+		${`het'treatintr2} /// pol3
+		${`het'treatintr3} /// pol4
+		${`het'treatintr7} /// pol5
+		${`het'treatintr4} /// pol6
+		${`het'treatintr4} /// pol7
+		${`het'treatintr5} /// pol8
+		${`het'treatintr2} /// pol9
+		${`het'treatintr4} /// pol10
+		${`het'treatintr5} /// pol11
+		${`het'treatintr2} /// pol12
+		${`het'treatintr2}) /// pol13
+		bootstraps($bstraprep) seed($seednum) replace 
+
+		* tidy wyoung result
+		g equation=1
+		g df=.
+		forval i=1/$numvar {
+			replace df=`df`i'' if outcome=="$linoutcome`i'"
+		}
+		plotprep
+		loc filenm "$temp\DK_wyoung_linear_`het'_`sampresc'"
+		save "`filenm'.dta", replace
 	}
 
-	* wyoung procedure 
-	wyoung, cmd ("reg $lineq1 ${`sampresc'}, $seest" ///
-	"reg $lineq1 ${`sampresc'}, $seest" ///
-	"reg $lineq1 ${`sampresc'}, $seest" ///
-	"reg $lineq2 ${`sampresc'}, $seest" ///
-	"reg $lineq2 ${`sampresc'}, $seest" ///
-	"reg $lineq2 ${`sampresc'}, $seest" ///
-	"reg $lineq3 ${`sampresc'}, $seest" ///
-	"reg $lineq3 ${`sampresc'}, $seest" ///
-	"reg $lineq4 ${`sampresc'}, $seest" ///
-	"reg $lineq4 ${`sampresc'}, $seest" ///
-	"reg $lineq4 ${`sampresc'}, $seest" ///
-	"reg $lineq5 ${`sampresc'}, $seest" ///
-	"reg $lineq5 ${`sampresc'}, $seest" ///
-	"reg $lineq6 ${`sampresc'}, $seest" ///
-	"reg $lineq6 ${`sampresc'}, $seest" ///
-	"reg $lineq7 ${`sampresc'}, $seest" ///
-	"reg $lineq7 ${`sampresc'}, $seest" ///
-	"reg $lineq8 ${`sampresc'}, $seest" ///
-	"reg $lineq8 ${`sampresc'}, $seest" ///
-	"reg $lineq9 ${`sampresc'}, $seest" ///
-	"reg $lineq9 ${`sampresc'}, $seest" ///
-	"reg $lineq10 ${`sampresc'}, $seest" ///
-	"reg $lineq10 ${`sampresc'}, $seest" ///
-	"reg $lineq11 ${`sampresc'}, $seest" ///
-	"reg $lineq11 ${`sampresc'}, $seest" ///
-	"reg $lineq12 ${`sampresc'}, $seest" ///
-	"reg $lineq12 ${`sampresc'}, $seest" ///
-	"reg $lineq13 ${`sampresc'}, $seest" ///
-	"reg $lineq13 ${`sampresc'}, $seest") ///
-	familyp($treatcomb1 /// pol1
-	$treatcomb6 /// pol2 
-	$treatcomb2 /// pol3
-	$treatcomb3 /// pol4
-	$treatcomb7 /// pol5
-	$treatcomb4 /// pol6
-	$treatcomb4 /// pol7
-	$treatcomb5 /// pol8
-	$treatcomb2 /// pol9
-	$treatcomb4 /// pol10
-	$treatcomb5 /// pol11
-	$treatcomb2 /// pol12
-	$treatcomb2) /// pol13
-	bootstraps($bstraprep) seed($seednum) replace 
-
-	* tidy wyoung result
-	g equation=1
-	g df=.
-	forval i=1/$numvar {
-		replace df=`df`i'' if outcome=="$linoutcome`i'"
+	loc first_hetvars = word("$hetvars",1)
+	use "$temp\DK_wyoung_linear_`first_hetvars'_`sampresc'.dta", clear
+	loc rest_hetvars = subinstr("$hetvars","`first_hetvars'","",.)
+	foreach het in `rest_hetvars' {
+		append using "$temp\DK_wyoung_linear_`het'_`sampresc'.dta"
 	}
-	save "$temp\DK_wyoung_linear_model1_`sampresc'.dta", replace
+	loc filenm "$temp\DK_wyoung_linear_allhet_`sampresc'"
+	save "`filenm'.dta", replace 
+	export delimited "`filenm'.csv", nolab replace
 }
 
+* ==== CB5 WYOUNG ==== *
 foreach sampresc in uncond {
-	** tidy all wyoung result for plotting
-	use "$temp\DK_wyoung_linear_model1_`sampresc'.dta", clear
-	forval i = 2/2 {
-		append using "$temp\DK_wyoung_linear_model`i'_`sampresc'.dta"
+	foreach het in $hetvars {
+	
+		*** OLS and PD LASSO
+		* open data
+		setupdataCB05
+		est clear
+
+		* conduct simple linear regressions to obtain df per outcome
+		foreach i of numlist $varnumlist {
+			qui reg ${`het'lineq`i'} ${`sampresc'}, $seest
+			loc df`i'=`e(df_r)'
+		}
+
+		* wyoung procedure 
+		wyoung, cmd ("reg ${`het'lineq3} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq3} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq5} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq5} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq6} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq7} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq7} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq7} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq8} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq8} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq8} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq9} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq9} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq9} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq10} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq10} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq11} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq11} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq12} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq12} ${`sampresc'}, $seest" ///
+		"reg ${`het'lineq12} ${`sampresc'}, $seest") ///
+		familyp(${`het'treatintr1} /// 
+		${`het'treatintr2} /// 
+		${`het'treatintr3} /// 
+		${`het'treatintr4} /// 
+		${`het'treatintr4} /// 
+		${`het'treatintr4} ///
+		${`het'treatintr5} /// 
+		${`het'treatintr6} /// 
+		${`het'treatintr7}) /// 
+		bootstraps($bstraprep) seed($seednum) replace
+
+		* tidy wyoung result
+		g equation=1
+		g df=.
+		foreach i of numlist $varnumlist {
+			replace df=`df`i'' if outcome=="$linoutcome`i'"
+		}
+		plotprep
+		loc filenm "$temp\CB05_wyoung_linear_`het'_`sampresc'"
+		save "`filenm'.dta", replace
 	}
-	plotprep 
-	loc filenm "DK_wyoung_linear_allmodel_`sampresc'"
-	save "$temp\\`filenm'.dta", replace
-	export delimited "$temp\\`filenm'.csv", replace nolab
+
+	loc first_hetvars = word("$hetvars",1)
+	use "$temp\CB05_wyoung_linear_`first_hetvars'_`sampresc'.dta", clear
+	loc rest_hetvars = subinstr("$hetvars","`first_hetvars'","",.)
+	foreach het in `rest_hetvars' {
+		append using "$temp\CB05_wyoung_linear_`het'_`sampresc'.dta"
+	}
+	loc filenm "$temp\CB05_wyoung_linear_allhet_`sampresc'"
+	save "`filenm'.dta", replace 
+	export delimited "`filenm'.csv", nolab replace
 }
