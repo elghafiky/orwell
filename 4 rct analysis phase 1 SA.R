@@ -308,36 +308,39 @@ all_results <- bind_rows(results_full, results_attentive)
 
 
 # =============================================================================
-# --- 8. ANDERSON SHARPENED Q-VALUES (BKY 2006) ---
+# --- 8. ORIGINAL ANDERSON SHARPENED Q-VALUES (BKY 2006) ---
+# Exactly as written by Anderson — no modifications
 # =============================================================================
 anderson_qvalue <- function(pval) {
   valid_idx <- !is.na(pval)
   p_valid   <- pval[valid_idx]
-
+  
   if (length(p_valid) <= 1) return(pval)
-
+  
   totalpvals <- length(p_valid)
   rank_val   <- rank(p_valid)
+  
   qval       <- 1
   bky06_qval <- rep(1, totalpvals)
-
+  
   while (qval > 0) {
-    qval_adj        <- qval / (1 + qval)
-    fdr_temp1       <- qval_adj * rank_val / totalpvals
-    reject_temp1    <- ifelse(fdr_temp1 >= p_valid, 1, 0)
-    total_rejected1 <- max(reject_temp1 * rank_val, na.rm = TRUE)
-
-    if (total_rejected1 == totalpvals) { qval <- qval - 0.001; next }
-
-    qval_2st        <- qval_adj * (totalpvals / (totalpvals - total_rejected1))
-    fdr_temp2       <- qval_2st * rank_val / totalpvals
-    reject_temp2    <- ifelse(fdr_temp2 >= p_valid, 1, 0)
-    total_rejected2 <- max(reject_temp2 * rank_val, na.rm = TRUE)
-
+    qval_adj       <- qval / (1 + qval)
+    fdr_temp1      <- qval_adj * rank_val / totalpvals
+    reject_temp1   <- ifelse(fdr_temp1 >= p_valid, 1, 0)
+    reject_rank1   <- reject_temp1 * rank_val
+    total_rejected1 <- max(reject_rank1, na.rm = TRUE)
+    
+    qval_2st       <- qval_adj * (totalpvals / (totalpvals - total_rejected1))
+    fdr_temp2      <- qval_2st * rank_val / totalpvals
+    reject_temp2   <- ifelse(fdr_temp2 >= p_valid, 1, 0)
+    reject_rank2   <- reject_temp2 * rank_val
+    total_rejected2 <- max(reject_rank2, na.rm = TRUE)
+    
     bky06_qval[rank_val <= total_rejected2] <- qval
+    
     qval <- qval - 0.001
   }
-
+  
   out <- rep(NA_real_, length(pval))
   out[valid_idx] <- bky06_qval
   return(out)
@@ -348,52 +351,53 @@ anderson_qvalue <- function(pval) {
 # --- 9. APPLY Q-VALUES PER FAMILY ---
 # Per Armand: each SA outcome family corrected separately
 # Grouped by regression equation x model x sample
-# Indexes and T1 vs T2: unadjusted p-values only
+# Indexes and T1 vs T2: unadjusted p-values only — NOT passed to Anderson
 # =============================================================================
 
 apply_anderson <- function(data, component_outcomes, family_label) {
-
-  # Equation 1 (Pooled)
+  
+  # Equation 1 (Pooled): components only
   eq1 <- data %>%
     filter(outcome %in% component_outcomes, term == "Pooled_T") %>%
     mutate(family = family_label) %>%
     group_by(model, sample) %>%
     mutate(q_value = anderson_qvalue(p.value)) %>%
     ungroup()
-
-  # Equation 2 (T1, T2 vs C)
+  
+  # Equation 2 (T1, T2 vs C): components only
   eq2 <- data %>%
     filter(outcome %in% component_outcomes, term %in% c("T1", "T2")) %>%
     mutate(family = family_label) %>%
     group_by(model, sample) %>%
     mutate(q_value = anderson_qvalue(p.value)) %>%
     ungroup()
-
-  # T1 vs T2: unadjusted
+  
+  # T1 vs T2: unadjusted — not passed to Anderson
   t1t2 <- data %>%
     filter(outcome %in% component_outcomes, term == "T1_vs_T2") %>%
     mutate(family = family_label, q_value = p.value)
-
+  
   bind_rows(eq1, eq2, t1t2)
 }
 
-# Apply per family
-results_ff <- apply_anderson(all_results, ff_components, "Fossil fuel attribution")
+# Apply Anderson per family (components only)
+results_ff      <- apply_anderson(all_results, ff_components,     "Fossil fuel attribution")
 results_urgency <- apply_anderson(all_results, "transition_urgency", "Transition urgency")
-results_policy <- apply_anderson(all_results, policy_components, "Policy support")
+results_policy  <- apply_anderson(all_results, policy_components,  "Policy support")
 
-# Indexes: unadjusted
+# Indexes: unadjusted p-values only — never passed to Anderson
 results_indexes <- all_results %>%
   filter(outcome %in% c("ff_attribution_index", "policy_support_index")) %>%
   mutate(
     family  = case_when(
-      outcome == "ff_attribution_index"  ~ "Fossil fuel attribution index",
-      outcome == "policy_support_index"  ~ "Policy support index"
+      outcome == "ff_attribution_index" ~ "Fossil fuel attribution index",
+      outcome == "policy_support_index" ~ "Policy support index"
     ),
     q_value = p.value
   )
 
 all_results <- bind_rows(results_ff, results_urgency, results_policy, results_indexes)
+
 
 
 # --- 10. SIGNIFICANCE STARS ---
