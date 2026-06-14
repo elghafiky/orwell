@@ -1,6 +1,7 @@
 ##### ORWELL 2 — GREEN BAROMETER - PHASE 2 SA OUTCOMES ####
 # Goal: ITT effects on secondary attitudinal (SA) outcomes
-# Coverage: KEA01 (fossil fuel attribution), KEA03 (transition urgency), PP01 (policy support)
+# Coverage: KEA01 (fossil fuel attribution), KEA03 (transition urgency), PP01 (policy support),
+#           PP02/PP02r (energy policy selection & ranking)
 # Runs on: Full sample + Attentive respondents only
 # Last updated: per Fiky + Armand alignment
 #
@@ -9,6 +10,12 @@
 #   recoded to NA — cannot be placed on fossil-renewable continuum
 # - KEA03: value 7 (tidak tahu, spontaneous) recoded to 0 — pending confirmation
 # - PP01: no special recodes needed, clean 1-7 scale
+# - PP02/PP02r: "Membuka banyak lapangan pekerjaan" (n=1 selection, not in PP02r 1-23 range)
+#   excluded from domain framework — confirmed not a genuine pre-specified option
+# - PP03/PP03r: "Membuka lapangan kerja lebih banyak lagi" and "Memajukan kota" (n=1 each,
+#   not in PP03r 1-5 range) excluded — revised regression plan specifies 5 domains, not 6
+#   (drops "other"). The single PP03r value of 9 (n=1) is out of the 1-5 domain range
+#   and is treated as not-ranked for domain scoring purposes.
 
 graphics.off(); rm(list=ls()); cat("\014");
 pacman::p_load(tidyverse, data.table, estimatr, broom, glmnet, purrr, writexl, car, sandwich)
@@ -36,11 +43,6 @@ clean_data <- clean_data %>%
 # =============================================================================
 # --- 2.5 VARIABLE CONSTRUCTION: KEA01 — FOSSIL FUEL ATTRIBUTION ---
 # =============================================================================
-# Scale: 1 = fully fossil fuel responsible, 7 = fully renewable responsible
-# Reverse code: 8 - x so higher = more fossil fuel attribution
-# EN Notes: 8 (neither, shown on card) and 9 (tidak tahu, spontaneous) → NA
-#   pending confirmation tomorrow
-
 clean_data <- clean_data %>%
   rename(
     KEA01_1 = `KEA01_1 Mana yang lebih berpengaruh dalam menyebabkan PERUBAHAN IKLIM?`,
@@ -55,6 +57,8 @@ clean_data <- clean_data %>%
   mutate(across(
     KEA01_1:KEA01_8,
     ~ ifelse(.x %in% c(8, 9), NA, 8 - .x)
+    # EN Notes: 8 (neither fossil nor renewable, shown on card) and 9 (tidak tahu)
+    # recoded to NA — pending confirmation tomorrow
   ))
 
 cat("KEA01 recode check (should be 1-7 only):\n")
@@ -64,9 +68,6 @@ print(summary(clean_data$KEA01_1))
 # =============================================================================
 # --- 2.6 VARIABLE CONSTRUCTION: KEA03 — TRANSITION URGENCY ---
 # =============================================================================
-# Binary: 1 = sekarang juga (right now), 0 = everything else
-# EN Notes: 7 (tidak tahu, spontaneous) recoded to 0 — pending confirmation tomorrow
-
 clean_data <- clean_data %>%
   mutate(transition_urgency = case_when(
     `KEA03 Menurut Anda, kapan Indonesia perlu mempercepat transisi energi? (SA)` == 1 ~ 1,
@@ -81,10 +82,6 @@ print(table(clean_data$transition_urgency, useNA = "always"))
 # =============================================================================
 # --- 2.7 VARIABLE CONSTRUCTION: PP01 — POLICY SUPPORT ---
 # =============================================================================
-# 4-item Likert scale 1-7, higher = more pro-transition support
-# No reverse coding needed — all items go in same direction
-# Z-scoring and index construction in build_policy_support_index()
-
 clean_data <- clean_data %>%
   rename(
     PP01_1 = `PP01_1 Secara umum pemerintah pusat mampu mengelola transisi energi dengan baik tanpa perlu terlalu banyak pemborosan dan korupsi`,
@@ -98,14 +95,189 @@ print(summary(clean_data[, c("PP01_1", "PP01_2", "PP01_3", "PP01_4")]))
 
 
 # =============================================================================
-# --- 3. INDEX CONSTRUCTION FUNCTIONS ---
+# --- 2.8 VARIABLE CONSTRUCTION: PP02 / PP02r — ENERGY POLICY SELECTION & RANKING ---
+# =============================================================================
+# Domain mapping per Kartu Bantu 24 (23 items -> 6 domains)
+# PP02r_1..5 store item numbers 1-23 corresponding to this exact order/grouping.
+# "Membuka banyak lapangan pekerjaan" (n=1), "Tidak perlu", "Tidak tahu"
+# are NOT part of the 23-item domain framework — excluded entirely.
+
+# --- Rename PP02r columns ---
+clean_data <- clean_data %>%
+  rename(
+    PP02r_1 = `PP02r_1 Rank 1`,
+    PP02r_2 = `PP02r_2 Rank 2`,
+    PP02r_3 = `PP02r_3 Rank 3`,
+    PP02r_4 = `PP02r_4 Rank 4`,
+    PP02r_5 = `PP02r_5 Rank 5`
+  )
+
+# --- Domain column mapping for PP02 (selection dummies) ---
+pp02_prefix <- "PP02 5 hal yang seharusnya menjadi prioritas kebijakan pemerintah dalam hal energi? - "
+
+epol_domain_items <- list(
+  subsidies      = c(
+    "Menurunkan subsidi BBM dan LPG sehingga harganya naik",
+    "Menghapuskan subsidi BBM dan LPG sehingga harganya naik",
+    "Mempertahankan subsidi demi menjaga harga BBM dan LPG tetap terjangkau"
+  ),
+  plants         = c(
+    "Membangun pembangkit listrik dengan energi terbarukan secara massal",
+    "Mempercepat penutupan pembangkit listrik tenaga uap"
+  ),
+  assistance     = c(
+    "Bantuan tunai ke pekerja sektor industri batubara dan minyak bumi yang kehilangan pekerjaan karena transisi energi",
+    "Memberikan bantuan sosial ke lebih banyak orang",
+    "Meningkatkan nilai atau jumlah bansos untuk setiap penerimanya",
+    "Bantuan tunai ke semua orang setelah harga BBM dan LPG",
+    "Bantuan tunai ke orang miskin setelah harga BBM dan LPG"
+  ),
+  mining         = c(
+    "Mengurangi penambangan batu bara",
+    "Mengurangi penambangan minyak bumi",
+    "Menghentikan penambangan batu bara",
+    "Menghentikan penambangan minyak bumi"
+  ),
+  incentives     = c(
+    "Insentif (subsidi atau keringanan pajak) pembuatan bangunan hemat energi",
+    "Insentif (subsidi atau keringanan pajak) pembelian kendaraan listrik (mobil atau motor listrik)",
+    "Insentif (subsidi atau keringanan pajak) pemasangan panel surya di rumah",
+    "Orang yang memasang panel surya di rumah bisa menjual kelebihan daya listriknya ke PLN",
+    "Pemerintah membayar perusahaan untuk beralih ke teknologi dan energi ramah lingkungan"
+  ),
+  transportation = c(
+    "Pembangunan sistem transportasi publik massal (seperti bus dan kereta)",
+    "Kenaikan pajak kendaraan berbahan bakar bensin",
+    "Pembatasan penggunaan kendaraan pribadi berbahan bakar bensin",
+    "Pembangunan Stasiun Pengisian Kendaraan Listrik Umum (SPKLU) secara massal"
+  )
+)
+
+epol_domains <- names(epol_domain_items)  # subsidies, plants, assistance, mining, incentives, transportation
+
+cat("\nPP02 domain item counts (should sum to 23):\n")
+print(sapply(epol_domain_items, length))
+
+
+# --- Build epol_*_selection (count of items selected per domain) ---
+for (dom in epol_domains) {
+  cols <- paste0(pp02_prefix, epol_domain_items[[dom]])
+  clean_data[[paste0("epol_", dom, "_selection")]] <-
+    rowSums(clean_data[, cols], na.rm = TRUE)
+}
+
+cat("\nepol_*_selection summary:\n")
+print(summary(clean_data[, paste0("epol_", epol_domains, "_selection")]))
+
+
+# --- Build epol_*_ranking (domain-average rank score, 0-5) ---
+# Item numbers 1-23 follow the SAME order as epol_domain_items above
+# (3 subsidies + 2 plants + 5 assistance + 4 mining + 5 incentives + 4 transportation = 23)
+item_domain_vec <- rep(epol_domains, times = sapply(epol_domain_items, length))
+# item_domain_vec[k] = domain of item number k (1-23)
+
+build_epol_ranking <- function(data) {
+  rank_cols <- c("PP02r_1", "PP02r_2", "PP02r_3", "PP02r_4", "PP02r_5")
+  
+  # Matrix of item scores per respondent (n x 23): 0 by default
+  item_scores <- matrix(0, nrow = nrow(data), ncol = 23)
+  
+  for (r in 1:5) {
+    item_num <- data[[rank_cols[r]]]
+    valid <- !is.na(item_num) & item_num >= 1 & item_num <= 23
+    # score = 6 - rank position (rank1 -> 5, rank2 -> 4, ..., rank5 -> 1)
+    score <- 6 - r
+    for (i in which(valid)) {
+      item_scores[i, item_num[i]] <- score
+    }
+  }
+  
+  for (dom in epol_domains) {
+    dom_items <- which(item_domain_vec == dom)
+    data[[paste0("epol_", dom, "_ranking")]] <- rowMeans(item_scores[, dom_items, drop = FALSE])
+  }
+  
+  return(data)
+}
+
+clean_data <- build_epol_ranking(clean_data)
+
+cat("\nepol_*_ranking summary:\n")
+print(summary(clean_data[, paste0("epol_", epol_domains, "_ranking")]))
+
+# =============================================================================
+# --- 2.9 VARIABLE CONSTRUCTION: PP03 / PP03r — DEVELOPMENT POLICY SELECTION & RANKING ---
+# =============================================================================
+# 5 domains, each domain = exactly 1 PP03 item (1:1 mapping, unlike PP02's multi-item domains)
+# devpol_*_selection: raw 0/1 dummy (already binary, just renamed)
+# devpol_*_ranking: scale 0-3, score = 4 - rank_position (rank1->3, rank2->2, rank3->1)
+# Items "Membuka lapangan kerja lebih banyak lagi" and "Memajukan kota" (n=1 each) excluded —
+# revised regression plan specifies 5 domains (drops "other" from PAP's original 6)
+
+clean_data <- clean_data %>%
+  rename(
+    PP03r_1 = `PP03r_1 Rank 1`,
+    PP03r_2 = `PP03r_2 Rank 2`,
+    PP03r_3 = `PP03r_3 Rank 3`
+  )
+
+pp03_prefix <- "PP03 Kebijakan pembangunan mana yang akan anda sarankan? - "
+
+# Domains in PP03r item-number order (1-5)
+devpol_domains <- c("infrastructure", "forest", "energy", "assistance", "human")
+
+devpol_item_labels <- c(
+  infrastructure = "Membangun pabrik dan infrastruktur penting",
+  forest         = "Pemulihan hutan dan lahan",
+  energy         = "Peralihan ke energi terbarukan dan pengurangan energi fosil",
+  assistance     = "Meningkatkan pemberian bantuan sosial",
+  human          = "Meningkatkan kualitas sumber daya manusia"
+)
+
+# --- devpol_*_selection: raw 0/1 dummy per domain ---
+for (dom in devpol_domains) {
+  col <- paste0(pp03_prefix, devpol_item_labels[dom])
+  clean_data[[paste0("devpol_", dom, "_selection")]] <- clean_data[[col]]
+}
+
+cat("\ndevpol_*_selection summary:\n")
+print(summary(clean_data[, paste0("devpol_", devpol_domains, "_selection")]))
+
+# --- devpol_*_ranking: scale 0-3, 1:1 item-domain mapping ---
+build_devpol_ranking <- function(data) {
+  rank_cols <- c("PP03r_1", "PP03r_2", "PP03r_3")
+  item_scores <- matrix(0, nrow = nrow(data), ncol = 5)  # items 1-5 only
+  
+  for (r in 1:3) {
+    item_num <- data[[rank_cols[r]]]
+    valid <- !is.na(item_num) & item_num >= 1 & item_num <= 5
+    score <- 4 - r  # rank1 -> 3, rank2 -> 2, rank3 -> 1
+    for (i in which(valid)) {
+      item_scores[i, item_num[i]] <- score
+    }
+  }
+  
+  for (k in seq_along(devpol_domains)) {
+    data[[paste0("devpol_", devpol_domains[k], "_ranking")]] <- item_scores[, k]
+  }
+  
+  return(data)
+}
+
+clean_data <- build_devpol_ranking(clean_data)
+
+cat("\ndevpol_*_ranking summary:\n")
+print(summary(clean_data[, paste0("devpol_", devpol_domains, "_ranking")]))
+
+
+# =============================================================================
+# --- 3. INDEX CONSTRUCTION FUNCTIONS (sample-dependent, control-group z-scores) ---
 # =============================================================================
 
-# KEA01: Fossil fuel attribution index
 build_ff_index <- function(data) {
   control_data <- data %>% filter(Pooled_T == 0)
   kea01_vars   <- paste0("KEA01_", 1:8)
-
+  
   for (var in kea01_vars) {
     raw_vector     <- data[[var]]
     control_vector <- control_data[[var]]
@@ -114,20 +286,17 @@ build_ff_index <- function(data) {
     data[[paste0("ff_attribution", gsub("KEA01_", "", var), "_Z")]] <-
       (raw_vector - c_mean) / c_sd
   }
-
+  
   z_cols <- paste0("ff_attribution", 1:8, "_Z")
   data <- data %>%
     mutate(ff_attribution_index = rowMeans(select(., all_of(z_cols)), na.rm = TRUE))
-  # na.rm = TRUE: some items may be NA (8/9 recoded), index uses available items
-
   return(data)
 }
 
-# PP01: Policy support index
 build_policy_support_index <- function(data) {
   control_data <- data %>% filter(Pooled_T == 0)
   pp01_vars    <- paste0("PP01_", 1:4)
-
+  
   for (var in pp01_vars) {
     raw_vector     <- data[[var]]
     control_vector <- control_data[[var]]
@@ -136,11 +305,10 @@ build_policy_support_index <- function(data) {
     data[[paste0("policy_support", gsub("PP01_", "", var), "_Z")]] <-
       (raw_vector - c_mean) / c_sd
   }
-
+  
   z_cols <- paste0("policy_support", 1:4, "_Z")
   data <- data %>%
     mutate(policy_support_index = rowMeans(select(., all_of(z_cols)), na.rm = FALSE))
-
   return(data)
 }
 
@@ -157,13 +325,13 @@ select_lasso_vars <- function(data, outcome, treatment_vars, covariates) {
     select(all_of(c(outcome, treatment_vars, covariates))) %>%
     drop_na() %>%
     as.data.frame()
-
+  
   y <- as.numeric(dsub[[outcome]])
   X <- model.matrix(as.formula(paste("~", paste(covariates, collapse = "+"), "-1")), data = dsub)
-
+  
   fit_y <- cv.glmnet(X, y, alpha = 1)
   sel_y <- rownames(coef(fit_y, s = "lambda.1se"))[as.vector(coef(fit_y, s = "lambda.1se") != 0)]
-
+  
   sel_d <- c()
   for (t_var in treatment_vars) {
     d        <- as.numeric(dsub[[t_var]])
@@ -171,7 +339,7 @@ select_lasso_vars <- function(data, outcome, treatment_vars, covariates) {
     sel_temp <- rownames(coef(fit_d, s = "lambda.1se"))[as.vector(coef(fit_d, s = "lambda.1se") != 0)]
     sel_d    <- c(sel_d, sel_temp)
   }
-
+  
   selected <- setdiff(union(sel_y, unique(sel_d)), "(Intercept)")
   return(selected)
 }
@@ -185,7 +353,7 @@ model_2 <- function(data, outcome, treatment_vars, covariates) {
 }
 
 
-# --- 5. DEFINE COVARIATES ---
+# --- 5. DEFINE COVARIATES & OUTCOMES ---
 demo_vars <- c("age_18_40", "male", "hsgrad",
                "working", "studying", "housekeeping",
                "jobseeking", "unemployed", "retired",
@@ -194,49 +362,60 @@ demo_vars <- c("age_18_40", "male", "hsgrad",
                "urban",
                "region_wib", "region_wita", "region_wit")
 
-# Define outcomes per family
-# Components = Anderson corrected, indexes = unadjusted
-ff_components       <- paste0("ff_attribution", 1:8, "_Z")
-policy_components   <- paste0("policy_support", 1:4, "_Z")
+# Components only — indexes excluded from Anderson, run separately
+ff_components     <- paste0("ff_attribution", 1:8, "_Z")
+policy_components <- paste0("policy_support", 1:4, "_Z")
 
-ff_all         <- c(ff_components, "ff_attribution_index")
-urgency_all    <- c("transition_urgency")
-policy_all     <- c(policy_components, "policy_support_index")
+# PP02/PP02r — no index, all 6 domains are components within their own family
+epol_selection_components <- paste0("epol_", epol_domains, "_selection")
+epol_ranking_components    <- paste0("epol_", epol_domains, "_ranking")
 
+# PP03/PP03r — no index, all 5 domains are components within their own family
+devpol_selection_components <- paste0("devpol_", devpol_domains, "_selection")
+devpol_ranking_components    <- paste0("devpol_", devpol_domains, "_ranking")
+
+
+# All outcomes including indexes (for regression)
+ff_all       <- c(ff_components, "ff_attribution_index")
+urgency_all  <- c("transition_urgency")
+policy_all   <- c(policy_components, "policy_support_index")
+epol_sel_all <- epol_selection_components
+epol_rank_all <- epol_ranking_components
+devpol_sel_all  <- devpol_selection_components
+devpol_rank_all <- devpol_ranking_components
+
+all_outcomes <- c(ff_all, urgency_all, policy_all,
+                  epol_sel_all, epol_rank_all,
+                  devpol_sel_all, devpol_rank_all)
 
 # =============================================================================
 # --- 6. MAIN ANALYSIS FUNCTION ---
 # =============================================================================
 run_itt <- function(data, sample_label) {
-
+  
   cat("\nRunning ITT for sample:", sample_label, "| N =", nrow(data), "\n")
-
-  # Build indexes within this sample
+  
+  # Build sample-dependent indexes (control-group z-scores)
   data <- build_ff_index(data)
   data <- build_policy_support_index(data)
-
-  # Run all SA outcomes
-  all_outcomes <- c(ff_all, urgency_all, policy_all)
-
-  # 6A. Model 1 — Pooled vs Control
+  # epol_* already constructed globally on clean_data (no control-group dependency)
+  
   res_pooled_m1 <- map_dfr(all_outcomes, function(y) {
     model_1(data, y, "Pooled_T") %>%
       mutate(outcome = y, comparison = "Pooled vs Control", model = "Model 1")
   })
-
-  # 6B. Model 1 — Joint T1/T2 vs Control + T1 vs T2
+  
   res_joint_m1 <- map_dfr(all_outcomes, function(y) {
-
     res_tidy <- model_1(data, y, c("T1", "T2")) %>%
       mutate(outcome = y, comparison = "T1 T2 vs Control", model = "Model 1")
-
+    
     fit <- lm(as.formula(paste(y, "~ T1 + T2")), data = data)
     vcv <- vcovHC(fit, type = "HC2")
     ht  <- linearHypothesis(fit, "T1 = T2", vcov = vcv)
-
+    
     se_diff  <- sqrt(vcv["T1","T1"] + vcv["T2","T2"] - 2*vcv["T1","T2"])
     est_diff <- coef(fit)["T1"] - coef(fit)["T2"]
-
+    
     t1_t2_row <- tibble(
       term      = "T1_vs_T2",
       estimate  = est_diff,
@@ -248,34 +427,30 @@ run_itt <- function(data, sample_label) {
       df        = ht[2, "Df"],
       outcome   = y, comparison = "T1 vs T2", model = "Model 1"
     )
-
     bind_rows(res_tidy, t1_t2_row)
   })
-
-  # 6C. Model 2 — Pooled vs Control
+  
   res_pooled_m2 <- map_dfr(all_outcomes, function(y) {
     model_2(data, y, "Pooled_T", demo_vars) %>%
       mutate(outcome = y, comparison = "Pooled vs Control", model = "Model 2")
   })
-
-  # 6D. Model 2 — Joint T1/T2 vs Control + T1 vs T2
+  
   res_joint_m2 <- map_dfr(all_outcomes, function(y) {
-
     selected_vars <- select_lasso_vars(data, y, c("T1", "T2"), demo_vars)
     all_vars      <- c("T1", "T2", selected_vars)
     formula_str   <- paste(y, "~", paste(all_vars, collapse = "+"))
-
+    
     res_tidy <- lm_robust(as.formula(formula_str), data = data, se_type = "HC2") %>%
       tidy() %>%
       mutate(outcome = y, comparison = "T1 T2 vs Control", model = "Model 2")
-
+    
     fit <- lm(as.formula(formula_str), data = data)
     vcv <- vcovHC(fit, type = "HC2")
     ht  <- linearHypothesis(fit, "T1 = T2", vcov = vcv)
-
+    
     se_diff  <- sqrt(vcv["T1","T1"] + vcv["T2","T2"] - 2*vcv["T1","T2"])
     est_diff <- coef(fit)["T1"] - coef(fit)["T2"]
-
+    
     t1_t2_row <- tibble(
       term      = "T1_vs_T2",
       estimate  = est_diff,
@@ -287,10 +462,9 @@ run_itt <- function(data, sample_label) {
       df        = ht[2, "Df"],
       outcome   = y, comparison = "T1 vs T2", model = "Model 2"
     )
-
     bind_rows(res_tidy, t1_t2_row)
   })
-
+  
   bind_rows(res_pooled_m1, res_pooled_m2, res_joint_m1, res_joint_m2) %>%
     filter(term %in% c("Pooled_T", "T1", "T2", "T1_vs_T2")) %>%
     mutate(sample = sample_label)
@@ -381,9 +555,13 @@ apply_anderson <- function(data, component_outcomes, family_label) {
 }
 
 # Apply Anderson per family (components only)
-results_ff      <- apply_anderson(all_results, ff_components,     "Fossil fuel attribution")
-results_urgency <- apply_anderson(all_results, "transition_urgency", "Transition urgency")
-results_policy  <- apply_anderson(all_results, policy_components,  "Policy support")
+results_ff       <- apply_anderson(all_results, ff_components,            "Fossil fuel attribution")
+results_urgency  <- apply_anderson(all_results, "transition_urgency",     "Transition urgency")
+results_policy   <- apply_anderson(all_results, policy_components,        "Policy support")
+results_epol_sel <- apply_anderson(all_results, epol_selection_components, "Energy policy selection")
+results_epol_rnk <- apply_anderson(all_results, epol_ranking_components,   "Energy policy ranking")
+results_devpol_sel <- apply_anderson(all_results, devpol_selection_components, "Development policy selection")
+results_devpol_rnk <- apply_anderson(all_results, devpol_ranking_components,   "Development policy ranking")
 
 # Indexes: unadjusted p-values only — never passed to Anderson
 results_indexes <- all_results %>%
@@ -396,8 +574,12 @@ results_indexes <- all_results %>%
     q_value = p.value
   )
 
-all_results <- bind_rows(results_ff, results_urgency, results_policy, results_indexes)
-
+all_results <- bind_rows(
+  results_ff, results_urgency, results_policy,
+  results_epol_sel, results_epol_rnk, 
+  results_devpol_sel, results_devpol_rnk,
+  results_indexes
+)
 
 
 # --- 10. SIGNIFICANCE STARS ---
@@ -411,8 +593,9 @@ all_results <- all_results %>%
 
 
 # --- 11. EXPORT ---
-write_xlsx(all_results, file.path(tbl, "gb_rct_phase2_sa_results.xlsx"))
+write_xlsx(all_results, file.path(tbl, "gb_rct_phase1_sa_results_61426.xlsx"))
 View(all_results)
+
 
 # --- 12. PLOT FUNCTION ---
 plot_outcome_results <- function(data, outcome_var, sample_label, title_text) {
@@ -454,8 +637,9 @@ plot_outcome_results <- function(data, outcome_var, sample_label, title_text) {
       color    = "Specification",
       caption  = paste0(
         "* q < 0.10, ** q < 0.05, *** q < 0.01\n",
-        "Anderson (2008) sharpened q-values applied within each SA outcome family, grouped by equation x model x sample.\n",
-        "Indexes (ff_attribution_index, policy_support_index) reported with unadjusted p-values.\n",
+        "Anderson (2008) sharpened q-values applied within each SA outcome family, ",
+        "grouped by equation x model x sample.\n",
+        "Indexes and T1 vs T2 reported with unadjusted p-values.\n",
         "Model 1: treatment dummies only. Model 2: double LASSO covariate-adjusted."
       )
     ) +
@@ -475,23 +659,49 @@ plot_outcome_results <- function(data, outcome_var, sample_label, title_text) {
 # --- 13. OUTCOME TITLES & EXPORT PLOTS ---
 outcome_titles <- c(
   # KEA01: Fossil fuel attribution components
-  "ff_attribution1_Z" = "Fossil Fuel Attribution: Climate Change (KEA01_1)",
-  "ff_attribution2_Z" = "Fossil Fuel Attribution: Pollution (KEA01_2)",
-  "ff_attribution3_Z" = "Fossil Fuel Attribution: Energy Scarcity (KEA01_3)",
-  "ff_attribution4_Z" = "Fossil Fuel Attribution: Natural Disasters (KEA01_4)",
-  "ff_attribution5_Z" = "Fossil Fuel Attribution: Environmental Damage (KEA01_5)",
-  "ff_attribution6_Z" = "Fossil Fuel Attribution: Disease Outbreaks (KEA01_6)",
-  "ff_attribution7_Z" = "Fossil Fuel Attribution: Economic Crisis (KEA01_7)",
-  "ff_attribution8_Z" = "Fossil Fuel Attribution: Foreign Dependency (KEA01_8)",
+  "ff_attribution1_Z"    = "Fossil Fuel Attribution: Climate Change (KEA01_1)",
+  "ff_attribution2_Z"    = "Fossil Fuel Attribution: Pollution (KEA01_2)",
+  "ff_attribution3_Z"    = "Fossil Fuel Attribution: Energy Scarcity (KEA01_3)",
+  "ff_attribution4_Z"    = "Fossil Fuel Attribution: Natural Disasters (KEA01_4)",
+  "ff_attribution5_Z"    = "Fossil Fuel Attribution: Environmental Damage (KEA01_5)",
+  "ff_attribution6_Z"    = "Fossil Fuel Attribution: Disease Outbreaks (KEA01_6)",
+  "ff_attribution7_Z"    = "Fossil Fuel Attribution: Economic Crisis (KEA01_7)",
+  "ff_attribution8_Z"    = "Fossil Fuel Attribution: Foreign Dependency (KEA01_8)",
   "ff_attribution_index" = "Fossil Fuel Attribution Index (KEA01, all items)",
   # KEA03: Transition urgency
   "transition_urgency"   = "Transition Urgency: Right Now vs Later (KEA03)",
   # PP01: Policy support components
-  "policy_support1_Z" = "Policy Support: Government Capacity (PP01_1)",
-  "policy_support2_Z" = "Policy Support: Fuel Subsidy Reduction (PP01_2)",
-  "policy_support3_Z" = "Policy Support: Renewable Energy Priority (PP01_3)",
-  "policy_support4_Z" = "Policy Support: Social Protection Trust (PP01_4)",
-  "policy_support_index" = "Policy Support Index (PP01, all items)"
+  "policy_support1_Z"    = "Policy Support: Government Capacity (PP01_1)",
+  "policy_support2_Z"    = "Policy Support: Fuel Subsidy Reduction (PP01_2)",
+  "policy_support3_Z"    = "Policy Support: Renewable Energy Priority (PP01_3)",
+  "policy_support4_Z"    = "Policy Support: Social Protection Trust (PP01_4)",
+  "policy_support_index" = "Policy Support Index (PP01, all items)",
+  # PP02: Energy policy selection (count per domain, 0-5)
+  "epol_subsidies_selection"      = "Energy Policy Selection: Fuel Subsidies (PP02)",
+  "epol_plants_selection"         = "Energy Policy Selection: Power Plants (PP02)",
+  "epol_assistance_selection"     = "Energy Policy Selection: Social Assistance (PP02)",
+  "epol_mining_selection"         = "Energy Policy Selection: Mining (PP02)",
+  "epol_incentives_selection"     = "Energy Policy Selection: Green Incentives (PP02)",
+  "epol_transportation_selection" = "Energy Policy Selection: Transportation (PP02)",
+  # PP02r: Energy policy ranking (domain-average score, 0-5)
+  "epol_subsidies_ranking"      = "Energy Policy Ranking: Fuel Subsidies (PP02r)",
+  "epol_plants_ranking"         = "Energy Policy Ranking: Power Plants (PP02r)",
+  "epol_assistance_ranking"     = "Energy Policy Ranking: Social Assistance (PP02r)",
+  "epol_mining_ranking"         = "Energy Policy Ranking: Mining (PP02r)",
+  "epol_incentives_ranking"     = "Energy Policy Ranking: Green Incentives (PP02r)",
+  "epol_transportation_ranking" = "Energy Policy Ranking: Transportation (PP02r)",
+  # PP03: Development policy selection (binary dummy per domain)
+  "devpol_infrastructure_selection" = "Development Policy Selection: Infrastructure (PP03)",
+  "devpol_forest_selection"          = "Development Policy Selection: Forest & Land (PP03)",
+  "devpol_energy_selection"          = "Development Policy Selection: Energy Transition (PP03)",
+  "devpol_assistance_selection"      = "Development Policy Selection: Social Assistance (PP03)",
+  "devpol_human_selection"           = "Development Policy Selection: Human Capital (PP03)",
+  # PP03r: Development policy ranking (score 0-3 per domain)
+  "devpol_infrastructure_ranking" = "Development Policy Ranking: Infrastructure (PP03r)",
+  "devpol_forest_ranking"          = "Development Policy Ranking: Forest & Land (PP03r)",
+  "devpol_energy_ranking"          = "Development Policy Ranking: Energy Transition (PP03r)",
+  "devpol_assistance_ranking"      = "Development Policy Ranking: Social Assistance (PP03r)",
+  "devpol_human_ranking"           = "Development Policy Ranking: Human Capital (PP03r)"
 )
 
 sample_labels <- c("Full sample", "Attentive only")
@@ -507,6 +717,5 @@ for (s in sample_labels) {
     )
   }
 }
-
 
 ### THE END ###
