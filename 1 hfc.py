@@ -385,3 +385,516 @@ plt.savefig(export_item, format='png', dpi=300, bbox_inches='tight')
 
 # Show the plot
 plt.show()
+
+##### STRAIGHTLINING CHECK #####
+# Straightlining = giving the same answer to every item in a grid (a battery
+# of items that share one response scale). This section measures how common
+# it is, what it relates to, whether it clusters, and how much the published
+# treatment effects depend on respondents who straightlined.
+# Definitions and thresholds were fixed in writing before computing; see
+# "Straightlining check - inventory and definitions v0.2.md" (Cowork folder).
+# Only pandas, numpy and scipy.special are needed here (scipy.stats is avoided
+# because one of its libraries is blocked on some managed machines). The section uses raw survey
+# variables from 'rdf' and does not rely on the recodes made above.
+# Figures in the paper are unweighted, so every rate here is unweighted too.
+
+from scipy import special
+
+## SETTINGS
+sl_seed = 859687378      # same seed as the main analysis
+sl_nperm = 2000          # number of random sets in the clustering test
+speed_main = 0.30        # speeding: page time below 30% of the grid's median
+speed_alt = 0.50         # sensitivity: below 50% of the grid's median
+min_unit_n = 30          # clustering units smaller than this are flagged
+
+# Grids with 5+ items on one response scale (data question numbers)
+# 'rating' grids feed (or could feed) substantive figures; 'binary' grids are
+# used as inconsistency markers because their items are keyed in both
+# directions, so a uniform answer contradicts itself.
+grids = {
+    'CB07': {'items': [f'CB07r{i}' for i in range(1, 7)], 'page': 'pagetimeCB07',
+             'type': 'rating', 'points': 6, 'reverse': 'None',
+             'published': 'Yes (WP Fig. 2; OA Tables OA.2-OA.3)'},
+    'CB08': {'items': [f'CB08r{i}' for i in range(1, 6)], 'page': 'pagetimeCB08',
+             'type': 'rating', 'points': 6, 'reverse': 'None',
+             'published': 'No'},
+    'QDK':  {'items': [f'QDKr{i}' for i in range(1, 14)], 'page': 'pagetimeQDK',
+             'type': 'rating', 'points': 5, 'reverse': 'None (content runs both ways)',
+             'published': 'Yes (WP Figs. 3-4; OA Tables OA.2-OA.3)'},
+    'NP':   {'items': [f'NPr{i}' for i in range(1, 9)], 'page': 'pagetimeNP',
+             'type': 'binary', 'points': 2, 'reverse': 'Yes (autonomy/conformity poles switch sides)',
+             'published': 'No'},
+    'SB':   {'items': [f'SBr{i}' for i in range(1, 14)], 'page': 'pagetimeSB',
+             'type': 'binary', 'points': 2, 'reverse': 'Yes (items 5, 7, 9, 10, 13)',
+             'published': 'Covariate (sdbi) in all regressions'},
+}
+rating_grids = [g for g in grids if grids[g]['type'] == 'rating']
+
+# Social desirability (Marlowe-Crowne short form) keying: items 5, 7, 9, 10, 13
+# are keyed opposite to the other eight
+sb_pos = [5, 7, 9, 10, 13]
+sb_neg = [i for i in range(1, 14) if i not in sb_pos]
+
+# Labels for the answer straightliners gave
+value_labels = {
+    'CB07': {1: 'Strongly disagree', 2: 'Disagree', 3: 'Slightly disagree',
+             4: 'Slightly agree', 5: 'Agree', 6: 'Strongly agree'},
+    'QDK':  {1: 'Strongly oppose', 2: 'Oppose', 3: 'Neither (midpoint)',
+             4: 'Support', 5: 'Strongly support'},
+    'NP':   {1: 'Always left option', 2: 'Always right option'},
+    'SB':   {1: 'Always "true"', 2: 'Always "false"'},
+}
+value_labels['CB08'] = value_labels['CB07']
+
+# Log file: every summary printed below is also written here
+sl_logfile = os.path.join(log, f"straightlining_check_{date}.txt")
+with open(sl_logfile, 'w', encoding='utf-8') as f:
+    f.write(f"STRAIGHTLINING CHECK - data {date} - run {pd.Timestamp.now():%Y-%m-%d %H:%M}\n")
+
+def sl_log(text):
+    """Print a line and append it to the log file."""
+    print(text)
+    with open(sl_logfile, 'a', encoding='utf-8') as f:
+        f.write(str(text) + "\n")
+
+def chi2_p(tab):
+    """Pearson chi-square test of independence (no continuity correction)."""
+    obs = np.asarray(tab, dtype=float)
+    if obs.shape[0] < 2 or obs.shape[1] < 2:
+        return np.nan
+    expected = obs.sum(axis=1, keepdims=True) * obs.sum(axis=0, keepdims=True) / obs.sum()
+    chi2 = ((obs - expected) ** 2 / expected).sum()
+    return special.chdtrc((obs.shape[0] - 1) * (obs.shape[1] - 1), chi2)
+
+def welch_p(a, b):
+    """Two-sided p-value of Welch's t-test for a difference in means."""
+    va, vb = a.var(ddof=1) / len(a), b.var(ddof=1) / len(b)
+    t = (a.mean() - b.mean()) / np.sqrt(va + vb)
+    df = (va + vb) ** 2 / (va ** 2 / (len(a) - 1) + vb ** 2 / (len(b) - 1))
+    return 2 * special.stdtr(df, -abs(t))
+
+def wilson(k, n, z=1.96):
+    """Wilson 95% confidence interval for a proportion k/n."""
+    if n == 0:
+        return (np.nan, np.nan)
+    p = k / n
+    centre = (p + z**2 / (2 * n)) / (1 + z**2 / n)
+    half = z * np.sqrt(p * (1 - p) / n + z**2 / (4 * n**2)) / (1 + z**2 / n)
+    return (centre - half, centre + half)
+
+## RESPONDENT-LEVEL MEASURES
+sl = pd.DataFrame({'uuid': rdf['uuid']})
+
+for g, spec in grids.items():
+    X = rdf[spec['items']].to_numpy(dtype=float)
+    k = X.shape[1]
+    codes = np.unique(X[~np.isnan(X)])
+    # count how many items carry each answer code, per respondent
+    counts = np.column_stack([(X == c).sum(axis=1) for c in codes])
+    modal_count = counts.max(axis=1)
+    n_valid = (~np.isnan(X)).sum(axis=1)
+    sl[f'{g}_nvalid'] = n_valid
+    # strict: same answer on all k items (no grid has a "don't know" code and
+    # no answers are missing, so the "don't know included" definition is the
+    # same as strict in this survey)
+    sl[f'{g}_strict'] = (modal_count == k) & (n_valid == k)
+    # all but one: the most common answer covers at least k-1 items
+    sl[f'{g}_abo'] = modal_count >= k - 1
+    sl[f'{g}_abo_exact'] = modal_count == k - 1
+    sl[f'{g}_modalshare'] = modal_count / k
+    sl[f'{g}_ms80'] = sl[f'{g}_modalshare'] >= 0.8
+    # the answer given, recorded for strict straightliners only
+    sl[f'{g}_slvalue'] = np.where(sl[f'{g}_strict'], X[:, 0], np.nan)
+    if spec['type'] == 'rating':
+        sl[f'{g}_sd'] = np.nanstd(X, axis=1, ddof=1)
+        sl[f'{g}_sd05'] = sl[f'{g}_sd'] <= 0.5
+    # speeding on this grid's page, relative to the grid's median page time
+    page = rdf[spec['page']].astype(float)
+    sl[f'{g}_speed30'] = page < speed_main * page.median()
+    sl[f'{g}_speed50'] = page < speed_alt * page.median()
+
+# Social desirability: share of opposite-keyed item pairs answered the same
+# way (1 = every pair answered alike, i.e. no attention to keying)
+n_true_neg = (rdf[[f'SBr{i}' for i in sb_neg]] == 1).sum(axis=1)
+n_true_pos = (rdf[[f'SBr{i}' for i in sb_pos]] == 1).sum(axis=1)
+sl['SB_sameside'] = (n_true_neg * n_true_pos
+                     + (len(sb_neg) - n_true_neg) * (len(sb_pos) - n_true_pos)) / (len(sb_neg) * len(sb_pos))
+
+# Inconsistency markers (uniform answers on the two bidirectional grids)
+sl['SB_incons'] = sl['SB_strict']
+sl['NP_incons'] = sl['NP_strict']
+sl['any_incons'] = sl['SB_incons'] | sl['NP_incons']
+
+# Number of grids straightlined per respondent
+sl['n_rating_strict'] = sl[[f'{g}_strict' for g in rating_grids]].sum(axis=1)
+sl['n_rating_abo'] = sl[[f'{g}_abo' for g in rating_grids]].sum(axis=1)
+sl['n_all_strict'] = sl[[f'{g}_strict' for g in grids]].sum(axis=1)
+sl['any_rating_strict'] = sl['n_rating_strict'] > 0
+
+# Whole-survey speeding (the vendor already removed completes under 12 minutes)
+sl['loi_p10'] = rdf['LOI'] < rdf['LOI'].quantile(0.10)
+sl['loi_p25'] = rdf['LOI'] < rdf['LOI'].quantile(0.25)
+
+# Attention check: correct reading of the stimulus's main message (CB01),
+# treatment arms 1-5 only; the control arm has no such question (left missing)
+correct_code = {'A': [1], 'B': [1], 'C': [1], 'D': [2, 3], 'E': [1]}
+sl['fail_cb01'] = np.nan
+for arm, letter in enumerate(['A', 'B', 'C', 'D', 'E'], start=1):
+    inarm = rdf['lfCB'] == arm
+    sl.loc[inarm, 'fail_cb01'] = (~rdf.loc[inarm, f'CB01{letter}'].isin(correct_code[letter])).astype(float)
+
+# Background characteristics (same age bands as the quota check above)
+sl['age_group'] = pd.cut(rdf['ID04'], bins=[17, 25, 30, 40, 64],
+                         labels=['18-25', '26-30', '31-40', '41-64']).astype(str)
+sl['gender'] = rdf['ID03'].map({1: 'Male', 2: 'Female'})   # 7 'other/refused' left missing
+sl['education'] = np.where(rdf['ID06'] == 5, 'Tertiary', 'Senior secondary or less')
+
+# Clustering units (no device, panel source or recruitment channel in the data)
+start = pd.to_datetime(rdf['start_date'])
+sl['fw_day'] = start.dt.strftime('%Y-%m-%d')
+sl['time_block'] = pd.cut(start.dt.hour, bins=[-1, 5, 11, 17, 23],
+                          labels=['00-06', '06-12', '12-18', '18-24']).astype(str)
+sl['day_block'] = sl['fw_day'] + ' ' + sl['time_block']
+sl['arm'] = rdf['lfCB'].astype(int).astype(str)
+sl['conjoint_version'] = rdf['Conjoint_Version'].astype(int).astype(str)   # randomised: placebo unit
+
+N = len(sl)
+sl_log("######################")
+sl_log(f"Straightlining check: n = {N}")
+
+## TABLE: RATES BY GRID AND DEFINITION (with chance baseline)
+def chance_strict(g):
+    """Expected strict-straightlining rate if each item were answered
+    independently, drawing from that item's observed answer distribution."""
+    X = rdf[grids[g]['items']]
+    codes = np.unique(X.to_numpy()[~np.isnan(X.to_numpy())])
+    shares = np.array([[(X[c] == v).mean() for c in X.columns] for v in codes])
+    return shares.prod(axis=1).sum()
+
+definitions = {'strict': 'Strict straightline (main)',
+               'abo': 'All but one (modal answer on >= k-1 items)',
+               'abo_exact': 'Exactly k-1 items on the modal answer',
+               'ms80': 'Modal share >= 0.8',
+               'sd05': 'Battery SD <= 0.5 (rating grids only)'}
+rows = []
+for g, spec in grids.items():
+    for d, dlab in definitions.items():
+        col = f'{g}_{d}'
+        if col not in sl:
+            continue
+        kk = int(sl[col].sum())
+        lo, hi = wilson(kk, N)
+        rows.append({'grid': g, 'items': len(spec['items']), 'definition': d,
+                     'definition_label': dlab, 'n': N, 'count': kk,
+                     'rate': kk / N, 'ci95_low': lo, 'ci95_high': hi,
+                     'chance_rate': chance_strict(g) if d == 'strict' else np.nan})
+t_rates = pd.DataFrame(rows)
+t_rates['ratio_to_chance'] = t_rates['rate'] / t_rates['chance_rate']
+
+## TABLE: GRID FEATURES (length, scale, reverse items) next to the rates
+t_grids = pd.DataFrame([{
+    'grid': g, 'items': len(s['items']), 'scale_points': s['points'], 'type': s['type'],
+    'reverse_worded_items': s['reverse'], 'published': s['published'],
+    'strict_rate': sl[f'{g}_strict'].mean(), 'chance_strict_rate': chance_strict(g),
+    'abo_rate': sl[f'{g}_abo'].mean(), 'mean_modal_share': sl[f'{g}_modalshare'].mean(),
+    'median_page_seconds': rdf[s['page']].median(),
+    'median_seconds_per_item': rdf[s['page']].median() / len(s['items'])}
+    for g, s in grids.items()])
+
+sl_log("Strict straightlining by grid (rate; chance rate):")
+for _, r in t_grids.iterrows():
+    sl_log(f"  {r['grid']:5s} k={r['items']:2d}  strict={r['strict_rate']:.3f}  "
+           f"chance={r['chance_strict_rate']:.4f}  all-but-one={r['abo_rate']:.3f}")
+
+## TABLE: WHICH ANSWER STRAIGHTLINERS GAVE
+rows = []
+for g in grids:
+    v = sl.loc[sl[f'{g}_strict'], f'{g}_slvalue'].value_counts().sort_index()
+    for val, cnt in v.items():
+        rows.append({'grid': g, 'answer_code': int(val),
+                     'answer_label': value_labels[g].get(int(val), ''),
+                     'count': int(cnt), 'share_of_straightliners': cnt / v.sum(),
+                     'share_of_sample': cnt / N})
+t_values = pd.DataFrame(rows)
+
+## TABLE: HOW MANY GRIDS EACH RESPONDENT STRAIGHTLINED
+t_count = pd.concat([
+    sl['n_rating_strict'].value_counts().sort_index().rename('count').to_frame()
+      .assign(measure='Rating grids strict-straightlined (of 3)'),
+    sl['n_rating_abo'].value_counts().sort_index().rename('count').to_frame()
+      .assign(measure='Rating grids all-but-one (of 3)'),
+    sl['n_all_strict'].value_counts().sort_index().rename('count').to_frame()
+      .assign(measure='All grids strict-straightlined (of 5)'),
+]).rename_axis('number_of_grids').reset_index()
+t_count['share'] = t_count['count'] / N
+t_count = t_count[['measure', 'number_of_grids', 'count', 'share']]
+
+sl_log(f"Any rating grid strict-straightlined: {sl['any_rating_strict'].mean():.3f}; "
+       f"SB or NP inconsistent: {sl['any_incons'].mean():.3f}")
+
+## TABLE: CORRELATES
+# For each grid and definition, the straightlining rate within each level of
+# a correlate, with a chi-square test of independence.
+def correlate_rows(flag, group, grid, dlab, cname):
+    df = pd.DataFrame({'f': sl[flag], 'g': group}).dropna()
+    out = []
+    p = chi2_p(pd.crosstab(df['g'], df['f']))
+    for lev, sub in df.groupby('g'):
+        out.append({'grid': grid, 'definition': dlab, 'correlate': cname,
+                    'level': str(lev), 'n': len(sub), 'rate': sub['f'].mean(),
+                    'chi2_p': p})
+    return out
+
+rows = []
+for g in grids:
+    for d in ['strict', 'abo']:
+        flag = f'{g}_{d}'
+        corr = {
+            'Speeding on this grid (<30% of median page time)': sl[f'{g}_speed30'],
+            'Speeding on this grid (<50% of median) [sensitivity]': sl[f'{g}_speed50'],
+            'Whole survey: LOI bottom decile': sl['loi_p10'],
+            'Whole survey: LOI bottom quartile [sensitivity]': sl['loi_p25'],
+            'Failed CB01 message check (arms 1-5)': sl['fail_cb01'],
+            'Age group': sl['age_group'],
+            'Gender': sl['gender'],
+            'Education': sl['education'],
+        }
+        if grids[g]['type'] == 'rating':
+            corr['SB or NP inconsistent'] = sl['any_incons']
+        for cname, grp in corr.items():
+            rows += correlate_rows(flag, grp, g, d, cname)
+t_corr = pd.DataFrame(rows)
+
+# Continuous check: social-desirability same-side share by straightlining
+rows = []
+for g in rating_grids:
+    for d in ['strict', 'abo']:
+        a = sl.loc[sl[f'{g}_{d}'], 'SB_sameside']
+        b = sl.loc[~sl[f'{g}_{d}'], 'SB_sameside']
+        rows.append({'grid': g, 'definition': d, 'mean_SB_sameside_straightliners': a.mean(),
+                     'mean_SB_sameside_others': b.mean(), 'difference': a.mean() - b.mean(),
+                     'welch_t_p': welch_p(a, b)})
+t_sbcont = pd.DataFrame(rows)
+
+## TABLE: CLUSTERING (random-set test)
+# For each unit (e.g. a fieldwork day) we compare its straightlining rate with
+# the rates of 2,000 random sets of respondents of the same size drawn from
+# the whole sample. Drawing a random set of n people from N and counting the
+# straightliners is a hypergeometric draw, so we simulate it directly.
+# p = share of random sets at least as far from the overall rate as the unit.
+# Holm correction within each grid x definition x unit type.
+rng = np.random.default_rng(sl_seed)
+unit_types = {'Fieldwork day': 'fw_day',
+              'Start-time block (platform clock) [sensitivity]': 'time_block',
+              'Day x time block [sensitivity]': 'day_block',
+              'Treatment arm': 'arm',
+              'Conjoint version (randomised placebo)': 'conjoint_version'}
+
+def holm(pvals):
+    """Holm step-down adjustment of a list of p-values."""
+    p = np.asarray(pvals, dtype=float)
+    order = np.argsort(p)
+    adj = np.empty_like(p)
+    running = 0
+    for rank, idx in enumerate(order):
+        running = max(running, min(1, (len(p) - rank) * p[idx]))
+        adj[idx] = running
+    return adj
+
+rows = []
+for g in grids:
+    for d in ['strict', 'abo']:
+        f = sl[f'{g}_{d}'].astype(int)
+        K = int(f.sum())
+        overall = K / N
+        for utype, ucol in unit_types.items():
+            block = []
+            for unit, sub in f.groupby(sl[ucol]):
+                n_u = len(sub)
+                obs = sub.mean()
+                sims = rng.hypergeometric(K, N - K, n_u, size=sl_nperm) / n_u
+                extreme = (np.abs(sims - overall) >= abs(obs - overall) - 1e-12).sum()
+                block.append({'grid': g, 'definition': d, 'unit_type': utype,
+                              'unit': unit, 'n': n_u, 'rate': obs,
+                              'overall_rate': overall,
+                              'random_set_p05': np.quantile(sims, 0.025),
+                              'random_set_p95': np.quantile(sims, 0.975),
+                              'perm_p': (extreme + 1) / (sl_nperm + 1),
+                              'small_unit': n_u < min_unit_n})
+            adj = holm([b['perm_p'] for b in block])
+            for b, a in zip(block, adj):
+                b['perm_p_holm'] = a
+            rows += block
+t_clust = pd.DataFrame(rows)
+
+## TABLE: STRAIGHTLINING BY TREATMENT ARM
+# Rating grids CB07, CB08 and QDK come after the stimulus, so a difference
+# between arms would mean the stimulus changed who straightlines. That matters
+# for the sensitivity check below: dropping straightliners would then break
+# the comparability that random assignment provides.
+rows = []
+for g in grids:
+    for d in ['strict', 'abo']:
+        p = chi2_p(pd.crosstab(sl['arm'], sl[f'{g}_{d}']))
+        rates = sl.groupby('arm')[f'{g}_{d}'].mean()
+        row = {'grid': g, 'definition': d, 'chi2_p_across_arms': p}
+        for a, r in rates.items():
+            row[f'rate_arm{a}'] = r
+        rows.append(row)
+t_arm = pd.DataFrame(rows)
+
+sl_log("Straightlining by arm (chi-square p, strict):")
+for _, r in t_arm[t_arm['definition'] == 'strict'].iterrows():
+    sl_log(f"  {r['grid']:5s} p = {r['chi2_p_across_arms']:.3f}")
+
+## SENSITIVITY OF PUBLISHED TREATMENT EFFECTS
+# Re-estimates Model 1 of the paper (OLS, robust SE, no covariates; arm 4 is
+# not analysed) for each outcome from a published grid, in the full sample and
+# after excluding groups of respondents. Model 2 (lasso-selected covariates)
+# and Westfall-Young p-values are not reproduced. The shifts show how much a
+# figure depends on these respondents; they are not corrections.
+def ols_robust(y, arms_in, treat_arms):
+    """OLS of y on arm dummies with Stata-style robust (HC1) standard errors."""
+    X = np.column_stack([np.ones(len(y))] + [(arms_in == a).astype(float) for a in treat_arms])
+    XtX_inv = np.linalg.inv(X.T @ X)
+    beta = XtX_inv @ X.T @ y
+    e = y - X @ beta
+    n, k = X.shape
+    V = XtX_inv @ (X.T * e**2) @ X @ XtX_inv * n / (n - k)
+    se = np.sqrt(np.diag(V))
+    p = 2 * special.stdtr(n - k, -np.abs(beta / se))
+    return beta[1:], se[1:], p[1:], n
+
+# Outcome-to-arm pairings as pre-registered and coded in "4a main analysis.do"
+pairings = {
+    'CB07': {1: [1, 2, 5], 2: [2, 3], 3: [2], 4: [1, 5], 5: [1, 5], 6: [1, 5]},
+    'QDK':  {1: [1, 2, 5], 2: [1, 3, 5], 3: [2, 3], 4: [1, 2, 3], 5: [1, 3],
+             6: [1, 5], 7: [1, 5], 8: [1, 2], 9: [2, 3], 10: [1, 5],
+             11: [1, 2], 12: [2, 3], 13: [2, 3]},
+}
+binary_rule = {'CB07': (5, 6), 'QDK': (4, 5)}    # "agree" / "support" as in the paper
+binary_name = {'CB07': 'agree', 'QDK': 'support'}
+
+samples = {
+    'Full sample': lambda g: pd.Series(True, index=sl.index),
+    'Excl. this grid strict straightliners': lambda g: ~sl[f'{g}_strict'],
+    'Excl. this grid all-but-one [sensitivity]': lambda g: ~sl[f'{g}_abo'],
+    'Excl. any rating-grid strict straightliner': lambda g: ~sl['any_rating_strict'],
+    'Excl. SB- or NP-inconsistent': lambda g: ~sl['any_incons'],
+    'Excl. this grid strict straightliners who also sped': lambda g: ~(sl[f'{g}_strict'] & sl[f'{g}_speed30']),
+}
+
+rows = []
+ctrl_rows = []
+arm_num = rdf['lfCB'].astype(int).to_numpy()
+for g, pairs in pairings.items():
+    lo_b, hi_b = binary_rule[g]
+    for i, tarms in pairs.items():
+        raw_y = rdf[f'{g}r{i}'].astype(float).to_numpy()
+        for form in ['binary', 'likert']:
+            y_all = ((raw_y >= lo_b) & (raw_y <= hi_b)).astype(float) if form == 'binary' else raw_y
+            outcome = f'{binary_name[g]}{i}' if form == 'binary' else f'{g}r{i}'
+            base = np.isin(arm_num, tarms + [6])     # control + paired arms only
+            full_coef = {}
+            for sname, sfun in samples.items():
+                keep = base & sfun(g).to_numpy()
+                b, se, p, n = ols_robust(y_all[keep], arm_num[keep], tarms)
+                for a, bb, ss, pp in zip(tarms, b, se, p):
+                    if sname == 'Full sample':
+                        full_coef[a] = bb
+                    rows.append({'grid': g, 'outcome': outcome, 'form': form,
+                                 'arm': a, 'sample': sname, 'n': n, 'coef': bb,
+                                 'se': ss, 'p': pp, 'shift_vs_full': bb - full_coef[a]})
+                ctrl = keep & (arm_num == 6)
+                ctrl_rows.append({'grid': g, 'outcome': outcome, 'form': form,
+                                  'sample': sname, 'n_control': int(ctrl.sum()),
+                                  'control_mean': y_all[ctrl].mean()})
+t_eff = pd.DataFrame(rows)
+t_eff['flag_shift'] = np.where(t_eff['form'] == 'binary',
+                               t_eff['shift_vs_full'].abs() >= 0.02,
+                               t_eff['shift_vs_full'].abs() >= 0.10)
+t_eff['sig_full_p05'] = t_eff.groupby(['outcome', 'form', 'arm'])['p'].transform(lambda s: s.iloc[0] < 0.05)
+t_eff['sig_here_p05'] = t_eff['p'] < 0.05
+
+t_ctrl = pd.DataFrame(ctrl_rows)
+t_ctrl['shift_vs_full'] = t_ctrl['control_mean'] - t_ctrl.groupby(['outcome', 'form'])['control_mean'].transform('first')
+
+# Validation: full-sample binary estimates must match the paper's stored Model 1
+t_valid = []
+for g, fname in [('CB07', 'CB07_wyoung_linear_model1_uncond.dta'),
+                 ('QDK', 'DK_wyoung_linear_model1_uncond.dta')]:
+    path = os.path.join(temp, fname)
+    if os.path.exists(path):
+        paper = pd.read_stata(path)[['outcome', 'familyp', 'coef', 'stderr']]
+        paper['arm'] = paper['familyp'].str.replace('treat', '').astype(int)
+        mine = t_eff[(t_eff['grid'] == g) & (t_eff['form'] == 'binary') & (t_eff['sample'] == 'Full sample')]
+        m = mine.merge(paper, on=['outcome', 'arm'], how='left')
+        m['coef_diff'] = m['coef_x'] - m['coef_y']
+        m['se_diff'] = m['se'] - m['stderr']
+        t_valid.append(m[['grid', 'outcome', 'arm', 'coef_x', 'coef_y', 'coef_diff', 'se', 'stderr', 'se_diff']]
+                       .rename(columns={'coef_x': 'coef_here', 'coef_y': 'coef_paper',
+                                        'se': 'se_here', 'stderr': 'se_paper'}))
+t_valid = pd.concat(t_valid) if t_valid else pd.DataFrame()
+if len(t_valid):
+    sl_log(f"Validation vs paper Model 1: max |coef diff| = {t_valid['coef_diff'].abs().max():.2e}, "
+           f"max |SE diff| = {t_valid['se_diff'].abs().max():.2e}")
+
+flagged = t_eff[(t_eff['sample'] != 'Full sample') & t_eff['flag_shift']]
+sl_log(f"Effect estimates shifting by >= 2 pp (binary) or >= 0.1 (Likert): {len(flagged)} "
+       f"of {int((t_eff['sample'] != 'Full sample').sum())} re-estimates")
+sig_change = t_eff[(t_eff['sample'] != 'Full sample') & (t_eff['sig_full_p05'] != t_eff['sig_here_p05'])]
+sl_log(f"Re-estimates crossing p = 0.05 (unadjusted): {len(sig_change)}")
+
+## README AND EXPORT
+readme = pd.DataFrame({'item': [
+    'Purpose', 'Data', 'Weights', 'Definitions', 'Grids',
+    'rates', 'grids', 'answer_given', 'grid_count', 'correlates', 'sb_sameside',
+    'clustering', 'by_arm', 'effects', 'control_means', 'validation',
+    'Caveats', 'Not reproduced', 'Privacy'],
+    'description': [
+    'Straightlining check (same answer on every item of a grid) for the Orwell narrative-testing RCT.',
+    f'raw_{date}.sav, n = {N}. The vendor had already removed completes under 12 minutes.',
+    'None. Published figures are unweighted.',
+    'Fixed before computing in "Straightlining check - inventory and definitions v0.2.md". '
+    'Strict = same answer on all k items; all but one = modal answer on >= k-1 items; modal share = modal count / k; '
+    'battery SD = sample SD of the k answers. No grid has a "don\'t know" code and nothing is missing, so the '
+    '"don\'t know included" definition equals strict.',
+    'Rating grids: CB07 (6 items, 1-6), CB08 (5, 1-6), QDK (13, 1-5); none has reverse-worded items. Binary grids used as '
+    'inconsistency markers: NP (8 forced-choice pairs), SB (13 true/false, Marlowe-Crowne short form, items 5, 7, 9, 10, 13 reverse-keyed).',
+    'Rate per grid and definition, Wilson 95% CI, and the chance rate if items were answered independently.',
+    'Grid features (length, scale, reverse items, publication) next to the rates.',
+    'Which answer strict straightliners gave.',
+    'How many grids each respondent straightlined.',
+    'Straightlining rate by speeding, attention check, age, gender, education and inconsistency, with Pearson chi-square p.',
+    'Social-desirability same-side share (share of opposite-keyed pairs answered alike) for straightliners vs others.',
+    f'Unit rate vs {sl_nperm} random sets of the same size; perm_p two-sided; Holm within grid x definition x unit type. '
+    'Time blocks use the platform clock (time zone not documented).',
+    'Straightlining rate by treatment arm with chi-square p. The rating grids are post-treatment.',
+    'Model 1 re-estimated (OLS, HC1 robust SE, no covariates) for each published CB07 and QDK outcome in six samples; '
+    'flag_shift = |shift| >= 0.02 (binary) or >= 0.10 (Likert).',
+    'Control-arm mean of each outcome in each sample.',
+    'Full-sample binary estimates compared with the paper\'s stored Model 1 estimates (2b temp).',
+    'Straightlining is not proof of bad data: without reverse-worded items a uniform answer may be genuine. '
+    'Excluding respondents on a post-treatment behaviour can bias treatment effects; the shifts are a check, not a correction.',
+    'Model 2 (lasso-selected covariates), ordered logit and Westfall-Young p-values.',
+    'No names, contact details, IP addresses, free text or timestamps in any output.']})
+
+export_item = output + "\\straightlining_check_" + date + ".xlsx"
+with pd.ExcelWriter(export_item, engine='openpyxl') as xw:
+    for name, tab in [('README', readme), ('rates', t_rates), ('grids', t_grids),
+                      ('answer_given', t_values), ('grid_count', t_count),
+                      ('correlates', t_corr), ('sb_sameside', t_sbcont),
+                      ('clustering', t_clust), ('by_arm', t_arm), ('effects', t_eff),
+                      ('control_means', t_ctrl), ('validation', t_valid)]:
+        tab.to_excel(xw, sheet_name=name, index=False)
+
+# Respondent-level flags: respondent ID and flags/measures only
+flag_cols = ['uuid'] + [c for c in sl.columns
+                        if any(c.startswith(g + '_') for g in grids) and not c.endswith('_nvalid')] + \
+            ['any_incons', 'n_rating_strict', 'n_rating_abo', 'n_all_strict',
+             'any_rating_strict', 'loi_p10', 'loi_p25', 'fail_cb01']
+export_item = temp + "\\straightlining_flags_" + date + ".csv"
+sl[flag_cols].to_csv(export_item, index=False)
+
+sl_log(f"Exported: straightlining_check_{date}.xlsx (2c output), straightlining_flags_{date}.csv (2b temp)")
+sl_log("######################")
