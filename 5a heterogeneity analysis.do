@@ -4,8 +4,11 @@
 * ==== PRELIMINARIES ==== *
 * clear environment
 capture log close
-clear all 
+clear all
 set more off
+
+* heterogeneity moderators (set before the estimation loops that loop over them)
+gl hetvars west urban male colgrad nosocast sdbi_high
 
 * ==== PROGRAMS ==== *
 * install once, then turn it off
@@ -35,10 +38,9 @@ pro setupdatagen
 	
 	* heterogeneity analysis variables
 	g west=region==1
-	g colgrad=edlvl==4
+	g colgrad=edlvl==5
 	qui sum sdbi, d
 	g sdbi_high=sdbi>`r(p50)'
-	gl hetvars west urban male colgrad nosocast sdbi_high
 end
 
 *** SETUP DATA FOR DK ANALYSIS
