@@ -898,3 +898,168 @@ sl[flag_cols].to_csv(export_item, index=False)
 
 sl_log(f"Exported: straightlining_check_{date}.xlsx (2c output), straightlining_flags_{date}.csv (2b temp)")
 sl_log("######################")
+
+
+##### RESPONSE-STYLE DIRECTION CHECK #####
+# Could the published treatment effects come from a response style (answering
+# "agree" or "true" whatever the content, i.e. yea-saying) rather than from
+# genuine opinion change? Three checks, written up in "Direction check -
+# Reimagining Development - note v0.2.md" (Cowork folder):
+# 1. Do any pairs of outcome items genuinely contradict each other? In the
+#    control arm, a genuine pair correlates negatively on raw codes, and fewer
+#    respondents agree with both items than chance predicts.
+# 2. Signs of the published effects. More yea-saying raises agreement with
+#    every item, so an effect that LOWERS agreement cannot come from it.
+# 3. Does treatment shift acquiescence on the balanced social desirability
+#    battery (SB)? Per arm, pooled across arms, and jointly.
+# Uses t_eff, ols_robust and sb_pos/sb_neg from the straightlining section.
+
+dc_logfile = os.path.join(log, f"direction_check_{date}.txt")
+with open(dc_logfile, 'w', encoding='utf-8') as f:
+    f.write(f"RESPONSE-STYLE DIRECTION CHECK - data {date} - run {pd.Timestamp.now():%Y-%m-%d %H:%M}\n")
+
+def dc_log(text):
+    """Print a line and append it to the direction-check log file."""
+    print(text)
+    with open(dc_logfile, 'a', encoding='utf-8') as f:
+        f.write(str(text) + "\n")
+
+def ols_hc1(y, X):
+    """OLS with Stata-style robust (HC1) covariance; returns beta, V, residual df."""
+    XtX_inv = np.linalg.inv(X.T @ X)
+    beta = XtX_inv @ X.T @ y
+    e = y - X @ beta
+    n, k = X.shape
+    V = XtX_inv @ (X.T * e**2) @ X @ XtX_inv * n / (n - k)
+    return beta, V, n - k
+
+def wald_f(beta, V, idx, df):
+    """Robust Wald F-test that the coefficients in positions idx are all zero."""
+    b = beta[idx]
+    F = b @ np.linalg.inv(V[np.ix_(idx, idx)]) @ b / len(idx)
+    return F, special.fdtrc(len(idx), df, F)
+
+def dummies(arm_values, levels):
+    """Constant plus one indicator per level in 'levels' (others are the reference)."""
+    return np.column_stack([np.ones(len(arm_values))] + [(arm_values == a).astype(float) for a in levels])
+
+arm_all = rdf['lfCB'].astype(int).to_numpy()
+dc_log("######################")
+
+## 1. CANDIDATE OPPOSITE PAIRS (control arm, raw codes)
+# "agree" = 4 or higher: slightly agree or more on the 1-6 scales (CB07, CB08),
+# big role / support on the 1-5 scales (CB11, QDK)
+pairs = [
+    ('CB07r4', 'CB07r6', 'wealth gaps natural vs govt choices decide who holds power'),
+    ('CB07r4', 'CB07r5', 'wealth gaps natural vs laws decide chances of success'),
+    ('CB07r2', 'CB07r3', "govt may relocate people vs citizens shouldn't just accept govt"),
+    ('CB08r1', 'CB08r4', 'govt as ruler (penguasa) vs steward (pengurus)'),
+    ('CB08r1', 'CB08r5', 'govt as ruler vs referee (wasit)'),
+    ('QDKr13', 'QDKr3', 'forest clearing for infrastructure vs green tech budget'),
+    ('QDKr12', 'QDKr2', 'forest clearing for settlement vs green transport budget'),
+    ('QDKr11', 'QDKr9', 'forest clearing incl. biofuel vs industry green subsidy'),
+    ('CB11r1', 'CB11r4', 'laws matter for economy vs fate matters'),
+]
+ctl = rdf[rdf['lfCB'] == 6]
+rows = []
+for a, b, label in pairs:
+    xa, xb = ctl[a].astype(float), ctl[b].astype(float)
+    agree_a, agree_b = xa >= 4, xb >= 4
+    rows.append({'item_a': a, 'item_b': b, 'content': label, 'n_control': len(ctl),
+                 'raw_r': np.corrcoef(xa, xb)[0, 1],
+                 'agree_both': (agree_a & agree_b).mean(),
+                 'agree_both_if_independent': agree_a.mean() * agree_b.mean()})
+t_pairs = pd.DataFrame(rows)
+t_pairs['genuine_opposites'] = t_pairs['raw_r'] < 0
+dc_log(f"Opposite-pair check: {int(t_pairs['genuine_opposites'].sum())} of {len(t_pairs)} candidate pairs "
+       f"correlate negatively (raw r from {t_pairs['raw_r'].min():+.2f} to {t_pairs['raw_r'].max():+.2f})")
+
+## 2. SIGNS OF THE PUBLISHED EFFECTS (Model 1, Likert form, full sample)
+eff = t_eff[(t_eff['sample'] == 'Full sample') & (t_eff['form'] == 'likert')].copy()
+eff['significant'] = eff['p'] < 0.05
+eff['direction'] = np.where(eff['coef'] < 0, 'lowers agreement', 'raises agreement')
+t_signs = (eff[eff['significant']].groupby(['grid', 'direction']).size()
+           .unstack(fill_value=0).reset_index())
+t_signs_arm = (eff[eff['significant']].groupby(['arm', 'direction']).size()
+               .unstack(fill_value=0).reset_index())
+n_sig, n_low = int(eff['significant'].sum()), int((eff['significant'] & (eff['coef'] < 0)).sum())
+dc_log(f"Published effects: {n_sig} of {len(eff)} significant (p < .05); {n_low} lower agreement, "
+       f"{n_sig - n_low} raise it")
+
+# Average of CB07d and CB07f, arms 1 and 5 vs control: genuine persuasion
+# moves the two items in opposite directions and leaves the average flat
+keep = np.isin(arm_all, [1, 5, 6])
+y_avg = ((rdf['CB07r4'] + rdf['CB07r6']) / 2).astype(float).to_numpy()[keep]
+b, se, p, n = ols_robust(y_avg, arm_all[keep], [1, 5])
+t_pairavg = pd.DataFrame({'arm': [1, 5], 'effect_on_average': b, 'se': se, 'p': p, 'n': n})
+
+## 3. ACQUIESCENCE ON THE BALANCED SOCIAL DESIRABILITY BATTERY
+# ACQ = average of the share answering "true" (code 1) on the 5 true-keyed
+# items and on the 8 false-keyed items, so it is balanced across keying
+endorse = (rdf[[f'SBr{i}' for i in range(1, 14)]] == 1).astype(float)
+acq = ((endorse[[f'SBr{i}' for i in sb_pos]].mean(axis=1)
+        + endorse[[f'SBr{i}' for i in sb_neg]].mean(axis=1)) / 2).to_numpy()
+acq_sd = acq.std(ddof=1)
+
+# per arm (control = arm 6)
+beta, V, df = ols_hc1(acq, dummies(arm_all, [1, 2, 3, 4, 5]))
+se = np.sqrt(np.diag(V))
+t_acq_arm = pd.DataFrame({
+    'arm': [1, 2, 3, 4, 5], 'effect': beta[1:], 'se': se[1:],
+    'p': 2 * special.stdtr(df, -np.abs(beta[1:] / se[1:])),
+    'effect_sd': beta[1:] / acq_sd,
+    'ci95_low_sd': (beta[1:] - 1.96 * se[1:]) / acq_sd,
+    'ci95_high_sd': (beta[1:] + 1.96 * se[1:]) / acq_sd})
+
+# pooled and joint, for the four arms analysed in the paper and for all five
+# fielded arms. Per-arm and joint tests have little power against a shift
+# common to every arm; pooling all treated arms targets that case.
+rows = []
+for label, arms in [('Arms 1, 2, 3, 5 (analysed in the paper)', [1, 2, 3, 5]),
+                    ('All five fielded arms', [1, 2, 3, 4, 5])]:
+    keep = np.isin(arm_all, arms + [6])
+    y, a = acq[keep], arm_all[keep]
+    treated = (a != 6).astype(float)
+    bp, Vp, dfp = ols_hc1(y, np.column_stack([np.ones(len(y)), treated]))
+    sep = np.sqrt(Vp[1, 1])
+    bj, Vj, dfj = ols_hc1(y, dummies(a, arms))
+    Fj, pj = wald_f(bj, Vj, list(range(1, len(arms) + 1)), dfj)
+    yt, at = y[treated == 1], a[treated == 1]
+    be, Ve, dfe = ols_hc1(yt, dummies(at, arms[1:]))
+    Fe, pe = wald_f(be, Ve, list(range(1, len(arms))), dfe)
+    rows.append({'arms': label, 'n': int(keep.sum()), 'n_treated': int(treated.sum()),
+                 'n_control': int((treated == 0).sum()),
+                 'pooled_pp_more_true': 100 * bp[1],
+                 'pooled_ci95_low_pp': 100 * (bp[1] - 1.96 * sep),
+                 'pooled_ci95_high_pp': 100 * (bp[1] + 1.96 * sep),
+                 'pooled_sd': bp[1] / acq_sd,
+                 'pooled_ci95_low_sd': (bp[1] - 1.96 * sep) / acq_sd,
+                 'pooled_ci95_high_sd': (bp[1] + 1.96 * sep) / acq_sd,
+                 'pooled_p': 2 * special.stdtr(dfp, -abs(bp[1] / sep)),
+                 'joint_F': Fj, 'joint_df1': len(arms), 'joint_df2': dfj, 'joint_p': pj,
+                 'equality_among_treated_p': pe})
+t_acq_pool = pd.DataFrame(rows)
+for _, r in t_acq_pool.iterrows():
+    dc_log(f"Acquiescence, {r['arms']}: pooled {r['pooled_pp_more_true']:+.2f} pp more 'true' "
+           f"({r['pooled_sd']:+.3f} SD), p = {r['pooled_p']:.3f}; joint p = {r['joint_p']:.3f}; "
+           f"equality among treated p = {r['equality_among_treated_p']:.3f}")
+
+## EXPORT
+readme = pd.DataFrame({'sheet': [
+    'pairs', 'effect_signs', 'effect_signs_by_arm', 'pair_average', 'acq_by_arm', 'acq_pooled_joint', 'notes'],
+    'description': [
+    'Candidate opposite item pairs, control arm, raw codes. Genuine opposites should have raw_r < 0 and agree_both below the independence benchmark.',
+    'Significant (p < .05) published Model 1 effects (Likert form, from the straightlining check) by grid and direction. More yea-saying cannot lower agreement.',
+    'The same, by treatment arm (fielded numbering; the paper labels arm 5 "Treatment 4").',
+    'Effect on the average of CB07d and CB07f, arms 1 and 5 vs control (OLS, HC1). Flat = consistent with genuine persuasion.',
+    f'Effect of each arm on SB acquiescence (share answering "true", balanced across keying), HC1; SD = {acq_sd:.3f}, control mean = {acq[arm_all == 6].mean():.3f}.',
+    'All treated arms pooled vs control, the joint test that each arm equals control, and equality among treated arms (HC1 Wald F).',
+    'Diagnostic only: no treatment effect is re-estimated here and no respondent is dropped.']})
+export_item = output + "\\direction_check_" + date + ".xlsx"
+with pd.ExcelWriter(export_item, engine='openpyxl') as xw:
+    for name, tab in [('README', readme), ('pairs', t_pairs), ('effect_signs', t_signs),
+                      ('effect_signs_by_arm', t_signs_arm), ('pair_average', t_pairavg),
+                      ('acq_by_arm', t_acq_arm), ('acq_pooled_joint', t_acq_pool)]:
+        tab.to_excel(xw, sheet_name=name, index=False)
+dc_log(f"Exported: direction_check_{date}.xlsx (2c output)")
+dc_log("######################")
